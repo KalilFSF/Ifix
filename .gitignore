@@ -1,0 +1,24 @@
+# Ambiente virtual Python (cada dev cria o seu com `python -m venv venv`)
+venv/
+.venv/
+
+# Cache/bytecode do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco de dados local (SQLite) — cada dev tem o seu, criado automaticamente
+# ao rodar `python app.py`
+backend/database/*.db
+
+# Uploads de usuário (fotos de perfil, diplomas) — conteúdo gerado em
+# runtime, não faz parte do código. As pastas são recriadas sozinhas
+# quando o app.py roda (ver os.makedirs em backend/app.py).
+frontend/uploads/*
+
+# Configurações locais do Claude Code (específicas da máquina, não do time)
+.claude/settings.local.json
+
+# Sistema operacional / editor
+.DS_Store
+Thumbs.db
