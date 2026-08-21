@@ -400,6 +400,12 @@ a.secondary-btn {
     color: #22c55e;
 }
 
+.mensagem-aviso {
+    background: rgba(245, 158, 11, .12);
+    border: 1px solid #f59e0b;
+    color: #f59e0b;
+}
+
 .mensagem a {
     color: inherit;
     font-weight: 700;

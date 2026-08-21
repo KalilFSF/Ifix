@@ -38,3 +38,5 @@ form.addEventListener("submit", async (evento) => {
 
     window.location.href = dados.redirect;
 });
+
+avisarSeSemLocalizacao("avisoLocalizacao");

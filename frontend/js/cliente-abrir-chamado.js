@@ -254,6 +254,7 @@ document.getElementById("preco_estimado").addEventListener("input", (evento) => 
     iniciarSidebarMobile();
     iniciarChoiceCards();
     iniciarUpload();
+    avisarSeSemLocalizacao("avisoLocalizacao");
 
     const dados = await iniciarRoleChips("cliente");
     if (!dados) return;
