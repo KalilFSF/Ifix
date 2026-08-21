@@ -8,7 +8,7 @@ from constants import (
     STATUS_ABERTO,
     TIPOS_EQUIPAMENTO,
 )
-from exceptions import ValidacaoError
+from exceptions import PermissaoNegadaError, ValidacaoError
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import FotoServico, Servico
 from modules.servicos.services.selecionar_tecnicos_service import SelecionarTecnicosService
@@ -22,6 +22,12 @@ class CriarServicoService:
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
 
     def executar(self, dados, cliente, fotos=None):
+        if cliente.suspenso:
+            raise PermissaoNegadaError(
+                "Sua conta está suspensa por avaliações de comportamento negativas. "
+                "Entre em contato com o suporte."
+            )
+
         dados_limpos = self._validar_dados(dados, cliente)
         arquivos = self._validar_fotos(fotos or [])
 

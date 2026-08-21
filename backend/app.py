@@ -113,6 +113,8 @@ def _garantir_colunas_novas():
         "usuarios": [
             ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
             ("longitude", "ALTER TABLE usuarios ADD COLUMN longitude FLOAT"),
+            ("alertas_comportamento", "ALTER TABLE usuarios ADD COLUMN alertas_comportamento INTEGER NOT NULL DEFAULT 0"),
+            ("suspenso", "ALTER TABLE usuarios ADD COLUMN suspenso BOOLEAN NOT NULL DEFAULT FALSE"),
         ],
         "perfis_tecnicos": [
             ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),
@@ -126,6 +128,8 @@ def _garantir_colunas_novas():
             ("nota_tempo", "ALTER TABLE avaliacoes ADD COLUMN nota_tempo INTEGER"),
             ("nota_honestidade", "ALTER TABLE avaliacoes ADD COLUMN nota_honestidade INTEGER"),
             ("nota_preco_justo", "ALTER TABLE avaliacoes ADD COLUMN nota_preco_justo INTEGER"),
+            ("nota_comportamento", "ALTER TABLE avaliacoes ADD COLUMN nota_comportamento INTEGER"),
+            ("nota_colaboracao", "ALTER TABLE avaliacoes ADD COLUMN nota_colaboracao INTEGER"),
         ],
     }
 

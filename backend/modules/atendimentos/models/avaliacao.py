@@ -7,12 +7,17 @@ from utils import isoformat_utc
 class Avaliacao(db.Model):
     """Avaliação mútua (nota + comentário opcional) entre cliente e técnico
     de um chamado finalizado — cada um avalia o outro uma única vez por
-    chamado (uq_avaliacao_servico_autor). `nota` é a nota geral, calculada
-    como a média dos três critérios (tempo, honestidade, preço justo) — é
-    ela que, quando o avaliado é o técnico, alimenta
-    PerfilTecnico.nota_media (ver AvaliarService), usado pelo ranking em
-    SelecionarTecnicosService. Os critérios em si ficam nullable porque
-    avaliações antigas (de antes desse detalhamento) não os têm."""
+    chamado (uq_avaliacao_servico_autor). Os critérios são diferentes pra
+    cada direção (não faz sentido pedir "preço justo" pro técnico avaliar
+    o cliente): quando o autor é o CLIENTE avaliando o técnico, preenche
+    nota_tempo/nota_honestidade/nota_preco_justo; quando o autor é o
+    TÉCNICO avaliando o cliente, preenche nota_comportamento/
+    nota_colaboracao — os campos do outro conjunto ficam nulos. `nota` é a
+    nota geral, média dos critérios que se aplicam — quando o avaliado é o
+    técnico, alimenta PerfilTecnico.nota_media (ver AvaliarService), usado
+    pelo ranking em SelecionarTecnicosService; quando o avaliado é o
+    cliente, uma nota de comportamento muito baixa pode gerar um alerta
+    (ver Usuario.registrar_alerta_comportamento)."""
 
     __tablename__ = "avaliacoes"
 
@@ -21,9 +26,13 @@ class Avaliacao(db.Model):
     autor_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     avaliado_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     nota = db.Column(db.Integer, nullable=False)
+    # Cliente avaliando o técnico (qualidade do serviço):
     nota_tempo = db.Column(db.Integer)
     nota_honestidade = db.Column(db.Integer)
     nota_preco_justo = db.Column(db.Integer)
+    # Técnico avaliando o cliente (comportamento durante o atendimento):
+    nota_comportamento = db.Column(db.Integer)
+    nota_colaboracao = db.Column(db.Integer)
     comentario = db.Column(db.Text)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -49,7 +58,9 @@ class Avaliacao(db.Model):
     # ============== Finders / operações específicas ==============
 
     @classmethod
-    def criar(cls, servico_id, autor_id, avaliado_id, nota, nota_tempo, nota_honestidade, nota_preco_justo, comentario):
+    def criar(cls, servico_id, autor_id, avaliado_id, nota, comentario,
+              nota_tempo=None, nota_honestidade=None, nota_preco_justo=None,
+              nota_comportamento=None, nota_colaboracao=None):
         return cls(
             servico_id=servico_id,
             autor_id=autor_id,
@@ -58,6 +69,8 @@ class Avaliacao(db.Model):
             nota_tempo=nota_tempo,
             nota_honestidade=nota_honestidade,
             nota_preco_justo=nota_preco_justo,
+            nota_comportamento=nota_comportamento,
+            nota_colaboracao=nota_colaboracao,
             comentario=comentario or None,
         ).salvar()
 
@@ -81,6 +94,8 @@ class Avaliacao(db.Model):
             "nota_tempo": self.nota_tempo,
             "nota_honestidade": self.nota_honestidade,
             "nota_preco_justo": self.nota_preco_justo,
+            "nota_comportamento": self.nota_comportamento,
+            "nota_colaboracao": self.nota_colaboracao,
             "comentario": self.comentario,
             "criado_em": isoformat_utc(self.criado_em),
         }
