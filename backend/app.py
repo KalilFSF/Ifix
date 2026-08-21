@@ -75,6 +75,7 @@ def create_app():
     # já que elas não são versionadas no git (uploads de usuário, banco local).
     os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "perfil"), exist_ok=True)
     os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "diplomas"), exist_ok=True)
+    os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chamados"), exist_ok=True)
     os.makedirs(os.path.join(BACKEND_DIR, "database"), exist_ok=True)
 
     # As Models de todo módulo precisam estar importadas (registradas no
@@ -83,8 +84,36 @@ def create_app():
     # models), então a esta altura já estão todas carregadas.
     with app.app_context():
         db.create_all()
+        _garantir_colunas_servicos()
 
     return app
+
+
+def _garantir_colunas_servicos():
+    """Migration leve sem Alembic: adiciona colunas novas em servicos se o
+    SQLite antigo ainda não as tiver (create_all não altera tabelas existentes)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if "servicos" not in inspector.get_table_names():
+        return
+    colunas = {coluna["name"] for coluna in inspector.get_columns("servicos")}
+    alteracoes = []
+    if "tipo_equipamento" not in colunas:
+        alteracoes.append(
+            "ALTER TABLE servicos ADD COLUMN tipo_equipamento "
+            "VARCHAR(20) NOT NULL DEFAULT 'notebook'"
+        )
+    if "garantia" not in colunas:
+        alteracoes.append(
+            "ALTER TABLE servicos ADD COLUMN garantia "
+            "BOOLEAN NOT NULL DEFAULT 0"
+        )
+    if not alteracoes:
+        return
+    with db.engine.begin() as conn:
+        for sql in alteracoes:
+            conn.execute(text(sql))
 
 
 app = create_app()

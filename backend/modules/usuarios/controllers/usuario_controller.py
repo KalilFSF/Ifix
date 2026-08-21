@@ -25,10 +25,14 @@ class UsuarioController:
             "id": usuario.id,
             "nome": usuario.nome,
             "email": usuario.email,
+            "telefone": usuario.telefone,
+            "cidade": usuario.cidade,
+            "estado": usuario.estado,
             "role": usuario.role,
+            "eh_tecnico": usuario.eh_tecnico,
         }
 
-        if usuario.role == "tecnico" and usuario.perfil_tecnico:
+        if usuario.eh_tecnico and usuario.perfil_tecnico:
             perfil = usuario.perfil_tecnico
             dados.update({
                 "especialidade": perfil.especialidade,
@@ -87,8 +91,8 @@ class UsuarioController:
 
     @login_required
     def tornar_tecnico(self):
-        if current_user.role != "cliente":
-            return jsonify({"ok": False, "erro": "Apenas contas de cliente podem virar técnico."}), 403
+        if current_user.eh_tecnico:
+            return jsonify({"ok": False, "erro": "Esta conta já possui perfil de técnico."}), 403
 
         dados_tecnico = {
             "especialidade": request.form.get("especialidade", "").strip(),

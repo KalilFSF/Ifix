@@ -25,8 +25,7 @@ backend/
 
 Fluxo padrão de uma requisição: `Route → Controller → Service.executar() →
 Model` (CRUD simples) ou `→ Repository → Model` (consulta com JOIN entre
-tabelas). Os materiais de referência da disciplina usados como base para essa
-arquitetura estão em [`arquitetura/`](arquitetura/).
+tabelas).
 
 `frontend/` é HTML/CSS/JavaScript puro (sem framework/build step), servido
 diretamente pelo Flask como estático.
@@ -98,47 +97,42 @@ http://127.0.0.1:5000
 - **Painel do técnico**: solicitações pendentes (aceitar/recusar), lista dos
   próprios chamados com filtro por status e busca, detalhe do chamado com
   barra de progresso animada, atualização de status e histórico.
+- **Abrir chamado** (cliente): formulário com tipo, categoria, modelo, título,
+  descrição e fotos; cria o chamado no backend com status `aberto` e
+  histórico inicial.
 - **Acompanhar chamado** (cliente): lista dos próprios chamados e histórico
   de status, atualizado por polling.
+- **Modos Cliente | Técnico** na mesma conta: técnico continua podendo abrir
+  e acompanhar chamados como cliente.
 - **Conversão de conta cliente → técnico**, com confirmação antes de abrir o
   formulário e checagem de e-mail já cadastrado.
 - Registro de atendimentos (orçamento) ligados a um chamado.
 
-> A abertura de chamado pelo cliente (formulário "Abrir chamado") e a
-> distribuição automática para técnicos (via n8n/IA) ainda não têm UI —
-> ficam para uma etapa futura. Por enquanto, um chamado é criado e ofertado
-> a um técnico diretamente pela API (`POST /api/servicos` e
-> `POST /api/servicos/<id>/solicitar-tecnicos`).
+> A distribuição automática para técnicos (via n8n/IA) ainda não está
+> ligada — fica para uma etapa futura. Por enquanto, o cliente abre o
+> chamado em **Abrir chamado** (`POST /api/servicos`) e a oferta a técnicos
+> pode ser feita pela API (`POST /api/servicos/<id>/solicitar-tecnicos`).
 
 ## Como testar o fluxo pelo navegador
 
 1. Acesse `/cadastro`, escolha **Cliente**, preencha os dados e cadastre.
 2. Faça login com esse cliente e você cai na home (`/cliente/home`).
-3. Abra `/cadastro` de novo, escolha **Técnico** e cadastre outra conta.
-4. Faça login com o técnico — você cai no painel (`/tecnico/home`), que
-   começa vazio (sem chamado nenhum ainda).
-5. Como a abertura de chamado pelo cliente ainda não tem tela, crie um
-   chamado e ofereça a esse técnico diretamente pela API (autenticado como
-   o cliente):
+3. Em **Abrir chamado**, preencha o formulário e envie — o chamado aparece
+   em **Meus chamados** com status `aberto` e histórico inicial.
+4. (Opcional) Cadastre-se como técnico (outra conta ou **Tornar-se técnico**
+   na mesma conta) e, pela API, ofereça o chamado:
 
    ```bash
-   curl -X POST http://127.0.0.1:5000/api/servicos \
-     -H "Content-Type: application/json" \
-     --cookie "session=<cookie do cliente logado>" \
-     -d '{"titulo":"Notebook não liga","descricao":"...","categoria":"Hardware","preco_estimado":300}'
-
    curl -X POST http://127.0.0.1:5000/api/servicos/<id>/solicitar-tecnicos \
      -H "Content-Type: application/json" \
      --cookie "session=<cookie do cliente logado>" \
      -d '{"tecnico_ids":[<id do técnico>]}'
    ```
 
-6. No navegador logado como técnico, o chamado aparece em "Solicitações
-   pendentes" — aceite, avance o status pelas etapas (Aguardando → Em
-   análise → Em reparo → Finalizado) e acompanhe a barra de progresso e o
-   histórico atualizando.
-7. Logado como o cliente em "Meus chamados", a mesma atualização de status
-   aparece (via polling), com o histórico completo.
+5. No painel do técnico (`/tecnico/home`), aceite a solicitação, avance o
+   status e acompanhe o histórico.
+6. Quem é técnico continua podendo abrir `/cliente/home` pelo chip **Cliente**
+   e abrir chamados normalmente na mesma conta.
 
 ## Observações
 

@@ -82,8 +82,8 @@
 
 
 /* ===== Indicador de perfil (Cliente / Técnico) =====
-   Não é um seletor funcional: a conta tem um único papel fixo
-   (ver Usuario.role no backend). É só uma pista visual de identidade. */
+   Alterna modo quando a conta tem os dois perfis; sem perfil técnico,
+   o chip Técnico abre o modal de conversão. */
 
 .role-indicator {
     display: flex;
@@ -1023,6 +1023,14 @@
     font-size: 18px;
 }
 
+.detalhe-garantia {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--primary);
+    font-weight: 600;
+}
+
 /* ===== Stepper "Progresso do serviço" ===== */
 
 .stepper {
@@ -1553,5 +1561,356 @@
 
     .status-choices {
         grid-template-columns: 1fr 1fr;
+    }
+}
+
+
+/* ===== Abrir chamado ===== */
+
+.dash-content-abrir {
+    align-items: center;
+}
+
+.abrir-wrap {
+    width: 100%;
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.voltar-link {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    gap: 6px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color .2s ease;
+}
+
+.voltar-link:hover {
+    color: var(--primary);
+}
+
+.voltar-link .icon-svg {
+    width: 16px;
+    height: 16px;
+}
+
+.abrir-header {
+    margin-bottom: 0;
+}
+
+.abrir-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.abrir-card {
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card, 12px);
+}
+
+.abrir-card-head {
+    margin-bottom: 14px;
+}
+
+.abrir-card-head h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.abrir-card-head p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.choice-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.choice-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 72px;
+    padding: 14px 16px;
+    text-align: left;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border-input);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: inherit;
+    transition:
+        border-color .2s ease,
+        color .2s ease,
+        background .2s ease,
+        transform .2s ease,
+        box-shadow .2s ease;
+}
+
+.choice-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.choice-card .icon-svg {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.choice-card strong {
+    display: block;
+    font-size: 15px;
+    color: inherit;
+}
+
+.choice-card span {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.choice-card.is-selected {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.choice-card.is-selected strong {
+    color: var(--primary);
+}
+
+.abrir-card textarea {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 120px;
+}
+
+.abrir-card textarea:focus,
+.abrir-card input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.abrir-card input[readonly] {
+    opacity: .85;
+    cursor: default;
+}
+
+.garantia-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 4px 2px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.garantia-option input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.garantia-check {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    border: 1.5px solid var(--border-input);
+    border-radius: 6px;
+    background: var(--bg-input);
+    transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    position: relative;
+}
+
+.garantia-check::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 11px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform .15s ease;
+}
+
+.garantia-option input:checked + .garantia-check {
+    background: var(--primary);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.garantia-option input:checked + .garantia-check::after {
+    transform: rotate(45deg) scale(1);
+}
+
+.garantia-option:hover .garantia-check {
+    border-color: var(--primary);
+}
+
+.garantia-texto {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.garantia-texto strong {
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.garantia-texto span {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.upload-zone {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 18px;
+    border: 1.5px dashed var(--border-input);
+    border-radius: 10px;
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+
+.upload-zone:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.upload-zone .icon-svg {
+    width: 20px;
+    height: 20px;
+}
+
+.fotos-preview {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fotos-preview li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.fotos-preview button {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.fotos-preview button:hover {
+    color: var(--primary);
+}
+
+.fotos-detalhe {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fotos-detalhe img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-input);
+}
+
+.dados-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.abrir-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.abrir-actions .primary-btn:disabled {
+    opacity: .65;
+    cursor: wait;
+}
+
+.form-erro {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, #ef4444 15%, transparent);
+    border: 1px solid color-mix(in srgb, #ef4444 40%, transparent);
+    color: #fca5a5;
+    font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .choice-grid,
+    .dados-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .abrir-actions {
+        flex-direction: column-reverse;
+    }
+
+    .abrir-actions .primary-btn,
+    .abrir-actions .secondary-btn {
+        width: 100%;
+        justify-content: center;
     }
 }

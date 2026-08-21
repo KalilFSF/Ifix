@@ -1,7 +1,6 @@
 /* Dashboard do cliente (frontend/pages/cliente-home.html).
    O nome do usuário vem de GET /api/me. Os números de resumo e os
-   "chamados recentes" vêm de GET /api/servicos/meus (autenticado, só os
-   chamados do próprio usuário) — ver buscarChamadosDoUsuario() abaixo. */
+   "chamados recentes" vêm de GET /api/servicos/meus?como=cliente. */
 
 const STATUS_ICONES = {
     andamento: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>',
@@ -17,10 +16,6 @@ const RESUMO_CONFIG = [
 
 const MAX_CHAMADOS_RECENTES = 5;
 
-/* Mapa de status do backend (Servico.status) pro par {resumo, statusClasse}
-   que o resto deste arquivo usa: RESUMO_CONFIG conta em qual dos 3 baldes
-   ("andamento"/"aguardando"/"concluido") cada chamado entra, e statusClasse
-   escolhe a cor do badge (ver .status-* em dashboard.css). */
 const STATUS_INFO = {
     aberto: { balde: "aguardando", rotulo: "Aguardando técnico", classe: "status-aguardando" },
     aguardando: { balde: "aguardando", rotulo: "Aguardando", classe: "status-aguardando" },
@@ -29,10 +24,8 @@ const STATUS_INFO = {
     finalizado: { balde: "concluido", rotulo: "Finalizado", classe: "status-concluido" },
 };
 
-/* Busca o resumo e os chamados recentes do cliente logado, via
-   GET /api/servicos/meus (autenticado, escopado ao próprio usuário). */
 async function buscarChamadosDoUsuario() {
-    const resposta = await fetch("/api/servicos/meus");
+    const resposta = await fetch("/api/servicos/meus?como=cliente");
     if (!resposta.ok) {
         return { resumo: { andamento: 0, aguardando: 0, concluido: 0 }, recentes: [] };
     }
@@ -83,10 +76,10 @@ function renderizarEstadoVazio(container) {
         <div class="chamados-empty">
             <p class="chamados-empty-titulo">Você ainda não possui chamados.</p>
             <p class="chamados-empty-texto">Quando você abrir um chamado, ele aparecerá aqui.</p>
-            <button type="button" class="primary-btn" data-em-breve="abrir-chamado">
+            <a href="/cliente/abrir-chamado" class="primary-btn">
                 ${iconeSvg('<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line>')}
                 Abrir primeiro chamado
-            </button>
+            </a>
         </div>
     `;
 }
@@ -97,7 +90,6 @@ function renderizarChamadosRecentes(chamados) {
 
     if (!chamados.length) {
         renderizarEstadoVazio(container);
-        iniciarNavegacaoStub(container);
         return;
     }
 
@@ -113,47 +105,6 @@ function renderizarChamadosRecentes(chamados) {
             </div>
         </a>
     `).join("");
-
-    iniciarNavegacaoStub(container);
-}
-
-/* Botões/links de navegação para telas ainda não construídas (abrir
-   chamado, meus chamados) ficam "prontos para navegar": o handler central
-   é este toast por enquanto, e vira um simples redirecionamento assim que
-   as páginas existirem — sem precisar mexer em mais nenhum lugar.
-   Recebe um escopo opcional pra poder religar botões inseridos depois do
-   carregamento inicial (ex: o botão do estado vazio). */
-function mostrarToast(mensagem) {
-    const toast = document.getElementById("toast");
-    if (!toast) return;
-
-    toast.textContent = mensagem;
-    toast.classList.remove("hidden");
-
-    requestAnimationFrame(() => toast.classList.add("is-visible"));
-
-    clearTimeout(toast._timeoutId);
-    toast._timeoutId = setTimeout(() => {
-        toast.classList.remove("is-visible");
-        setTimeout(() => toast.classList.add("hidden"), 250);
-    }, 2200);
-}
-
-const MENSAGENS_EM_BREVE = {
-    "abrir-chamado": "A abertura de chamados chega em breve.",
-};
-
-function iniciarNavegacaoStub(escopo) {
-    (escopo || document).querySelectorAll("[data-em-breve]").forEach(elemento => {
-        if (elemento.dataset.stubLigado) return;
-        elemento.dataset.stubLigado = "1";
-
-        elemento.addEventListener("click", (evento) => {
-            evento.preventDefault();
-            const chave = elemento.dataset.emBreve;
-            mostrarToast(MENSAGENS_EM_BREVE[chave] || "Em breve.");
-        });
-    });
 }
 
 function iniciarSidebarMobile() {
@@ -181,39 +132,16 @@ function iniciarSidebarMobile() {
         if (evento.key === "Escape") fechar();
     });
 
-    // Ao navegar por um item da sidebar no mobile, fecha o menu antes.
     sidebar.querySelectorAll(".nav-item").forEach(item => {
         item.addEventListener("click", fechar);
     });
 }
 
-/* Clicar no chip "Técnico" não navega direto pro formulário — primeiro
-   mostra este modal de confirmação; só o botão "Quero me tornar técnico"
-   dentro dele leva pra /cliente/tornar-tecnico. */
-function iniciarModalTornarTecnico() {
-    const chip = document.getElementById("chipTornarTecnico");
-    const overlay = document.getElementById("tornarTecnicoOverlay");
-    const btnFechar = document.getElementById("tornarTecnicoClose");
-    if (!chip || !overlay || !btnFechar) return;
-
-    chip.addEventListener("click", () => overlay.classList.remove("hidden"));
-    btnFechar.addEventListener("click", () => overlay.classList.add("hidden"));
-    overlay.addEventListener("click", (evento) => {
-        if (evento.target === overlay) overlay.classList.add("hidden");
-    });
-}
-
-async function carregarUsuario() {
-    const resposta = await fetch("/api/me");
-
-    if (!resposta.ok) {
-        window.location.href = "/";
-        return;
-    }
-
-    const dados = await resposta.json();
+async function carregarUsuario(dados) {
     const saudacao = document.getElementById("saudacaoUsuario");
-    if (saudacao) saudacao.textContent = `Olá, ${dados.nome.split(" ")[0]}`;
+    if (saudacao && dados?.nome) {
+        saudacao.textContent = `Olá, ${dados.nome.split(" ")[0]}`;
+    }
 }
 
 async function carregarDashboard() {
@@ -222,10 +150,10 @@ async function carregarDashboard() {
     renderizarChamadosRecentes(recentes);
 }
 
-(function () {
-    iniciarNavegacaoStub();
+(async function () {
     iniciarSidebarMobile();
-    iniciarModalTornarTecnico();
-    carregarUsuario();
-    carregarDashboard();
+    const dados = await iniciarRoleChips("cliente");
+    if (!dados) return;
+    await carregarUsuario(dados);
+    await carregarDashboard();
 })();

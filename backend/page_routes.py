@@ -37,34 +37,37 @@ def cadastro():
 @pages_bp.route("/cliente/home")
 @login_required
 def cliente_home():
-    # @login_required barra quem não está logado; o if abaixo barra um
-    # técnico logado de entrar na área de cliente (e vice-versa) trocando a URL.
-    if current_user.role != "cliente":
-        return redirect(_home_path(current_user))
+    # Qualquer usuário autenticado pode usar a área cliente (inclusive
+    # quem já é técnico — mesma conta, dois modos).
     return current_app.send_static_file("pages/cliente-home.html")
 
 
 @pages_bp.route("/tecnico/home")
 @login_required
 def tecnico_home():
-    if current_user.role != "tecnico":
-        return redirect(_home_path(current_user))
+    if not current_user.eh_tecnico:
+        return redirect("/cliente/home")
     return current_app.send_static_file("pages/tecnico-home.html")
 
 
 @pages_bp.route("/cliente/chamados")
 @login_required
 def cliente_chamados():
-    if current_user.role != "cliente":
-        return redirect(_home_path(current_user))
     return current_app.send_static_file("pages/cliente-chamados.html")
+
+
+@pages_bp.route("/cliente/abrir-chamado")
+@login_required
+def cliente_abrir_chamado():
+    return current_app.send_static_file("pages/cliente-abrir-chamado.html")
 
 
 @pages_bp.route("/cliente/tornar-tecnico")
 @login_required
 def cliente_tornar_tecnico():
-    if current_user.role != "cliente":
-        return redirect(_home_path(current_user))
+    # Só quem ainda não é técnico precisa do formulário de conversão.
+    if current_user.eh_tecnico:
+        return redirect("/tecnico/home")
     return current_app.send_static_file("pages/tornar-tecnico.html")
 
 

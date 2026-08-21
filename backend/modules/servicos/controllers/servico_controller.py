@@ -24,19 +24,41 @@ class ServicoController:
     @login_required
     def meus(self):
         status = request.args.get("status")
-        if current_user.role not in {"cliente", "tecnico"}:
+        # ?como=cliente|tecnico — técnico no modo cliente lista o que abriu;
+        # no painel técnico lista o que atende. Sem o parâmetro, usa o role.
+        como = (request.args.get("como") or current_user.role or "").strip().lower()
+        if como not in {"cliente", "tecnico"}:
+            return jsonify({"ok": False, "erro": "Parâmetro 'como' inválido."}), 400
+        if como == "tecnico" and not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
-        servicos = self.listar_meus_servicos_service.executar(current_user.id, current_user.role, status)
+        servicos = self.listar_meus_servicos_service.executar(current_user.id, como, status)
         return jsonify([servico.to_dict_painel() for servico in servicos])
 
     @login_required
     def criar(self):
-        dados = request.get_json(silent=True) or {}
-        if current_user.role != "cliente":
-            return jsonify({"ok": False, "erro": "Apenas clientes podem abrir serviços."}), 403
+        # Aceita JSON ou multipart (com fotos). Qualquer usuário autenticado
+        # pode abrir chamado — inclusive quem também é técnico.
+        if request.content_type and "multipart/form-data" in request.content_type:
+            dados = {
+                "tipo_equipamento": (request.form.get("tipo_equipamento") or "").strip(),
+                "categoria": (request.form.get("categoria") or "").strip(),
+                "equipamento": (request.form.get("equipamento") or "").strip(),
+                "titulo": (request.form.get("titulo") or "").strip(),
+                "descricao": (request.form.get("descricao") or "").strip(),
+                "preco_estimado": request.form.get("preco_estimado") or 0,
+                "garantia": request.form.get("garantia"),
+            }
+            fotos = [f for f in request.files.getlist("fotos") if f and f.filename]
+        else:
+            dados = request.get_json(silent=True) or {}
+            fotos = []
 
-        servico = self.criar_servico_service.executar(dados, current_user.id)
+        try:
+            servico = self.criar_servico_service.executar(dados, current_user.id, fotos)
+        except DominioError as erro:
+            return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
+
         return jsonify({"ok": True, "servico": servico.to_dict()})
 
     @login_required
@@ -77,8 +99,7 @@ class ServicoController:
     def solicitar(self, servico_id):
         dados = request.get_json(silent=True) or {}
         tecnico_ids = dados.get("tecnico_ids") or []
-        if current_user.role != "cliente":
-            return jsonify({"ok": False, "erro": "Apenas o cliente dono do chamado pode solicitar técnicos."}), 403
+        # Dono do chamado pode solicitar técnicos (mesmo sendo técnico em outra conta).
         if not tecnico_ids:
             return jsonify({"ok": False, "erro": "Informe ao menos um tecnico_id."}), 400
 
@@ -92,7 +113,7 @@ class ServicoController:
     @login_required
     def atribuir_tecnico(self, servico_id):
         """Legado — ver AtribuirTecnicoService."""
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Apenas técnicos podem aceitar serviços."}), 403
 
         try:

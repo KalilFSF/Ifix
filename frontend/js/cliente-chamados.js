@@ -1,8 +1,7 @@
 /* "Meus chamados" / Acompanhar chamado (frontend/pages/cliente-chamados.html).
-   Lista todos os chamados do cliente logado (GET /api/servicos/meus) e,
+   Lista todos os chamados do cliente logado (GET /api/servicos/meus?como=cliente) e,
    ao clicar em um, mostra o histórico completo de status
-   (GET /api/servicos/<id>/historico). Atualiza sozinho via polling, assim
-   as mudanças que o técnico fizer aparecem aqui sem precisar recarregar. */
+   (GET /api/servicos/<id>/historico). Atualiza sozinho via polling. */
 
 const STATUS_LABELS = {
     aberto: "Aguardando técnico",
@@ -18,6 +17,19 @@ const STATUS_BADGE_CLASS = {
     em_analise: "status-analise",
     em_reparo: "status-reparo",
     finalizado: "status-concluido",
+};
+
+const HISTORICO_LABELS = {
+    aberto: "Chamado aberto",
+    aguardando: "Aguardando",
+    em_analise: "Em análise",
+    em_reparo: "Em reparo",
+    finalizado: "Finalizado",
+};
+
+const TIPO_LABELS = {
+    notebook: "Notebook",
+    desktop: "Desktop",
 };
 
 const POLL_INTERVALO_MS = 7000;
@@ -58,6 +70,7 @@ function renderizarVazio() {
         <div class="chamados-empty">
             <p class="chamados-empty-titulo">Você ainda não possui chamados.</p>
             <p class="chamados-empty-texto">Quando você abrir um chamado, ele aparecerá aqui.</p>
+            <a href="/cliente/abrir-chamado" class="primary-btn">Abrir primeiro chamado</a>
         </div>
     `;
 }
@@ -93,10 +106,6 @@ elLista.addEventListener("click", (evento) => {
 });
 
 
-/* ==================================================
-   MODAL DE DETALHE / HISTÓRICO
-================================================== */
-
 async function abrirDetalhe(servicoId) {
     modalServicoId = servicoId;
     elOverlay.classList.remove("hidden");
@@ -116,6 +125,8 @@ async function renderizarDetalhe() {
     const tecnico = chamado.tecnico || {};
     const badgeClasse = STATUS_BADGE_CLASS[chamado.status] || "status-aguardando";
     const badgeLabel = STATUS_LABELS[chamado.status] || chamado.status;
+    const tipo = TIPO_LABELS[chamado.tipo_equipamento] || chamado.tipo_equipamento || "—";
+    const fotos = chamado.fotos || [];
 
     elModalBody.innerHTML = `
         <h2>${chamado.titulo}</h2>
@@ -124,10 +135,20 @@ async function renderizarDetalhe() {
 
         <div class="modal-info-grid">
             <div><span>Status</span><p><span class="status-badge ${badgeClasse}">${badgeLabel}</span></p></div>
+            <div><span>Tipo</span><p>${tipo}</p></div>
             <div><span>Categoria</span><p>${chamado.categoria}</p></div>
-            <div><span>Técnico</span><p>${tecnico.nome || "Aguardando um técnico aceitar"}</p></div>
-            <div><span>Valor estimado</span><p>R$ ${Number(chamado.preco_estimado || 0).toFixed(2)}</p></div>
+            <div><span>Técnico responsável</span><p>${tecnico.nome || "Aguardando definição"}</p></div>
+            <div><span>Garantia</span><p>${chamado.garantia ? "Sim (+7% · 10 dias)" : "Não"}</p></div>
         </div>
+
+        ${fotos.length ? `
+            <div class="modal-historico">
+                <h3>Fotos</h3>
+                <div class="fotos-detalhe">
+                    ${fotos.map(foto => `<a href="${foto.url}" target="_blank" rel="noopener"><img src="${foto.url}" alt="Foto do chamado"></a>`).join("")}
+                </div>
+            </div>
+        ` : ""}
 
         <div class="modal-historico">
             <h3>Histórico</h3>
@@ -135,7 +156,7 @@ async function renderizarDetalhe() {
                 <ul class="historico-list">
                     ${historico.map(item => `
                         <li>
-                            <span class="status-badge ${STATUS_BADGE_CLASS[item.status_novo] || ""}">${STATUS_LABELS[item.status_novo] || item.status_novo}</span>
+                            <span class="status-badge ${STATUS_BADGE_CLASS[item.status_novo] || ""}">${HISTORICO_LABELS[item.status_novo] || STATUS_LABELS[item.status_novo] || item.status_novo}</span>
                             <span class="historico-data">${formatarData(item.alterado_em)}</span>
                         </li>
                     `).join("")}
@@ -157,12 +178,8 @@ elOverlay.addEventListener("click", (evento) => {
 });
 
 
-/* ==================================================
-   CARREGAMENTO / POLLING
-================================================== */
-
 async function carregarChamados() {
-    const resposta = await fetch("/api/servicos/meus");
+    const resposta = await fetch("/api/servicos/meus?como=cliente");
     if (!resposta.ok) return;
     chamados = await resposta.json();
     renderizarLista();
@@ -170,24 +187,6 @@ async function carregarChamados() {
     if (modalServicoId !== null) {
         await renderizarDetalhe();
     }
-}
-
-async function carregarUsuario() {
-    const resposta = await fetch("/api/me");
-    if (!resposta.ok) {
-        window.location.href = "/";
-    }
-}
-
-function mostrarToastEmBreve(escopo) {
-    (escopo || document).querySelectorAll("[data-em-breve]").forEach(elemento => {
-        if (elemento.dataset.stubLigado) return;
-        elemento.dataset.stubLigado = "1";
-        elemento.addEventListener("click", (evento) => {
-            evento.preventDefault();
-            mostrarToast("A abertura de chamados chega em breve.");
-        });
-    });
 }
 
 function iniciarSidebarMobile() {
@@ -207,27 +206,10 @@ function iniciarSidebarMobile() {
     sidebar.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", fechar));
 }
 
-/* Clicar no chip "Técnico" não navega direto pro formulário — primeiro
-   mostra este modal de confirmação; só o botão "Quero me tornar técnico"
-   dentro dele leva pra /cliente/tornar-tecnico. */
-function iniciarModalTornarTecnico() {
-    const chip = document.getElementById("chipTornarTecnico");
-    const overlay = document.getElementById("tornarTecnicoOverlay");
-    const btnFechar = document.getElementById("tornarTecnicoClose");
-    if (!chip || !overlay || !btnFechar) return;
-
-    chip.addEventListener("click", () => overlay.classList.remove("hidden"));
-    btnFechar.addEventListener("click", () => overlay.classList.add("hidden"));
-    overlay.addEventListener("click", (evento) => {
-        if (evento.target === overlay) overlay.classList.add("hidden");
-    });
-}
-
 (async function iniciar() {
     iniciarSidebarMobile();
-    iniciarModalTornarTecnico();
-    mostrarToastEmBreve();
-    await carregarUsuario();
+    const dados = await iniciarRoleChips("cliente");
+    if (!dados) return;
     await carregarChamados();
 
     setInterval(carregarChamados, POLL_INTERVALO_MS);

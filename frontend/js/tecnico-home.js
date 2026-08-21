@@ -332,6 +332,7 @@ function montarEstruturaModal(servico) {
             <div class="detalhe-valor-card">
                 <span>Valor estimado</span>
                 <strong id="detalheValor">${formatarMoeda(servico.preco_estimado)}</strong>
+                ${servico.garantia ? `<small class="detalhe-garantia">Garantia iFix (+7% · 10 dias)</small>` : ""}
             </div>
         </div>
 
@@ -583,7 +584,7 @@ elOverlay.addEventListener("click", (evento) => {
 ================================================== */
 
 async function carregarServicos() {
-    const resposta = await fetch("/api/servicos/meus");
+    const resposta = await fetch("/api/servicos/meus?como=tecnico");
     if (!resposta.ok) return;
     servicos = await resposta.json();
 
