@@ -16,3 +16,15 @@ class UsuarioRepository:
             .filter(Usuario.role == "tecnico")
             .all()
         )
+
+    def buscar_tecnicos_para_ranking(self):
+        """Candidatos a SelecionarTecnicosService: técnicos com perfil e com
+        lat/long cadastrados (sem coordenada não dá pra calcular distância,
+        então ficam de fora do ranking)."""
+        return (
+            db.session.query(Usuario, PerfilTecnico)
+            .join(PerfilTecnico, PerfilTecnico.usuario_id == Usuario.id)
+            .filter(Usuario.role == "tecnico")
+            .filter(Usuario.latitude.isnot(None), Usuario.longitude.isnot(None))
+            .all()
+        )

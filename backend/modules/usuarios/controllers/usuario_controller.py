@@ -7,7 +7,7 @@ from modules.usuarios.services.cadastrar_cliente_service import CadastrarCliente
 from modules.usuarios.services.cadastrar_tecnico_service import CadastrarTecnicoService
 from modules.usuarios.services.converter_para_tecnico_service import ConverterParaTecnicoService
 from modules.usuarios.services.listar_tecnicos_service import ListarTecnicosService
-from utils import somente_digitos
+from utils import parsear_coordenada, somente_digitos
 
 
 class UsuarioController:
@@ -37,7 +37,7 @@ class UsuarioController:
             dados.update({
                 "especialidade": perfil.especialidade,
                 "regiao_atendimento": perfil.regiao_atendimento,
-                "foto_perfil": f"/uploads/perfil/{perfil.foto_perfil}",
+                "foto_perfil": perfil.foto_perfil,
                 "diplomas_count": len(perfil.diplomas),
             })
 
@@ -104,9 +104,13 @@ class UsuarioController:
         }
         foto_perfil = request.files.get("foto_perfil")
         diplomas_arquivos = [arquivo for arquivo in request.files.getlist("diplomas") if arquivo.filename]
+        latitude = parsear_coordenada(request.form.get("latitude"))
+        longitude = parsear_coordenada(request.form.get("longitude"))
 
         try:
-            self.converter_para_tecnico_service.executar(current_user, dados_tecnico, foto_perfil, diplomas_arquivos)
+            self.converter_para_tecnico_service.executar(
+                current_user, dados_tecnico, foto_perfil, diplomas_arquivos, latitude, longitude
+            )
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
@@ -130,4 +134,6 @@ class UsuarioController:
             "endereco": form.get("endereco", "").strip(),
             "numero": form.get("numero", "").strip(),
             "complemento": form.get("complemento", "").strip(),
+            "latitude": parsear_coordenada(form.get("latitude")),
+            "longitude": parsear_coordenada(form.get("longitude")),
         }

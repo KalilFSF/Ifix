@@ -11,20 +11,26 @@ from constants import (
 from exceptions import ValidacaoError
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import FotoServico, Servico
-from utils import IMAGE_EXTENSIONS, extensao_permitida, salvar_arquivo
+from modules.servicos.services.selecionar_tecnicos_service import SelecionarTecnicosService
+from modules.servicos.services.solicitar_tecnicos_service import SolicitarTecnicosService
+from utils import IMAGE_EXTENSIONS, extensao_permitida, parsear_coordenada, salvar_arquivo
 
 
 class CriarServicoService:
-    def executar(self, dados, cliente_id, fotos=None):
-        dados_limpos = self._validar_dados(dados)
+    def __init__(self):
+        self.selecionar_tecnicos_service = SelecionarTecnicosService()
+        self.solicitar_tecnicos_service = SolicitarTecnicosService()
+
+    def executar(self, dados, cliente, fotos=None):
+        dados_limpos = self._validar_dados(dados, cliente)
         arquivos = self._validar_fotos(fotos or [])
 
-        servico = Servico.criar(dados_limpos, cliente_id)
+        servico = Servico.criar(dados_limpos, cliente.id)
         HistoricoServico.registrar(
             servico.id,
             status_anterior=None,
             status_novo=STATUS_ABERTO,
-            alterado_por_id=cliente_id,
+            alterado_por_id=cliente.id,
         )
 
         if arquivos:
@@ -33,9 +39,16 @@ class CriarServicoService:
                 nome = salvar_arquivo(arquivo, pasta)
                 FotoServico.criar(servico.id, nome)
 
+        # Base do fluxo automático: assim que o chamado existe, seleciona os
+        # melhores técnicos por proximidade/avaliação/preço e já dispara a
+        # solicitação pra eles, sem precisar de chamada manual depois.
+        tecnico_ids = self.selecionar_tecnicos_service.executar(servico)
+        if tecnico_ids:
+            self.solicitar_tecnicos_service.executar(servico.id, tecnico_ids, cliente)
+
         return Servico.buscar_por_id(servico.id)
 
-    def _validar_dados(self, dados):
+    def _validar_dados(self, dados, cliente):
         tipo = (dados.get("tipo_equipamento") or "").strip().lower()
         categoria = (dados.get("categoria") or "").strip().lower()
         equipamento = (dados.get("equipamento") or "").strip()
@@ -66,6 +79,16 @@ class CriarServicoService:
         if garantia and preco > 0:
             preco = round(preco * (1 + GARANTIA_PERCENTUAL), 2)
 
+        # Localização do chamado: por padrão herda do endereço cadastrado do
+        # cliente. Aceita latitude/longitude explícitos no payload (ex: um
+        # seletor de mapa no front) pra sobrescrever, quando enviados.
+        latitude = parsear_coordenada(dados.get("latitude"))
+        if latitude is None:
+            latitude = cliente.latitude
+        longitude = parsear_coordenada(dados.get("longitude"))
+        if longitude is None:
+            longitude = cliente.longitude
+
         return {
             "tipo_equipamento": tipo,
             "categoria": categoria,
@@ -74,6 +97,8 @@ class CriarServicoService:
             "descricao": descricao,
             "preco_estimado": preco,
             "garantia": garantia,
+            "latitude": latitude,
+            "longitude": longitude,
         }
 
     @staticmethod

@@ -212,6 +212,11 @@ form.addEventListener("submit", async (evento) => {
     }
     arquivosSelecionados.forEach(arquivo => body.append("fotos", arquivo));
 
+    // Coordenadas do dispositivo no momento do chamado (mais precisas que
+    // o endereço cadastrado do cliente, que fica como padrão no backend
+    // caso o navegador não consiga geolocalizar agora).
+    anexarCoordenadas(body, await coordenadasPromise);
+
     btnEnviar.disabled = true;
     btnEnviar.textContent = "Enviando...";
 

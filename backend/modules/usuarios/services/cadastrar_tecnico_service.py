@@ -28,9 +28,8 @@ class CadastrarTecnicoService:
         if conta_existente is not None:
             raise ValidacaoError("Já existe uma conta com este email.")
 
-        upload_folder = current_app.config["UPLOAD_FOLDER"]
-        nome_foto = salvar_arquivo(foto_perfil, upload_folder + "/perfil")
-        nomes_diplomas = [salvar_arquivo(arquivo, upload_folder + "/diplomas") for arquivo in diplomas_arquivos]
+        nome_foto = salvar_arquivo(foto_perfil, "perfil")
+        nomes_diplomas = [salvar_arquivo(arquivo, "diplomas") for arquivo in diplomas_arquivos]
 
         usuario = Usuario.criar(dados, senha, "tecnico")
         PerfilTecnico.criar(usuario, dados_tecnico, nome_foto, nomes_diplomas)

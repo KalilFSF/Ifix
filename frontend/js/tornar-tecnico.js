@@ -18,9 +18,15 @@ form.addEventListener("submit", async (evento) => {
     const botao = form.querySelector("button[type=submit]");
     botao.disabled = true;
 
+    const formData = new FormData(form);
+    // A conta pode já existir de antes desse recurso (sem lat/long
+    // capturados no cadastro de cliente) — captura de novo aqui, já que a
+    // localização do técnico é o que move o ranking automático.
+    anexarCoordenadas(formData, await coordenadasPromise);
+
     const resposta = await fetch("/api/conta/tornar-tecnico", {
         method: "POST",
-        body: new FormData(form),
+        body: formData,
     });
     const dados = await resposta.json();
 

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from database import db
+from utils import isoformat_utc
 
 
 class Servico(db.Model):
@@ -15,6 +16,14 @@ class Servico(db.Model):
     preco_estimado = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     garantia = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(30), nullable=False, default="aberto")
+
+    # Localização do chamado, usada por SelecionarTecnicosService pra
+    # calcular distância (Haversine) até cada técnico. Preenchida em
+    # Servico.criar a partir do endereço do cliente (Usuario.latitude/
+    # longitude); pode ficar nula se o cliente ainda não tem lat/long
+    # cadastrados, caso em que a seleção automática é pulada.
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
 
     cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
@@ -80,6 +89,8 @@ class Servico(db.Model):
             equipamento=dados.get("equipamento"),
             preco_estimado=dados.get("preco_estimado", 0),
             garantia=bool(dados.get("garantia", False)),
+            latitude=dados.get("latitude"),
+            longitude=dados.get("longitude"),
             cliente_id=cliente_id,
             status="aberto",
         )
@@ -117,10 +128,12 @@ class Servico(db.Model):
             "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
             "garantia": bool(self.garantia),
             "status": self.status,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
             "cliente_id": self.cliente_id,
             "tecnico_id": self.tecnico_id,
-            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
-            "atualizado_em": self.atualizado_em.isoformat() if self.atualizado_em else None,
+            "criado_em": isoformat_utc(self.criado_em),
+            "atualizado_em": isoformat_utc(self.atualizado_em),
             "fotos": [foto.to_dict() for foto in self.fotos],
         }
 
@@ -140,8 +153,9 @@ class Servico(db.Model):
 
 
 class FotoServico(db.Model):
-    """Referência a uma foto anexada a um chamado — o arquivo fica em
-    frontend/uploads/chamados/; o banco guarda só o nome do arquivo."""
+    """Referência a uma foto anexada a um chamado — o upload vai pro
+    Cloudinary (ver utils.salvar_arquivo) e o banco guarda a URL pública
+    completa retornada por ele, não um nome de arquivo local."""
 
     __tablename__ = "fotos_servicos"
 
@@ -169,6 +183,6 @@ class FotoServico(db.Model):
         return {
             "id": self.id,
             "arquivo": self.arquivo,
-            "url": f"/uploads/chamados/{self.arquivo}",
-            "enviado_em": self.enviado_em.isoformat() if self.enviado_em else None,
+            "url": self.arquivo,
+            "enviado_em": isoformat_utc(self.enviado_em),
         }

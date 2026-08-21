@@ -4,6 +4,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database import db
+from utils import isoformat_utc
 
 
 class Usuario(UserMixin, db.Model):
@@ -26,6 +27,13 @@ class Usuario(UserMixin, db.Model):
     endereco = db.Column(db.String(150))
     numero = db.Column(db.String(10))
     complemento = db.Column(db.String(150))
+
+    # Coordenadas do endereço cadastrado — usadas pelo ranking de técnicos
+    # (distância via Haversine, ver SelecionarTecnicosService). Para o
+    # técnico é a localização usada no cálculo; para o cliente, servem de
+    # padrão para Servico.latitude/longitude no momento da criação do chamado.
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
 
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -68,7 +76,7 @@ class Usuario(UserMixin, db.Model):
         return self
 
     def atualizar(self, dados):
-        for campo in ("nome", "telefone", "cidade", "estado", "endereco"):
+        for campo in ("nome", "telefone", "cidade", "estado", "endereco", "latitude", "longitude"):
             if campo in dados:
                 setattr(self, campo, dados[campo])
         return self.salvar()
@@ -115,6 +123,8 @@ class Usuario(UserMixin, db.Model):
             endereco=dados["endereco"] or None,
             numero=dados["numero"] or None,
             complemento=dados["complemento"] or None,
+            latitude=dados.get("latitude"),
+            longitude=dados.get("longitude"),
             role=role,
         )
         usuario.set_senha(senha)
@@ -149,5 +159,7 @@ class Usuario(UserMixin, db.Model):
             "cidade": self.cidade,
             "estado": self.estado,
             "pais": self.pais,
-            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "criado_em": isoformat_utc(self.criado_em),
         }

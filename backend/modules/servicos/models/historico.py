@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from database import db
+from utils import isoformat_utc
 
 
 class HistoricoServico(db.Model):
@@ -62,5 +63,5 @@ class HistoricoServico(db.Model):
             "status_novo": self.status_novo,
             "alterado_por_id": self.alterado_por_id,
             "alterado_por_nome": self.alterado_por.nome if self.alterado_por else None,
-            "alterado_em": self.alterado_em.isoformat() if self.alterado_em else None,
+            "alterado_em": isoformat_utc(self.alterado_em),
         }
