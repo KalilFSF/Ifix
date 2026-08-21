@@ -22,6 +22,19 @@ STATUS_TECNICO_CHOICES = (
     STATUS_FINALIZADO,
 )
 
+# Rótulos em pt-BR pro corpo do e-mail de notificação de status (ver
+# AtualizarStatusServicoService) — mesmos textos usados nos badges do
+# front (tecnico-home.js / cliente-chamados.js), duplicados aqui porque o
+# backend não tem acesso ao JS do front pra reaproveitar.
+STATUS_LABELS_EMAIL = {
+    STATUS_ABERTO: "Aguardando técnico",
+    STATUS_AGUARDANDO: "Aguardando início",
+    STATUS_EM_ANALISE: "Em análise",
+    STATUS_EM_REPARO: "Em reparo",
+    STATUS_FINALIZADO: "Finalizado",
+    STATUS_CANCELADO: "Cancelado",
+}
+
 SOLICITACAO_PENDENTE = "pendente"
 SOLICITACAO_ORCAMENTO_ENVIADO = "orcamento_enviado"
 SOLICITACAO_ACEITA = "aceita"
