@@ -27,24 +27,30 @@ class AvaliarService:
         if Avaliacao.buscar_por_servico_e_autor(servico_id, autor.id):
             raise ValidacaoError("Você já avaliou este chamado.")
 
-        nota = self._parse_nota(dados.get("nota"))
+        nota_tempo = self._parse_nota(dados.get("nota_tempo"), "tempo de atendimento")
+        nota_honestidade = self._parse_nota(dados.get("nota_honestidade"), "honestidade")
+        nota_preco_justo = self._parse_nota(dados.get("nota_preco_justo"), "preço justo")
+        nota_geral = round((nota_tempo + nota_honestidade + nota_preco_justo) / 3)
         comentario = (dados.get("comentario") or "").strip()
 
-        avaliacao = Avaliacao.criar(servico_id, autor.id, avaliado_id, nota, comentario)
+        avaliacao = Avaliacao.criar(
+            servico_id, autor.id, avaliado_id, nota_geral,
+            nota_tempo, nota_honestidade, nota_preco_justo, comentario,
+        )
 
         if avaliado_id == servico.tecnico_id:
             perfil = PerfilTecnico.buscar_por_usuario_id(avaliado_id)
             if perfil:
-                perfil.registrar_avaliacao(nota)
+                perfil.registrar_avaliacao(nota_geral)
 
         return avaliacao
 
     @staticmethod
-    def _parse_nota(valor):
+    def _parse_nota(valor, nome_criterio):
         try:
             nota = int(valor)
         except (TypeError, ValueError):
-            raise ValidacaoError("Informe uma nota válida (1 a 5).")
+            raise ValidacaoError(f"Informe uma nota válida para {nome_criterio} (1 a 5).")
         if nota < 1 or nota > 5:
-            raise ValidacaoError("A nota deve ser entre 1 e 5.")
+            raise ValidacaoError(f"A nota de {nome_criterio} deve ser entre 1 e 5.")
         return nota

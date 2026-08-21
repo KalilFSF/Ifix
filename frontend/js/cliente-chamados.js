@@ -69,8 +69,22 @@ function formatarMoeda(valor) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
 }
 
+/* Critérios avaliados separadamente (em vez de uma nota geral única) — a
+   nota geral que alimenta PerfilTecnico.nota_media é a média dos três,
+   calculada no backend (ver AvaliarService). */
+const CRITERIOS_AVALIACAO = [
+    { chave: "tempo", rotulo: "Tempo de atendimento" },
+    { chave: "honestidade", rotulo: "Honestidade" },
+    { chave: "preco_justo", rotulo: "Preço justo" },
+];
+
 function renderizarEstrelas(nota) {
+    if (!nota) return "—";
     return "★".repeat(nota) + "☆".repeat(5 - nota);
+}
+
+function renderizarResumoAvaliacaoHTML(avaliacao) {
+    return CRITERIOS_AVALIACAO.map(criterio => `${criterio.rotulo}: ${renderizarEstrelas(avaliacao[`nota_${criterio.chave}`])}`).join(" · ");
 }
 
 function iconeSeta() {
@@ -291,20 +305,25 @@ async function carregarAvaliacaoCliente(chamado) {
 
     let html = "";
     if (avaliacaoRecebida) {
-        html += `<div class="avaliacao-existente">O técnico avaliou você: ${renderizarEstrelas(avaliacaoRecebida.nota)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
+        html += `<div class="avaliacao-existente">O técnico avaliou você — ${renderizarResumoAvaliacaoHTML(avaliacaoRecebida)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
     }
 
     if (minhaAvaliacao) {
-        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o técnico: ${renderizarEstrelas(minhaAvaliacao.nota)}</div>`;
+        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o técnico — ${renderizarResumoAvaliacaoHTML(minhaAvaliacao)}</div>`;
         container.innerHTML = html;
         return;
     }
 
     html += `
         <form id="formAvaliacao" style="margin-top:10px;">
-            <div class="nota-choices" id="notaChoices">
-                ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
-            </div>
+            ${CRITERIOS_AVALIACAO.map(criterio => `
+                <div class="input-group">
+                    <label>${criterio.rotulo}</label>
+                    <div class="nota-choices" data-criterio="${criterio.chave}">
+                        ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
+                    </div>
+                </div>
+            `).join("")}
             <div class="input-group">
                 <label for="avaliacaoComentario">Comentário (opcional)</label>
                 <textarea id="avaliacaoComentario" rows="2" placeholder="Como foi o atendimento?"></textarea>
@@ -314,18 +333,22 @@ async function carregarAvaliacaoCliente(chamado) {
     `;
     container.innerHTML = html;
 
-    let notaSelecionada = null;
-    document.getElementById("notaChoices").addEventListener("click", (evento) => {
-        const botao = evento.target.closest(".nota-choice");
-        if (!botao) return;
-        notaSelecionada = Number(botao.dataset.nota);
-        document.querySelectorAll("#notaChoices .nota-choice").forEach(item => item.classList.toggle("is-selected", item === botao));
+    const notasSelecionadas = {};
+    document.querySelectorAll("#formAvaliacao .nota-choices").forEach(grupo => {
+        const criterio = grupo.dataset.criterio;
+        grupo.addEventListener("click", (evento) => {
+            const botao = evento.target.closest(".nota-choice");
+            if (!botao) return;
+            notasSelecionadas[criterio] = Number(botao.dataset.nota);
+            grupo.querySelectorAll(".nota-choice").forEach(item => item.classList.toggle("is-selected", item === botao));
+        });
     });
 
     document.getElementById("formAvaliacao").addEventListener("submit", async (evento) => {
         evento.preventDefault();
-        if (!notaSelecionada) {
-            mostrarToast("Selecione uma nota de 1 a 5.");
+        const faltando = CRITERIOS_AVALIACAO.filter(criterio => !notasSelecionadas[criterio.chave]);
+        if (faltando.length) {
+            mostrarToast(`Avalie: ${faltando.map(criterio => criterio.rotulo).join(", ")}.`);
             return;
         }
         const comentario = document.getElementById("avaliacaoComentario").value.trim();
@@ -335,7 +358,12 @@ async function carregarAvaliacaoCliente(chamado) {
         const resp = await fetch(`/api/servicos/${chamado.id}/avaliar`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ nota: notaSelecionada, comentario }),
+            body: JSON.stringify({
+                nota_tempo: notasSelecionadas.tempo,
+                nota_honestidade: notasSelecionadas.honestidade,
+                nota_preco_justo: notasSelecionadas.preco_justo,
+                comentario,
+            }),
         });
         const resultado = await resp.json().catch(() => ({ ok: false }));
 

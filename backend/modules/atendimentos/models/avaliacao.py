@@ -7,9 +7,12 @@ from utils import isoformat_utc
 class Avaliacao(db.Model):
     """Avaliação mútua (nota + comentário opcional) entre cliente e técnico
     de um chamado finalizado — cada um avalia o outro uma única vez por
-    chamado (uq_avaliacao_servico_autor). Quando o avaliado é o técnico,
-    alimenta PerfilTecnico.nota_media (ver AvaliarService), usado pelo
-    ranking em SelecionarTecnicosService."""
+    chamado (uq_avaliacao_servico_autor). `nota` é a nota geral, calculada
+    como a média dos três critérios (tempo, honestidade, preço justo) — é
+    ela que, quando o avaliado é o técnico, alimenta
+    PerfilTecnico.nota_media (ver AvaliarService), usado pelo ranking em
+    SelecionarTecnicosService. Os critérios em si ficam nullable porque
+    avaliações antigas (de antes desse detalhamento) não os têm."""
 
     __tablename__ = "avaliacoes"
 
@@ -18,6 +21,9 @@ class Avaliacao(db.Model):
     autor_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     avaliado_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     nota = db.Column(db.Integer, nullable=False)
+    nota_tempo = db.Column(db.Integer)
+    nota_honestidade = db.Column(db.Integer)
+    nota_preco_justo = db.Column(db.Integer)
     comentario = db.Column(db.Text)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -43,12 +49,15 @@ class Avaliacao(db.Model):
     # ============== Finders / operações específicas ==============
 
     @classmethod
-    def criar(cls, servico_id, autor_id, avaliado_id, nota, comentario):
+    def criar(cls, servico_id, autor_id, avaliado_id, nota, nota_tempo, nota_honestidade, nota_preco_justo, comentario):
         return cls(
             servico_id=servico_id,
             autor_id=autor_id,
             avaliado_id=avaliado_id,
             nota=nota,
+            nota_tempo=nota_tempo,
+            nota_honestidade=nota_honestidade,
+            nota_preco_justo=nota_preco_justo,
             comentario=comentario or None,
         ).salvar()
 
@@ -69,6 +78,9 @@ class Avaliacao(db.Model):
             "avaliado_id": self.avaliado_id,
             "avaliado_nome": self.avaliado.nome if self.avaliado else None,
             "nota": self.nota,
+            "nota_tempo": self.nota_tempo,
+            "nota_honestidade": self.nota_honestidade,
+            "nota_preco_justo": self.nota_preco_justo,
             "comentario": self.comentario,
             "criado_em": isoformat_utc(self.criado_em),
         }
