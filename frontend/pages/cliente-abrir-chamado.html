@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Abrir chamado</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <div class="dash-shell">
+
+        <aside class="sidebar" id="sidebar">
+
+            <div class="sidebar-top">
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Fechar menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div class="sidebar-logo">
+                    <span>iFix</span>
+                    <p>Assistência técnica</p>
+                </div>
+
+                <div class="role-indicator" role="note" aria-label="Perfil da conta: Cliente">
+                    <span class="role-chip role-chip-active">Cliente</span>
+                    <button type="button" class="role-chip role-chip-link" id="chipTornarTecnico" title="Tornar-se técnico e atender chamados.">Técnico</button>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/cliente/home" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Início</span>
+                </a>
+
+                <a href="/cliente/abrir-chamado" class="nav-item is-active">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    <span>Abrir chamado</span>
+                </a>
+
+                <a href="/cliente/chamados" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>Meus chamados</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <label class="theme-switch sidebar-theme-switch">
+                    <input type="checkbox" class="themeToggle">
+                    <span class="slider">
+                        <svg class="icon sun" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                        </svg>
+                        <svg class="icon moon" viewBox="0 0 24 24">
+                            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                        </svg>
+                    </span>
+                    <small class="theme-text">Tema</small>
+                </label>
+
+                <a href="/logout" class="nav-item nav-item-logout">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Sair</span>
+                </a>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <div class="dash-main">
+
+            <header class="mobile-topbar">
+                <button type="button" class="sidebar-open" id="sidebarOpen" aria-label="Abrir menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span class="mobile-topbar-title">iFix</span>
+            </header>
+
+            <main class="dash-content dash-content-abrir">
+
+                <div id="toast" class="toast hidden"></div>
+
+                <div class="abrir-wrap">
+
+                <a href="/cliente/home" class="voltar-link">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Voltar
+                </a>
+
+                <section class="panel-header abrir-header">
+                    <div>
+                        <h1>Abrir chamado</h1>
+                        <p class="hero-subtitle">Conte o que está acontecendo. Quanto mais detalhes, mais rápido o diagnóstico.</p>
+                    </div>
+                </section>
+
+                <form id="abrirChamadoForm" class="abrir-form" novalidate>
+
+                    <section class="abrir-card">
+                        <div class="abrir-card-head">
+                            <h2>Tipo de computador</h2>
+                            <p>Atendemos apenas notebooks e desktops.</p>
+                        </div>
+                        <div class="choice-grid" role="group" aria-label="Tipo de computador">
+                            <button type="button" class="choice-card is-selected" data-group="tipo_equipamento" data-value="notebook">
+                                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="2" y1="20" x2="22" y2="20"></line></svg>
+                                <strong>Notebook</strong>
+                            </button>
+                            <button type="button" class="choice-card" data-group="tipo_equipamento" data-value="desktop">
+                                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                <strong>Desktop</strong>
+                            </button>
+                        </div>
+                        <input type="hidden" name="tipo_equipamento" id="tipo_equipamento" value="notebook">
+                    </section>
+
+                    <section class="abrir-card">
+                        <div class="abrir-card-head">
+                            <h2>Categoria do problema</h2>
+                        </div>
+                        <div class="choice-grid choice-grid-desc" role="group" aria-label="Categoria do problema">
+                            <button type="button" class="choice-card is-selected" data-group="categoria" data-value="hardware">
+                                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+                                <div>
+                                    <strong>Hardware</strong>
+                                    <span>Peças, fonte, tela, teclado, bateria</span>
+                                </div>
+                            </button>
+                            <button type="button" class="choice-card" data-group="categoria" data-value="software">
+                                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line><circle cx="12" cy="10" r="2"></circle></svg>
+                                <div>
+                                    <strong>Software</strong>
+                                    <span>Sistema, drivers, vírus, lentidão</span>
+                                </div>
+                            </button>
+                        </div>
+                        <input type="hidden" name="categoria" id="categoria" value="hardware">
+                    </section>
+
+                    <section class="abrir-card">
+                        <div class="input-group">
+                            <label for="equipamento">Modelo do equipamento</label>
+                            <input type="text" id="equipamento" name="equipamento" placeholder="Ex: Dell Inspiron 15 5000" maxlength="150" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="titulo">Título do problema</label>
+                            <input type="text" id="titulo" name="titulo" placeholder="Ex: Notebook não liga" maxlength="150" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="descricao">Descreva o problema</label>
+                            <textarea id="descricao" name="descricao" rows="5" placeholder="O que aconteceu, quando começou, se há algum barulho, mensagem de erro..." required></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label for="preco_estimado">Quanto você gostaria de gastar, no máximo? <span class="input-helper">(opcional)</span></label>
+                            <input type="text" id="preco_estimado" name="preco_estimado" placeholder="R$ 0,00" inputmode="decimal" autocomplete="off">
+                            <small class="field-hint">Se não quiser informar, pode deixar em branco.</small>
+                        </div>
+                        <div class="input-group">
+                            <label for="fotos">Anexar fotos (opcional)</label>
+                            <label class="upload-zone" for="fotos">
+                                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                <span id="fotosLabel">PNG, JPG ou WEBP — até 5 fotos (2 MB cada)</span>
+                            </label>
+                            <input type="file" id="fotos" name="fotos" accept="image/png,image/jpeg,image/webp" multiple hidden>
+                            <ul class="fotos-preview" id="fotosPreview"></ul>
+                        </div>
+                    </section>
+
+                    <section class="abrir-card">
+                        <label class="garantia-option" for="garantia">
+                            <input type="checkbox" id="garantia" name="garantia" value="1">
+                            <span class="garantia-check" aria-hidden="true"></span>
+                            <span class="garantia-texto">
+                                <strong>Garantia iFix (+7%)</strong>
+                                <span>Por mais 7% sobre o valor do serviço, se o problema voltar em até 10 dias você pode pedir reembolso ou um novo atendimento gratuito.</span>
+                            </span>
+                        </label>
+                    </section>
+
+                    <section class="abrir-card">
+                        <div class="abrir-card-head">
+                            <h2>Seus dados</h2>
+                        </div>
+                        <div class="dados-grid">
+                            <div class="input-group">
+                                <label for="nomeUsuario">Nome completo</label>
+                                <input type="text" id="nomeUsuario" readonly>
+                            </div>
+                            <div class="input-group">
+                                <label for="telefoneUsuario">Telefone</label>
+                                <input type="text" id="telefoneUsuario" readonly>
+                            </div>
+                        </div>
+                    </section>
+
+                    <p class="form-erro hidden" id="formErro"></p>
+
+                    <div class="abrir-actions">
+                        <a href="/cliente/home" class="secondary-btn">Cancelar</a>
+                        <button type="submit" class="primary-btn" id="btnEnviar">
+                            Enviar chamado
+                        </button>
+                    </div>
+                </form>
+
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="tornarTecnicoOverlay">
+        <div class="modal-card tornar-tecnico-card">
+            <button type="button" class="modal-close" id="tornarTecnicoClose" aria-label="Fechar">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <span class="modal-icon-badge">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </span>
+
+            <h2>Deseja ter sua conta de técnico?</h2>
+            <p>Cadastre-se como técnico e comece a receber solicitações de clientes.</p>
+
+            <a href="/cliente/tornar-tecnico" class="primary-btn">Quero me tornar técnico</a>
+        </div>
+    </div>
+
+    <script src="/js/role-chips.js"></script>
+    <script src="/js/cliente-abrir-chamado.js"></script>
+</body>
+</html>
