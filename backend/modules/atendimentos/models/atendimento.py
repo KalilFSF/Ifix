@@ -13,9 +13,9 @@ class Atendimento(db.Model):
     status = db.Column(db.String(30), nullable=False, default="pendente")
     valor_orcamento = db.Column(db.Numeric(10, 2), nullable=True)
 
-    cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
-    tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
-    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id"), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"))
+    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     atualizado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
