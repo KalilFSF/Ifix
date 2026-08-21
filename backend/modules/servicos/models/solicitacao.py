@@ -1,5 +1,11 @@
 from datetime import datetime, timezone
 
+from constants import (
+    SOLICITACAO_ACEITA,
+    SOLICITACAO_ORCAMENTO_ENVIADO,
+    SOLICITACAO_PENDENTE,
+    SOLICITACAO_RECUSADA,
+)
 from database import db
 from utils import isoformat_utc
 
@@ -15,7 +21,7 @@ class SolicitacaoTecnico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="pendente")
+    status = db.Column(db.String(20), nullable=False, default=SOLICITACAO_PENDENTE)
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     respondido_em = db.Column(db.DateTime)
 
@@ -49,26 +55,48 @@ class SolicitacaoTecnico(db.Model):
 
     @classmethod
     def buscar_pendente(cls, servico_id, tecnico_id):
-        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id, status="pendente").first()
+        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id, status=SOLICITACAO_PENDENTE).first()
+
+    @classmethod
+    def buscar_por_servico_e_tecnico(cls, servico_id, tecnico_id):
+        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).first()
 
     @classmethod
     def listar_pendentes_por_tecnico(cls, tecnico_id):
-        return cls.query.filter_by(tecnico_id=tecnico_id, status="pendente").order_by(cls.criado_em.desc()).all()
+        return cls.query.filter_by(tecnico_id=tecnico_id, status=SOLICITACAO_PENDENTE).order_by(cls.criado_em.desc()).all()
 
     @classmethod
     def listar_pendentes_por_servico(cls, servico_id, excluir_id=None):
-        query = cls.query.filter(cls.servico_id == servico_id, cls.status == "pendente")
+        query = cls.query.filter(cls.servico_id == servico_id, cls.status == SOLICITACAO_PENDENTE)
         if excluir_id is not None:
             query = query.filter(cls.id != excluir_id)
         return query.all()
 
+    @classmethod
+    def listar_abertas_por_servico(cls, servico_id, excluir_tecnico_id=None):
+        """Solicitações ainda "vivas" pro chamado (pendente ou já com
+        orçamento enviado, mas nenhuma decisão do cliente ainda) — usado
+        pra recusar os demais técnicos quando o cliente escolhe um orçamento."""
+        query = cls.query.filter(
+            cls.servico_id == servico_id,
+            cls.status.in_([SOLICITACAO_PENDENTE, SOLICITACAO_ORCAMENTO_ENVIADO]),
+        )
+        if excluir_tecnico_id is not None:
+            query = query.filter(cls.tecnico_id != excluir_tecnico_id)
+        return query.all()
+
     def marcar_aceita(self):
-        self.status = "aceita"
+        self.status = SOLICITACAO_ACEITA
         self.respondido_em = datetime.now(timezone.utc)
         return self.salvar()
 
     def marcar_recusada(self):
-        self.status = "recusada"
+        self.status = SOLICITACAO_RECUSADA
+        self.respondido_em = datetime.now(timezone.utc)
+        return self.salvar()
+
+    def marcar_orcamento_enviado(self):
+        self.status = SOLICITACAO_ORCAMENTO_ENVIADO
         self.respondido_em = datetime.now(timezone.utc)
         return self.salvar()
 

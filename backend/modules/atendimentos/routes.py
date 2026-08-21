@@ -26,3 +26,9 @@ def api_criar_atendimento(servico_id):
 @login_required
 def api_status_atendimento(atendimento_id):
     return AtendimentoController().atualizar_status(atendimento_id)
+
+
+@atendimentos_bp.route("/api/atendimentos/<int:atendimento_id>/escolher", methods=["POST"])
+@login_required
+def api_escolher_atendimento(atendimento_id):
+    return AtendimentoController().escolher(atendimento_id)

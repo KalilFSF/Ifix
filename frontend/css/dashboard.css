@@ -1351,6 +1351,118 @@
 }
 
 
+/* ===== Formulário de orçamento / avaliação dentro dos modais ===== */
+
+.modal-card textarea {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.orcamento-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* ===== Orçamentos recebidos (o cliente compara e escolhe um) ===== */
+
+.orcamentos-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.orcamento-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: 12px;
+}
+
+.orcamento-card.is-aceito {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, .08);
+}
+
+.orcamento-card.is-recusado {
+    opacity: .55;
+}
+
+.orcamento-info strong {
+    display: block;
+    font-size: 15px;
+}
+
+.orcamento-info span {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.orcamento-valor {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+/* ===== Nota de avaliação (1 a 5), mesmo padrão visual de .status-choice ===== */
+
+.nota-choices {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin: 10px 0 16px;
+}
+
+.nota-choice {
+    padding: 10px 0;
+    border-radius: var(--radius-input);
+    border: 1px solid var(--border-input);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.nota-choice:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.nota-choice.is-selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-white);
+}
+
+.avaliacao-existente {
+    padding: 14px 16px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: 12px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+}
+
+
 /* ==================================================
    TOAST ("em breve" — funcionalidades ainda não implementadas)
 ================================================== */
