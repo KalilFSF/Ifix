@@ -122,6 +122,11 @@ def _garantir_colunas_novas():
         "atendimentos": [
             ("prazo_estimado_dias", "ALTER TABLE atendimentos ADD COLUMN prazo_estimado_dias INTEGER"),
         ],
+        "avaliacoes": [
+            ("nota_tempo", "ALTER TABLE avaliacoes ADD COLUMN nota_tempo INTEGER"),
+            ("nota_honestidade", "ALTER TABLE avaliacoes ADD COLUMN nota_honestidade INTEGER"),
+            ("nota_preco_justo", "ALTER TABLE avaliacoes ADD COLUMN nota_preco_justo INTEGER"),
+        ],
     }
 
     alteracoes = []

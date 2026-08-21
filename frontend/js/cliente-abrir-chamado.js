@@ -106,31 +106,13 @@ function iniciarUpload() {
     });
 }
 
-function formatarMoedaInput(valor) {
-    const texto = String(valor || "").replace(/[^\d,]/g, "");
-    if (!texto) return "";
-
-    const numero = Number(texto.replace(".", "").replace(",", "."));
-    if (!Number.isFinite(numero) || numero < 0) return "";
-
-    return new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    }).format(numero);
-}
-
-function parseMoeda(valor) {
+/* O input é type="number" (o próprio navegador já bloqueia letras) — só
+   falta validar/normalizar pra 2 casas decimais antes de enviar. */
+function parseValorMaximo(valor) {
     const texto = String(valor || "").trim();
     if (!texto) return "";
 
-    const normalizado = texto
-        .replace(/[R$\s]/gi, "")
-        .replace(".", "")
-        .replace(",", ".");
-
-    const numero = Number(normalizado);
+    const numero = Number(texto);
     if (!Number.isFinite(numero) || numero < 0) return "";
 
     return numero.toFixed(2);
@@ -160,7 +142,7 @@ function validarFormulario() {
         return "Descreva o problema com mais detalhes.";
     }
     if (valorMaximo) {
-        const numero = Number(parseMoeda(valorMaximo));
+        const numero = Number(parseValorMaximo(valorMaximo));
         if (!Number.isFinite(numero) || numero < 0) {
             return "O valor máximo de gasto deve ser um número maior ou igual a zero.";
         }
@@ -197,7 +179,7 @@ form.addEventListener("submit", async (evento) => {
 
     const body = new FormData();
     const valorMaximoInput = document.getElementById("preco_estimado").value.trim();
-    const valorMaximoFormatado = parseMoeda(valorMaximoInput);
+    const valorMaximoFormatado = parseValorMaximo(valorMaximoInput);
 
     body.append("tipo_equipamento", document.getElementById("tipo_equipamento").value);
     body.append("categoria", document.getElementById("categoria").value);
@@ -239,14 +221,6 @@ form.addEventListener("submit", async (evento) => {
         mostrarErro("Falha de conexão. Tente novamente.");
         btnEnviar.disabled = false;
         btnEnviar.textContent = "Enviar chamado";
-    }
-});
-
-document.getElementById("preco_estimado").addEventListener("input", (evento) => {
-    const valor = evento.target.value;
-    const formatado = formatarMoedaInput(valor);
-    if (formatado !== "") {
-        evento.target.value = formatado;
     }
 });
 
