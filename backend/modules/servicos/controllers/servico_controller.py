@@ -2,6 +2,9 @@ from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from exceptions import DominioError
+from modules.atendimentos.services.avaliar_service import AvaliarService
+from modules.atendimentos.services.listar_avaliacoes_service import ListarAvaliacoesService
+from modules.atendimentos.services.listar_orcamentos_service import ListarOrcamentosService
 from modules.servicos.services.atribuir_tecnico_service import AtribuirTecnicoService
 from modules.servicos.services.atualizar_status_servico_service import AtualizarStatusServicoService
 from modules.servicos.services.cancelar_servico_service import CancelarServicoService, ExcluirServicoService
@@ -23,6 +26,9 @@ class ServicoController:
         self.atribuir_tecnico_service = AtribuirTecnicoService()
         self.cancelar_servico_service = CancelarServicoService()
         self.excluir_servico_service = ExcluirServicoService()
+        self.listar_orcamentos_service = ListarOrcamentosService()
+        self.avaliar_service = AvaliarService()
+        self.listar_avaliacoes_service = ListarAvaliacoesService()
 
     @login_required
     def meus(self):
@@ -117,6 +123,34 @@ class ServicoController:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
         return jsonify([entrada.to_dict() for entrada in entradas])
+
+    @login_required
+    def orcamentos(self, servico_id):
+        try:
+            atendimentos = self.listar_orcamentos_service.executar(servico_id, current_user)
+        except DominioError as erro:
+            return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
+
+        return jsonify([atendimento.to_dict_com_tecnico() for atendimento in atendimentos])
+
+    @login_required
+    def avaliar(self, servico_id):
+        dados = request.get_json(silent=True) or {}
+        try:
+            avaliacao = self.avaliar_service.executar(servico_id, current_user, dados)
+        except DominioError as erro:
+            return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
+
+        return jsonify({"ok": True, "avaliacao": avaliacao.to_dict()})
+
+    @login_required
+    def avaliacoes(self, servico_id):
+        try:
+            avaliacoes = self.listar_avaliacoes_service.executar(servico_id, current_user)
+        except DominioError as erro:
+            return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
+
+        return jsonify([avaliacao.to_dict() for avaliacao in avaliacoes])
 
     @login_required
     def solicitar(self, servico_id):

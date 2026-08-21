@@ -44,6 +44,18 @@ class PerfilTecnico(db.Model):
         db.session.commit()
         return self
 
+    def registrar_avaliacao(self, nota):
+        """Recalcula a média corrente com a nova nota (0 a 5), sem precisar
+        reprocessar o histórico inteiro de avaliações — usado por
+        AvaliarService sempre que o técnico é o avaliado. Essa nota_media é
+        o critério de avaliação usado por SelecionarTecnicosService."""
+        total_atual = self.total_avaliacoes or 0
+        media_atual = float(self.nota_media) if self.nota_media is not None else 0.0
+        nova_media = ((media_atual * total_atual) + nota) / (total_atual + 1)
+        self.nota_media = round(nova_media, 2)
+        self.total_avaliacoes = total_atual + 1
+        return self.salvar()
+
     def atualizar(self, dados):
         for campo in (
             "especialidade", "escolaridade", "curso_superior", "regiao_atendimento",
@@ -60,6 +72,10 @@ class PerfilTecnico(db.Model):
     @classmethod
     def buscar_por_id(cls, perfil_id):
         return cls.query.get(perfil_id)
+
+    @classmethod
+    def buscar_por_usuario_id(cls, usuario_id):
+        return cls.query.filter_by(usuario_id=usuario_id).first()
 
     @classmethod
     def listar_todos(cls):

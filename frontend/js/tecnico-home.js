@@ -51,6 +51,8 @@ let solicitacoes = [];
 let tabAtiva = "todos";
 let termoBusca = "";
 let modalServicoId = null;
+let modalSolicitacaoId = null;
+let meuUsuarioId = null;
 
 const elResumo = document.getElementById("resumoPainel");
 const elSolicitacoesSection = document.getElementById("solicitacoesSection");
@@ -108,6 +110,13 @@ async function carregarSolicitacoes() {
     if (!resposta.ok) return;
     solicitacoes = await resposta.json();
     renderizarSolicitacoes();
+
+    // Se a solicitação aberta no modal sumiu da lista (cliente escolheu
+    // outro orçamento, por exemplo), fecha o modal em vez de deixar a tela
+    // presa numa solicitação que não existe mais.
+    if (modalSolicitacaoId !== null && !solicitacoes.some(item => item.id === modalSolicitacaoId)) {
+        fecharDetalhe();
+    }
 }
 
 function renderizarSolicitacoes() {
@@ -129,34 +138,17 @@ function renderizarSolicitacoes() {
                     ${servico.equipamento ? `<p class="solicitacao-meta">${servico.equipamento}</p>` : ""}
                 </div>
                 <div class="solicitacao-actions">
-                    <button type="button" class="secondary-btn solicitacao-recusar" data-id="${solicitacao.id}">Recusar</button>
-                    <button type="button" class="primary-btn solicitacao-aceitar" data-id="${solicitacao.id}">Aceitar chamado</button>
+                    <button type="button" class="primary-btn solicitacao-detalhes" data-id="${solicitacao.id}">Ver detalhes</button>
                 </div>
             </article>
         `;
     }).join("");
 }
 
-elSolicitacoesList.addEventListener("click", async (evento) => {
-    const aceitar = evento.target.closest(".solicitacao-aceitar");
-    const recusar = evento.target.closest(".solicitacao-recusar");
-    const botao = aceitar || recusar;
+elSolicitacoesList.addEventListener("click", (evento) => {
+    const botao = evento.target.closest(".solicitacao-detalhes");
     if (!botao) return;
-
-    botao.disabled = true;
-    const id = botao.getAttribute("data-id");
-    const acao = aceitar ? "aceitar" : "recusar";
-
-    const resposta = await fetch(`/api/tecnico/solicitacoes/${id}/${acao}`, { method: "POST" });
-    const resultado = await resposta.json();
-
-    if (resultado.ok) {
-        mostrarToast(acao === "aceitar" ? "Chamado aceito!" : "Solicitação recusada.");
-        await Promise.all([carregarSolicitacoes(), carregarServicos()]);
-    } else {
-        botao.disabled = false;
-        mostrarToast(resultado.erro || "Não foi possível concluir a ação.");
-    }
+    abrirDetalheSolicitacao(Number(botao.getAttribute("data-id")));
 });
 
 
@@ -271,6 +263,7 @@ let estadoModal = null; // { servicoId, status, historicoIds: Set<number> }
 
 async function abrirDetalhe(servicoId) {
     modalServicoId = servicoId;
+    modalSolicitacaoId = null;
     estadoModal = null;
     elOverlay.classList.remove("hidden");
     elModalBody.innerHTML = "<p>Carregando...</p>";
@@ -282,12 +275,145 @@ async function abrirDetalhe(servicoId) {
     }
 
     const historico = await buscarHistorico(servicoId);
-    renderizarChamado(servico, historico);
+    await renderizarChamado(servico, historico);
 }
 
 async function buscarHistorico(servicoId) {
     const resposta = await fetch(`/api/servicos/${servicoId}/historico`);
     return resposta.ok ? await resposta.json() : [];
+}
+
+
+/* ==================================================
+   DETALHE DE UMA SOLICITAÇÃO PENDENTE (ver chamado antes de decidir)
+================================================== */
+
+function abrirDetalheSolicitacao(solicitacaoId) {
+    const solicitacao = solicitacoes.find(item => item.id === solicitacaoId);
+    if (!solicitacao) return;
+
+    modalServicoId = null;
+    estadoModal = null;
+    modalSolicitacaoId = solicitacaoId;
+    elOverlay.classList.remove("hidden");
+    montarEstruturaModalSolicitacao(solicitacao);
+}
+
+function montarEstruturaModalSolicitacao(solicitacao) {
+    const servico = solicitacao.servico || {};
+    const cliente = solicitacao.cliente || {};
+    const fotos = servico.fotos || [];
+    const tipo = servico.tipo_equipamento === "notebook" ? "Notebook"
+        : servico.tipo_equipamento === "desktop" ? "Desktop"
+        : (servico.tipo_equipamento || "—");
+
+    elModalBody.innerHTML = `
+        <h2>${servico.titulo || "Chamado"}</h2>
+        <p class="painel-equipamento">${servico.categoria || ""} ${servico.equipamento ? "• " + servico.equipamento : ""}</p>
+        <p class="modal-descricao">${servico.descricao || ""}</p>
+
+        <div class="modal-info-grid">
+            <div><span>Tipo</span><p>${tipo}</p></div>
+            <div><span>Valor de referência do cliente</span><p>${formatarMoeda(servico.preco_estimado)}</p></div>
+            <div><span>Cliente</span><p>${cliente.nome || "-"}</p></div>
+            <div><span>Telefone</span><p>${cliente.telefone || "-"}</p></div>
+        </div>
+
+        ${fotos.length ? `
+            <div class="modal-historico">
+                <h3>Fotos</h3>
+                <div class="fotos-detalhe">
+                    ${fotos.map(foto => `<a href="${foto.url}" target="_blank" rel="noopener"><img src="${foto.url}" alt="Foto do chamado"></a>`).join("")}
+                </div>
+            </div>
+        ` : ""}
+
+        <div class="modal-status-control">
+            <label>Enviar orçamento</label>
+            <p class="historico-item-texto" style="margin-bottom:10px;">Informe o valor e o prazo estimado — o cliente vai comparar com outros orçamentos recebidos antes de escolher.</p>
+            <form id="formOrcamento">
+                <div class="orcamento-form-grid">
+                    <div class="input-group">
+                        <label for="orcamentoValor">Valor (R$)</label>
+                        <input type="text" id="orcamentoValor" inputmode="decimal" placeholder="R$ 0,00" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="orcamentoPrazo">Prazo estimado (dias)</label>
+                        <input type="number" id="orcamentoPrazo" min="1" placeholder="Ex: 3">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="orcamentoObservacoes">Observações (opcional)</label>
+                    <textarea id="orcamentoObservacoes" rows="3" placeholder="Ex: troca de tela, sujeito a disponibilidade de peça..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="secondary-btn" id="btnRecusarSolicitacao">Recusar</button>
+                    <button type="submit" class="primary-btn" id="btnEnviarOrcamento">Enviar orçamento</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.getElementById("formOrcamento").addEventListener("submit", enviarOrcamento);
+    document.getElementById("btnRecusarSolicitacao").addEventListener("click", recusarSolicitacaoModal);
+}
+
+function parseMoedaSimples(valor) {
+    const texto = String(valor || "").trim().replace(/[R$\s]/gi, "").replace(/\./g, "").replace(",", ".");
+    const numero = Number(texto);
+    return Number.isFinite(numero) && numero > 0 ? numero : null;
+}
+
+async function enviarOrcamento(evento) {
+    evento.preventDefault();
+
+    const valor = parseMoedaSimples(document.getElementById("orcamentoValor").value);
+    if (valor === null) {
+        mostrarToast("Informe um valor de orçamento válido.");
+        return;
+    }
+    const prazo = document.getElementById("orcamentoPrazo").value.trim();
+    const observacoes = document.getElementById("orcamentoObservacoes").value.trim();
+
+    const btn = document.getElementById("btnEnviarOrcamento");
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    const resposta = await fetch(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/orcamento`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            valor_orcamento: valor,
+            prazo_estimado_dias: prazo || null,
+            observacoes,
+        }),
+    });
+    const resultado = await resposta.json().catch(() => ({ ok: false }));
+
+    if (!resultado.ok) {
+        mostrarToast(resultado.erro || "Não foi possível enviar o orçamento.");
+        btn.disabled = false;
+        btn.textContent = "Enviar orçamento";
+        return;
+    }
+
+    mostrarToast("Orçamento enviado! Aguardando o cliente decidir.");
+    fecharDetalhe();
+    await carregarSolicitacoes();
+}
+
+async function recusarSolicitacaoModal() {
+    const resposta = await fetch(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/recusar`, { method: "POST" });
+    const resultado = await resposta.json().catch(() => ({ ok: false }));
+
+    if (!resultado.ok) {
+        mostrarToast(resultado.erro || "Não foi possível recusar.");
+        return;
+    }
+
+    mostrarToast("Solicitação recusada.");
+    fecharDetalhe();
+    await carregarSolicitacoes();
 }
 
 /* Função central pedida pelo design: recebe o chamado + histórico (JSON
@@ -298,11 +424,15 @@ async function buscarHistorico(servicoId) {
    do zero (chamado novo) ou só atualizar o que mudou. */
 function renderizarChamado(servico, historico) {
     const precisaMontar = !estadoModal || estadoModal.servicoId !== servico.id;
+    const acabouDeFinalizar = !precisaMontar && estadoModal.status !== "finalizado" && servico.status === "finalizado";
 
-    if (precisaMontar) {
+    if (precisaMontar || acabouDeFinalizar) {
         montarEstruturaModal(servico);
         estadoModal = { servicoId: servico.id, status: servico.status, historicoIds: new Set() };
         sincronizarHistorico(historico, { animar: false });
+        if (servico.status === "finalizado") {
+            carregarAvaliacaoTecnico(servico);
+        }
         return;
     }
 
@@ -380,9 +510,93 @@ function montarEstruturaModal(servico) {
                         Marcar como finalizado
                     </button>
                 </div>
+
+                ${servico.status === "finalizado" ? `
+                    <div class="detalhe-card" id="avaliacaoCard">
+                        <h3>Avaliação</h3>
+                        <div id="avaliacaoContainer"><p class="historico-item-texto">Carregando...</p></div>
+                    </div>
+                ` : ""}
             </div>
         </div>
     `;
+}
+
+/* Busca as avaliações do chamado e mostra: o que o cliente avaliou sobre o
+   técnico (se já avaliou) e um formulário pra o técnico avaliar o cliente
+   (se ainda não avaliou) — só aparece com o chamado finalizado. */
+async function carregarAvaliacaoTecnico(servico) {
+    const container = document.getElementById("avaliacaoContainer");
+    if (!container) return;
+
+    const resposta = await fetch(`/api/servicos/${servico.id}/avaliacoes`);
+    const avaliacoes = resposta.ok ? await resposta.json() : [];
+    const minhaAvaliacao = avaliacoes.find(item => item.autor_id === meuUsuarioId);
+    const avaliacaoRecebida = avaliacoes.find(item => item.avaliado_id === meuUsuarioId);
+
+    let html = "";
+    if (avaliacaoRecebida) {
+        html += `<div class="avaliacao-existente">O cliente avaliou você: ${renderizarEstrelas(avaliacaoRecebida.nota)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
+    }
+
+    if (minhaAvaliacao) {
+        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o cliente: ${renderizarEstrelas(minhaAvaliacao.nota)}</div>`;
+        container.innerHTML = html;
+        return;
+    }
+
+    html += `
+        <form id="formAvaliacao" style="margin-top:10px;">
+            <div class="nota-choices" id="notaChoices">
+                ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
+            </div>
+            <div class="input-group">
+                <label for="avaliacaoComentario">Comentário (opcional)</label>
+                <textarea id="avaliacaoComentario" rows="2" placeholder="Como foi atender esse cliente?"></textarea>
+            </div>
+            <button type="submit" class="primary-btn" id="btnEnviarAvaliacao">Avaliar cliente</button>
+        </form>
+    `;
+    container.innerHTML = html;
+
+    let notaSelecionada = null;
+    document.getElementById("notaChoices").addEventListener("click", (evento) => {
+        const botao = evento.target.closest(".nota-choice");
+        if (!botao) return;
+        notaSelecionada = Number(botao.dataset.nota);
+        document.querySelectorAll("#notaChoices .nota-choice").forEach(item => item.classList.toggle("is-selected", item === botao));
+    });
+
+    document.getElementById("formAvaliacao").addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        if (!notaSelecionada) {
+            mostrarToast("Selecione uma nota de 1 a 5.");
+            return;
+        }
+        const comentario = document.getElementById("avaliacaoComentario").value.trim();
+        const btn = document.getElementById("btnEnviarAvaliacao");
+        btn.disabled = true;
+
+        const resp = await fetch(`/api/servicos/${servico.id}/avaliar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nota: notaSelecionada, comentario }),
+        });
+        const resultado = await resp.json().catch(() => ({ ok: false }));
+
+        if (!resultado.ok) {
+            mostrarToast(resultado.erro || "Não foi possível enviar a avaliação.");
+            btn.disabled = false;
+            return;
+        }
+
+        mostrarToast("Avaliação enviada!");
+        await carregarAvaliacaoTecnico(servico);
+    });
+}
+
+function renderizarEstrelas(nota) {
+    return "★".repeat(nota) + "☆".repeat(5 - nota);
 }
 
 /* A última etapa (Finalizado), quando alcançada, conta como "concluída"
@@ -568,6 +782,7 @@ async function atualizarStatusDoChamado(novoStatus) {
 
 function fecharDetalhe() {
     modalServicoId = null;
+    modalSolicitacaoId = null;
     estadoModal = null;
     elOverlay.classList.add("hidden");
     elModalBody.innerHTML = "";
@@ -614,6 +829,7 @@ async function carregarSaudacao() {
         return;
     }
     const dados = await resposta.json();
+    meuUsuarioId = dados.id;
     elResumo.textContent = `Olá, ${dados.nome.split(" ")[0]}! Carregando seus chamados...`;
 }
 

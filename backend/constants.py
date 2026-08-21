@@ -5,6 +5,10 @@ STATUS_ABERTO = "aberto"
 STATUS_AGUARDANDO = "aguardando"
 STATUS_EM_ANALISE = "em_analise"
 STATUS_EM_REPARO = "em_reparo"
+# PAGAMENTO: entraria aqui — antes de permitir a transição pra
+# STATUS_FINALIZADO (ver AtualizarStatusServicoService), exigindo
+# confirmação de pagamento. Não implementado nesta etapa: por ora o
+# técnico finaliza o chamado diretamente.
 STATUS_FINALIZADO = "finalizado"
 STATUS_CANCELADO = "cancelado"
 
@@ -19,8 +23,16 @@ STATUS_TECNICO_CHOICES = (
 )
 
 SOLICITACAO_PENDENTE = "pendente"
+SOLICITACAO_ORCAMENTO_ENVIADO = "orcamento_enviado"
 SOLICITACAO_ACEITA = "aceita"
 SOLICITACAO_RECUSADA = "recusada"
+
+# Status de um orçamento (Atendimento) enviado por um técnico pra um
+# chamado — vários técnicos podem enviar orçamento pro mesmo chamado;
+# quando o cliente escolhe um, os demais viram "recusado" automaticamente.
+ORCAMENTO_PENDENTE = "pendente"
+ORCAMENTO_ACEITO = "aceito"
+ORCAMENTO_RECUSADO = "recusado"
 
 TIPO_NOTEBOOK = "notebook"
 TIPO_DESKTOP = "desktop"

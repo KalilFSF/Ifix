@@ -68,6 +68,24 @@ def api_historico_servico(servico_id):
     return ServicoController().historico(servico_id)
 
 
+@servicos_bp.route("/api/servicos/<int:servico_id>/orcamentos", methods=["GET"])
+@login_required
+def api_orcamentos_servico(servico_id):
+    return ServicoController().orcamentos(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/avaliar", methods=["POST"])
+@login_required
+def api_avaliar_servico(servico_id):
+    return ServicoController().avaliar(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/avaliacoes", methods=["GET"])
+@login_required
+def api_avaliacoes_servico(servico_id):
+    return ServicoController().avaliacoes(servico_id)
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>/solicitar-tecnicos", methods=["POST"])
 @login_required
 def api_solicitar_tecnicos(servico_id):
@@ -90,3 +108,9 @@ def api_tecnico_solicitacao_aceitar(solicitacao_id):
 @login_required
 def api_tecnico_solicitacao_recusar(solicitacao_id):
     return SolicitacaoController().recusar(solicitacao_id)
+
+
+@servicos_bp.route("/api/tecnico/solicitacoes/<int:solicitacao_id>/orcamento", methods=["POST"])
+@login_required
+def api_tecnico_solicitacao_orcamento(solicitacao_id):
+    return SolicitacaoController().enviar_orcamento(solicitacao_id)

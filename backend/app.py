@@ -119,6 +119,9 @@ def _garantir_colunas_novas():
             ("nota_media", "ALTER TABLE perfis_tecnicos ADD COLUMN nota_media NUMERIC(3, 2)"),
             ("total_avaliacoes", "ALTER TABLE perfis_tecnicos ADD COLUMN total_avaliacoes INTEGER NOT NULL DEFAULT 0"),
         ],
+        "atendimentos": [
+            ("prazo_estimado_dias", "ALTER TABLE atendimentos ADD COLUMN prazo_estimado_dias INTEGER"),
+        ],
     }
 
     alteracoes = []

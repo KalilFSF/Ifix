@@ -39,6 +39,7 @@ const POLL_INTERVALO_MS = 7000;
 
 let chamados = [];
 let modalServicoId = null;
+let meuUsuarioId = null;
 
 const elLista = document.getElementById("chamadosList");
 const elOverlay = document.getElementById("detalheOverlay");
@@ -62,6 +63,14 @@ function mostrarToast(mensagem) {
 function formatarData(isoString) {
     if (!isoString) return "";
     return new Date(isoString).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+}
+
+function formatarMoeda(valor) {
+    return `R$ ${Number(valor || 0).toFixed(2)}`;
+}
+
+function renderizarEstrelas(nota) {
+    return "★".repeat(nota) + "☆".repeat(5 - nota);
 }
 
 function iconeSeta() {
@@ -125,6 +134,21 @@ async function renderizarDetalhe() {
 
     const respostaHistorico = await fetch(`/api/servicos/${chamado.id}/historico`);
     const historico = respostaHistorico.ok ? await respostaHistorico.json() : [];
+
+    const aguardandoOrcamentos = chamado.status === "aberto";
+    let orcamentos = [];
+    if (aguardandoOrcamentos) {
+        const respostaOrcamentos = await fetch(`/api/servicos/${chamado.id}/orcamentos`);
+        orcamentos = respostaOrcamentos.ok ? await respostaOrcamentos.json() : [];
+    }
+
+    const finalizado = chamado.status === "finalizado";
+    let avaliacoes = [];
+    if (finalizado) {
+        const respostaAvaliacoes = await fetch(`/api/servicos/${chamado.id}/avaliacoes`);
+        avaliacoes = respostaAvaliacoes.ok ? await respostaAvaliacoes.json() : [];
+    }
+
     const tecnico = chamado.tecnico || {};
     const badgeClasse = STATUS_BADGE_CLASS[chamado.status] || "status-aguardando";
     const badgeLabel = STATUS_LABELS[chamado.status] || chamado.status;
@@ -162,6 +186,24 @@ async function renderizarDetalhe() {
             </div>
         ` : ""}
 
+        ${aguardandoOrcamentos ? `
+            <div class="modal-historico">
+                <h3>Orçamentos recebidos</h3>
+                ${orcamentos.length ? `
+                    <div class="orcamentos-list">
+                        ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento)).join("")}
+                    </div>
+                ` : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
+            </div>
+        ` : ""}
+
+        ${finalizado ? `
+            <div class="modal-historico">
+                <h3>Avaliação</h3>
+                <div id="avaliacaoContainer"><p class="painel-equipamento">Carregando...</p></div>
+            </div>
+        ` : ""}
+
         <div class="modal-historico">
             <h3>Histórico</h3>
             ${historico.length ? `
@@ -185,6 +227,127 @@ async function renderizarDetalhe() {
     if (btnExcluir) {
         btnExcluir.addEventListener("click", () => excluirChamado(Number(btnExcluir.dataset.id)));
     }
+
+    if (aguardandoOrcamentos) {
+        elModalBody.querySelectorAll(".btn-escolher-orcamento").forEach(botao => {
+            botao.addEventListener("click", () => escolherOrcamento(Number(botao.dataset.id)));
+        });
+    }
+
+    if (finalizado) {
+        carregarAvaliacaoCliente(chamado);
+    }
+}
+
+function renderizarOrcamentoHTML(orcamento) {
+    const tecnico = orcamento.tecnico || {};
+    const nota = tecnico.nota_media !== null && tecnico.nota_media !== undefined
+        ? `${renderizarEstrelas(Math.round(tecnico.nota_media))} (${tecnico.nota_media.toFixed(1)})`
+        : "Sem avaliações ainda";
+    const statusClasse = orcamento.status === "aceito" ? "is-aceito" : orcamento.status === "recusado" ? "is-recusado" : "";
+
+    return `
+        <article class="orcamento-card ${statusClasse}">
+            <div class="orcamento-info">
+                <strong>${tecnico.nome || "Técnico"}</strong>
+                <span>${nota}</span>
+                ${orcamento.prazo_estimado_dias ? `<span>Prazo estimado: ${orcamento.prazo_estimado_dias} dia(s)</span>` : ""}
+                ${orcamento.descricao ? `<span>${orcamento.descricao}</span>` : ""}
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span class="orcamento-valor">${formatarMoeda(orcamento.valor_orcamento)}</span>
+                ${orcamento.status === "pendente" ? `<button type="button" class="primary-btn btn-escolher-orcamento" data-id="${orcamento.id}" style="width:auto; margin:0;">Escolher</button>` : `<span class="status-badge">${orcamento.status === "aceito" ? "Escolhido" : "Não escolhido"}</span>`}
+            </div>
+        </article>
+    `;
+}
+
+async function escolherOrcamento(atendimentoId) {
+    if (!confirm("Confirmar este orçamento? Os demais técnicos serão avisados que o chamado foi atribuído a outro profissional.")) return;
+
+    const resposta = await fetch(`/api/atendimentos/${atendimentoId}/escolher`, { method: "POST" });
+    const resultado = await resposta.json().catch(() => ({ ok: false }));
+
+    if (!resultado.ok) {
+        mostrarToast(resultado.erro || "Não foi possível escolher este orçamento.");
+        return;
+    }
+
+    mostrarToast("Técnico atribuído ao chamado!");
+    await carregarChamados();
+}
+
+/* Busca as avaliações do chamado finalizado: mostra o que o técnico
+   avaliou sobre o cliente (se já avaliou) e um formulário pra o cliente
+   avaliar o técnico (se ainda não avaliou). */
+async function carregarAvaliacaoCliente(chamado) {
+    const container = document.getElementById("avaliacaoContainer");
+    if (!container) return;
+
+    const resposta = await fetch(`/api/servicos/${chamado.id}/avaliacoes`);
+    const avaliacoes = resposta.ok ? await resposta.json() : [];
+    const minhaAvaliacao = avaliacoes.find(item => item.autor_id === meuUsuarioId);
+    const avaliacaoRecebida = avaliacoes.find(item => item.avaliado_id === meuUsuarioId);
+
+    let html = "";
+    if (avaliacaoRecebida) {
+        html += `<div class="avaliacao-existente">O técnico avaliou você: ${renderizarEstrelas(avaliacaoRecebida.nota)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
+    }
+
+    if (minhaAvaliacao) {
+        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o técnico: ${renderizarEstrelas(minhaAvaliacao.nota)}</div>`;
+        container.innerHTML = html;
+        return;
+    }
+
+    html += `
+        <form id="formAvaliacao" style="margin-top:10px;">
+            <div class="nota-choices" id="notaChoices">
+                ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
+            </div>
+            <div class="input-group">
+                <label for="avaliacaoComentario">Comentário (opcional)</label>
+                <textarea id="avaliacaoComentario" rows="2" placeholder="Como foi o atendimento?"></textarea>
+            </div>
+            <button type="submit" class="primary-btn" id="btnEnviarAvaliacao">Avaliar técnico</button>
+        </form>
+    `;
+    container.innerHTML = html;
+
+    let notaSelecionada = null;
+    document.getElementById("notaChoices").addEventListener("click", (evento) => {
+        const botao = evento.target.closest(".nota-choice");
+        if (!botao) return;
+        notaSelecionada = Number(botao.dataset.nota);
+        document.querySelectorAll("#notaChoices .nota-choice").forEach(item => item.classList.toggle("is-selected", item === botao));
+    });
+
+    document.getElementById("formAvaliacao").addEventListener("submit", async (evento) => {
+        evento.preventDefault();
+        if (!notaSelecionada) {
+            mostrarToast("Selecione uma nota de 1 a 5.");
+            return;
+        }
+        const comentario = document.getElementById("avaliacaoComentario").value.trim();
+        const btn = document.getElementById("btnEnviarAvaliacao");
+        btn.disabled = true;
+
+        const resp = await fetch(`/api/servicos/${chamado.id}/avaliar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ nota: notaSelecionada, comentario }),
+        });
+        const resultado = await resp.json().catch(() => ({ ok: false }));
+
+        if (!resultado.ok) {
+            mostrarToast(resultado.erro || "Não foi possível enviar a avaliação.");
+            btn.disabled = false;
+            return;
+        }
+
+        mostrarToast("Avaliação enviada!");
+        await carregarAvaliacaoCliente(chamado);
+    });
 }
 
 function fecharDetalhe() {
@@ -263,6 +426,7 @@ function iniciarSidebarMobile() {
     iniciarSidebarMobile();
     const dados = await iniciarRoleChips("cliente");
     if (!dados) return;
+    meuUsuarioId = dados.id;
     await carregarChamados();
 
     setInterval(carregarChamados, POLL_INTERVALO_MS);
