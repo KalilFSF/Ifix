@@ -33,3 +33,17 @@ function anexarCoordenadas(formData, coordenadas) {
     formData.append("latitude", coordenadas.latitude);
     formData.append("longitude", coordenadas.longitude);
 }
+
+/* Mostra um aviso discreto (não bloqueia o formulário) quando o navegador
+   não conseguiu localizar o usuário — sem isso a pessoa não tem como saber
+   que precisa permitir o acesso à localização pra entrar na busca
+   automática de técnicos, já que hoje isso falha em silêncio. */
+async function avisarSeSemLocalizacao(elementoId) {
+    const coordenadas = await coordenadasPromise;
+    if (coordenadas) return;
+
+    const el = document.getElementById(elementoId);
+    if (!el) return;
+    el.textContent = "Não conseguimos acessar sua localização. Permita o acesso pelo navegador para que o sistema encontre técnicos próximos automaticamente — sem isso, o cadastro/chamado segue normal, só fica de fora dessa busca.";
+    el.classList.remove("hidden");
+}

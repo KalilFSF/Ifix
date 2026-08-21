@@ -310,3 +310,6 @@ document.getElementById("tecnicoForm").addEventListener("submit", (evento) => {
     if (!validarDataNascimento(evento.target)) return;
     enviarCadastro(evento.target, "/api/cadastro/tecnico", document.getElementById("mensagemTecnico"));
 });
+
+avisarSeSemLocalizacao("avisoLocalizacaoCliente");
+avisarSeSemLocalizacao("avisoLocalizacaoTecnico");
