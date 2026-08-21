@@ -33,7 +33,7 @@ class AtendimentoController:
     @login_required
     def atualizar_status(self, atendimento_id):
         dados = request.get_json(silent=True) or {}
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         try:

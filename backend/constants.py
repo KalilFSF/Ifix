@@ -20,3 +20,20 @@ STATUS_TECNICO_CHOICES = (
 SOLICITACAO_PENDENTE = "pendente"
 SOLICITACAO_ACEITA = "aceita"
 SOLICITACAO_RECUSADA = "recusada"
+
+TIPO_NOTEBOOK = "notebook"
+TIPO_DESKTOP = "desktop"
+TIPOS_EQUIPAMENTO = (TIPO_NOTEBOOK, TIPO_DESKTOP)
+
+CATEGORIA_HARDWARE = "hardware"
+CATEGORIA_SOFTWARE = "software"
+CATEGORIAS_PROBLEMA = (CATEGORIA_HARDWARE, CATEGORIA_SOFTWARE)
+
+MAX_FOTOS_CHAMADO = 5
+MAX_BYTES_FOTO_CHAMADO = 2 * 1024 * 1024  # 2 MB por foto
+
+# Garantia opcional na abertura do chamado: +7% sobre o valor do serviço.
+# Se o problema voltar em até 10 dias após a finalização, o cliente pode
+# pedir reembolso ou um novo atendimento gratuito.
+GARANTIA_PERCENTUAL = 0.07
+GARANTIA_DIAS = 10

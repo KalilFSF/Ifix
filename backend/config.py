@@ -27,4 +27,4 @@ class Config:
     # (ver app.py), então esses arquivos saem direto em /uploads/... sem
     # precisar de uma rota própria pra servir arquivo.
     UPLOAD_FOLDER = os.path.join(FRONTEND_DIR, "uploads")
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB por request (limite de upload)
+    MAX_CONTENT_LENGTH = 12 * 1024 * 1024  # 12 MB por request (várias fotos do chamado)

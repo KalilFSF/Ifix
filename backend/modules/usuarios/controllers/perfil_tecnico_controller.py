@@ -13,7 +13,7 @@ class PerfilTecnicoController:
 
     @login_required
     def obter(self):
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         try:
@@ -30,7 +30,7 @@ class PerfilTecnicoController:
 
     @login_required
     def atualizar(self):
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         dados = request.get_json(silent=True) or {}

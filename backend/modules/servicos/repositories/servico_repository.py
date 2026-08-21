@@ -11,10 +11,12 @@ class ServicoRepository:
     chamado" do cliente, que precisam do nome/telefone de cliente e
     técnico junto com cada chamado, sem N+1 query por linha."""
 
-    def buscar_meus_com_participantes(self, usuario_id, role, status=None):
+    def buscar_meus_com_participantes(self, usuario_id, como, status=None):
         # Servico se relaciona com Usuario duas vezes (cliente e técnico) —
         # precisa de alias explícito, senão o SQL gera "usuarios" duas
         # vezes na mesma query e o banco não sabe distinguir as colunas.
+        # `como` escolhe o modo da listagem (cliente = abertos por mim;
+        # tecnico = que eu atendo), independente do role da conta.
         cliente_usuario = aliased(Usuario)
         tecnico_usuario = aliased(Usuario)
 
@@ -28,9 +30,9 @@ class ServicoRepository:
             )
         )
 
-        if role == "tecnico":
+        if como == "tecnico":
             query = query.filter(Servico.tecnico_id == usuario_id)
-        elif role == "cliente":
+        elif como == "cliente":
             query = query.filter(Servico.cliente_id == usuario_id)
         else:
             return []

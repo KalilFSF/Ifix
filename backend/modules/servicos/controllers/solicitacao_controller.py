@@ -15,7 +15,7 @@ class SolicitacaoController:
 
     @login_required
     def listar(self):
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         solicitacoes = self.listar_solicitacoes_pendentes_service.executar(current_user.id)
@@ -23,7 +23,7 @@ class SolicitacaoController:
 
     @login_required
     def aceitar(self, solicitacao_id):
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         try:
@@ -35,7 +35,7 @@ class SolicitacaoController:
 
     @login_required
     def recusar(self, solicitacao_id):
-        if current_user.role != "tecnico":
+        if not current_user.eh_tecnico:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         try:

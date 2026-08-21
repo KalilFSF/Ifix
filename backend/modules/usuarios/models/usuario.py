@@ -124,6 +124,12 @@ class Usuario(UserMixin, db.Model):
         self.role = "tecnico"
         return self.salvar()
 
+    @property
+    def eh_tecnico(self):
+        """True se a conta tem capacidade de técnico (perfil anexado ou role).
+        Ser técnico NÃO impede usar a área de cliente."""
+        return self.role == "tecnico" or self.perfil_tecnico is not None
+
     # ============== Senha / autenticação ==============
 
     def set_senha(self, senha):
