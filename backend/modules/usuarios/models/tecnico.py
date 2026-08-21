@@ -8,7 +8,7 @@ class PerfilTecnico(db.Model):
     __tablename__ = "perfis_tecnicos"
 
     id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), unique=True, nullable=False)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), unique=True, nullable=False)
 
     especialidade = db.Column(db.String(100), nullable=False)
     escolaridade = db.Column(db.String(50), nullable=False)
@@ -102,7 +102,7 @@ class Diploma(db.Model):
     __tablename__ = "diplomas"
 
     id = db.Column(db.Integer, primary_key=True)
-    perfil_tecnico_id = db.Column(db.Integer, db.ForeignKey("perfis_tecnicos.id"), nullable=False)
+    perfil_tecnico_id = db.Column(db.Integer, db.ForeignKey("perfis_tecnicos.id", ondelete="CASCADE"), nullable=False)
     arquivo = db.Column(db.String(255), nullable=False)
     enviado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

@@ -12,10 +12,12 @@ class HistoricoServico(db.Model):
     __tablename__ = "historico_servicos"
 
     id = db.Column(db.Integer, primary_key=True)
-    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id"), nullable=False)
+    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     status_anterior = db.Column(db.String(30))
     status_novo = db.Column(db.String(30), nullable=False)
-    alterado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    # SET NULL (não CASCADE): apagar o usuário que alterou não deve apagar o
+    # registro de histórico em si, só perder a referência de quem foi.
+    alterado_por_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="SET NULL"))
     alterado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     servico = db.relationship("Servico", back_populates="historico")

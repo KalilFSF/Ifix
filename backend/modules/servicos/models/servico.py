@@ -25,8 +25,8 @@ class Servico(db.Model):
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
 
-    cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"), nullable=False)
-    tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id"))
+    cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
+    tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"))
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     atualizado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -160,7 +160,7 @@ class FotoServico(db.Model):
     __tablename__ = "fotos_servicos"
 
     id = db.Column(db.Integer, primary_key=True)
-    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id"), nullable=False)
+    servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     arquivo = db.Column(db.String(255), nullable=False)
     enviado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

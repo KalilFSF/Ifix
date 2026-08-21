@@ -89,6 +89,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         _garantir_colunas_novas()
+        _garantir_cascade_exclusao()
 
     return app
 
@@ -132,6 +133,66 @@ def _garantir_colunas_novas():
     with db.engine.begin() as conn:
         for sql in alteracoes:
             conn.execute(text(sql))
+
+
+def _garantir_cascade_exclusao():
+    """Alinha as FKs do banco com o cascade que o SQLAlchemy já assume nos
+    relationships (Usuario.perfil_tecnico, Servico.atendimentos, etc, todos
+    com cascade="all, delete-orphan") — sem isso, apagar um usuário ou
+    chamado fora do ORM (ex: direto pelo SQL editor do Neon) esbarra em
+    ForeignKeyViolation mesmo quando o cascade já é o comportamento que a
+    aplicação pretende.
+
+    Só roda em Postgres: SQLite não suporta ALTER de constraint de FK (só
+    dá pra recriar a tabela inteira), e como SQLite nem aplica FK por
+    padrão isso não chega a ser um problema prático em dev local."""
+    if db.engine.dialect.name != "postgresql":
+        return
+
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    tabelas = set(inspector.get_table_names())
+
+    # (tabela, coluna, tabela_referenciada, ação) — SET NULL só em
+    # alterado_por_id: é opcional e apagar quem alterou não deve apagar o
+    # registro de histórico em si, só perder essa referência.
+    fks = [
+        ("perfis_tecnicos", "usuario_id", "usuarios", "CASCADE"),
+        ("diplomas", "perfil_tecnico_id", "perfis_tecnicos", "CASCADE"),
+        ("servicos", "cliente_id", "usuarios", "CASCADE"),
+        ("servicos", "tecnico_id", "usuarios", "CASCADE"),
+        ("fotos_servicos", "servico_id", "servicos", "CASCADE"),
+        ("solicitacoes_tecnicos", "servico_id", "servicos", "CASCADE"),
+        ("solicitacoes_tecnicos", "tecnico_id", "usuarios", "CASCADE"),
+        ("historico_servicos", "servico_id", "servicos", "CASCADE"),
+        ("historico_servicos", "alterado_por_id", "usuarios", "SET NULL"),
+        ("atendimentos", "cliente_id", "usuarios", "CASCADE"),
+        ("atendimentos", "tecnico_id", "usuarios", "CASCADE"),
+        ("atendimentos", "servico_id", "servicos", "CASCADE"),
+    ]
+
+    with db.engine.begin() as conn:
+        for tabela, coluna, tabela_ref, acao in fks:
+            if tabela not in tabelas:
+                continue
+
+            constraint = f"{tabela}_{coluna}_fkey"
+            regra_atual = conn.execute(
+                text(
+                    "SELECT delete_rule FROM information_schema.referential_constraints "
+                    "WHERE constraint_name = :nome"
+                ),
+                {"nome": constraint},
+            ).scalar()
+            if regra_atual == acao:
+                continue
+
+            conn.execute(text(f'ALTER TABLE {tabela} DROP CONSTRAINT IF EXISTS "{constraint}"'))
+            conn.execute(text(
+                f'ALTER TABLE {tabela} ADD CONSTRAINT "{constraint}" '
+                f'FOREIGN KEY ({coluna}) REFERENCES {tabela_ref}(id) ON DELETE {acao}'
+            ))
 
 
 app = create_app()
