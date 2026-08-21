@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from constants import LIMITE_ALERTAS_COMPORTAMENTO
 from database import db
 from utils import isoformat_utc
 
@@ -34,6 +35,14 @@ class Usuario(UserMixin, db.Model):
     # padrão para Servico.latitude/longitude no momento da criação do chamado.
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
+
+    # Penalidade por comportamento (funcionalidade 4): incrementado sempre
+    # que um técnico avalia essa conta com nota baixa de comportamento/
+    # colaboração num chamado (ver AvaliarService); ao atingir o limite,
+    # a conta é suspensa automaticamente e não pode mais abrir chamados
+    # novos (ver CriarServicoService).
+    alertas_comportamento = db.Column(db.Integer, nullable=False, default=0)
+    suspenso = db.Column(db.Boolean, nullable=False, default=False)
 
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -84,6 +93,16 @@ class Usuario(UserMixin, db.Model):
     def remover(self):
         db.session.delete(self)
         db.session.commit()
+
+    def registrar_alerta_comportamento(self):
+        """Chamado quando um técnico avalia essa conta com nota baixa de
+        comportamento/colaboração — ao acumular LIMITE_ALERTAS_COMPORTAMENTO
+        alertas, suspende a conta automaticamente (não pode mais abrir
+        chamados novos, ver CriarServicoService)."""
+        self.alertas_comportamento = (self.alertas_comportamento or 0) + 1
+        if self.alertas_comportamento >= LIMITE_ALERTAS_COMPORTAMENTO:
+            self.suspenso = True
+        return self.salvar()
 
     @classmethod
     def buscar_por_id(cls, usuario_id):
@@ -161,5 +180,7 @@ class Usuario(UserMixin, db.Model):
             "pais": self.pais,
             "latitude": self.latitude,
             "longitude": self.longitude,
+            "alertas_comportamento": self.alertas_comportamento,
+            "suspenso": self.suspenso,
             "criado_em": isoformat_utc(self.criado_em),
         }

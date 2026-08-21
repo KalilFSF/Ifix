@@ -69,13 +69,18 @@ function formatarMoeda(valor) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
 }
 
-/* Critérios avaliados separadamente (em vez de uma nota geral única) — a
-   nota geral que alimenta PerfilTecnico.nota_media é a média dos três,
-   calculada no backend (ver AvaliarService). */
-const CRITERIOS_AVALIACAO = [
+/* Critérios diferentes por direção — não faz sentido pedir "preço justo"
+   do técnico avaliando o cliente. O cliente avalia o SERVIÇO do técnico;
+   o técnico avalia o COMPORTAMENTO do cliente (funcionalidade 4). A nota
+   geral (média dos critérios de cada conjunto) é calculada no backend. */
+const CRITERIOS_AVALIACAO_TECNICO = [
     { chave: "tempo", rotulo: "Tempo de atendimento" },
     { chave: "honestidade", rotulo: "Honestidade" },
     { chave: "preco_justo", rotulo: "Preço justo" },
+];
+const CRITERIOS_AVALIACAO_CLIENTE = [
+    { chave: "comportamento", rotulo: "Comportamento durante o atendimento" },
+    { chave: "colaboracao", rotulo: "Colaboração / não interferência no reparo" },
 ];
 
 function renderizarEstrelas(nota) {
@@ -83,8 +88,19 @@ function renderizarEstrelas(nota) {
     return "★".repeat(nota) + "☆".repeat(5 - nota);
 }
 
-function renderizarResumoAvaliacaoHTML(avaliacao) {
-    return CRITERIOS_AVALIACAO.map(criterio => `${criterio.rotulo}: ${renderizarEstrelas(avaliacao[`nota_${criterio.chave}`])}`).join(" · ");
+function renderizarResumoAvaliacaoHTML(avaliacao, criterios) {
+    return criterios.map(criterio => `${criterio.rotulo}: ${renderizarEstrelas(avaliacao[`nota_${criterio.chave}`])}`).join(" · ");
+}
+
+function renderizarFormAvaliacaoHTML(criterios) {
+    return criterios.map(criterio => `
+        <div class="input-group">
+            <label>${criterio.rotulo}</label>
+            <div class="nota-choices" data-criterio="${criterio.chave}">
+                ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
+            </div>
+        </div>
+    `).join("");
 }
 
 function iconeSeta() {
@@ -305,25 +321,18 @@ async function carregarAvaliacaoCliente(chamado) {
 
     let html = "";
     if (avaliacaoRecebida) {
-        html += `<div class="avaliacao-existente">O técnico avaliou você — ${renderizarResumoAvaliacaoHTML(avaliacaoRecebida)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
+        html += `<div class="avaliacao-existente">O técnico avaliou você — ${renderizarResumoAvaliacaoHTML(avaliacaoRecebida, CRITERIOS_AVALIACAO_CLIENTE)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
     }
 
     if (minhaAvaliacao) {
-        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o técnico — ${renderizarResumoAvaliacaoHTML(minhaAvaliacao)}</div>`;
+        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o técnico — ${renderizarResumoAvaliacaoHTML(minhaAvaliacao, CRITERIOS_AVALIACAO_TECNICO)}</div>`;
         container.innerHTML = html;
         return;
     }
 
     html += `
         <form id="formAvaliacao" style="margin-top:10px;">
-            ${CRITERIOS_AVALIACAO.map(criterio => `
-                <div class="input-group">
-                    <label>${criterio.rotulo}</label>
-                    <div class="nota-choices" data-criterio="${criterio.chave}">
-                        ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
-                    </div>
-                </div>
-            `).join("")}
+            ${renderizarFormAvaliacaoHTML(CRITERIOS_AVALIACAO_TECNICO)}
             <div class="input-group">
                 <label for="avaliacaoComentario">Comentário (opcional)</label>
                 <textarea id="avaliacaoComentario" rows="2" placeholder="Como foi o atendimento?"></textarea>
@@ -346,7 +355,7 @@ async function carregarAvaliacaoCliente(chamado) {
 
     document.getElementById("formAvaliacao").addEventListener("submit", async (evento) => {
         evento.preventDefault();
-        const faltando = CRITERIOS_AVALIACAO.filter(criterio => !notasSelecionadas[criterio.chave]);
+        const faltando = CRITERIOS_AVALIACAO_TECNICO.filter(criterio => !notasSelecionadas[criterio.chave]);
         if (faltando.length) {
             mostrarToast(`Avalie: ${faltando.map(criterio => criterio.rotulo).join(", ")}.`);
             return;

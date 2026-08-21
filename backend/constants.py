@@ -56,7 +56,14 @@ CATEGORIA_SOFTWARE = "software"
 CATEGORIAS_PROBLEMA = (CATEGORIA_HARDWARE, CATEGORIA_SOFTWARE)
 
 MAX_FOTOS_CHAMADO = 5
-MAX_BYTES_FOTO_CHAMADO = 2 * 1024 * 1024  # 2 MB por foto
+# 5 MB por foto (era 2 MB). Atenção: Serverless Functions do Vercel têm um
+# limite de payload da própria plataforma (historicamente ~4,5 MB por
+# request, fora do controle do Flask) — com várias fotos grandes juntas
+# nesse limite pode ser atingido antes mesmo de chegar no MAX_CONTENT_LENGTH
+# configurado em config.py. Se isso acontecer em produção, a saída correta
+# é subir a foto direto do navegador pro Cloudinary (upload assinado) em
+# vez de passar pelo backend, e não só aumentar esse número de novo.
+MAX_BYTES_FOTO_CHAMADO = 5 * 1024 * 1024
 
 # Garantia opcional na abertura do chamado: +7% sobre o valor do serviço.
 # Se o problema voltar em até 10 dias após a finalização, o cliente pode
@@ -78,3 +85,11 @@ TECNICOS_SELECIONADOS_MAX = 3
 PESO_DISTANCIA = 0.5
 PESO_AVALIACAO = 0.3
 PESO_PRECO = 0.2
+
+# Penalidade por comportamento (funcionalidade 4 do projeto): nota de
+# comportamento/colaboração <= este valor conta como "alerta" quando um
+# técnico avalia um cliente; ao acumular LIMITE_ALERTAS_COMPORTAMENTO
+# alertas, a conta do cliente é suspensa automaticamente (ver
+# Usuario.registrar_alerta_comportamento / AvaliarService).
+NOTA_COMPORTAMENTO_LIMITE = 2
+LIMITE_ALERTAS_COMPORTAMENTO = 3

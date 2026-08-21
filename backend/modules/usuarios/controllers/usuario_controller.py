@@ -30,6 +30,7 @@ class UsuarioController:
             "estado": usuario.estado,
             "role": usuario.role,
             "eh_tecnico": usuario.eh_tecnico,
+            "suspenso": usuario.suspenso,
         }
 
         if usuario.eh_tecnico and usuario.perfil_tecnico:
