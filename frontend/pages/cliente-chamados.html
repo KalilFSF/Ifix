@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Meus chamados</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <div class="dash-shell">
+
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+
+            <div class="sidebar-top">
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Fechar menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div class="sidebar-logo">
+                    <span>iFix</span>
+                    <p>Assistência técnica</p>
+                </div>
+
+                <div class="role-indicator" role="note" aria-label="Perfil da conta: Cliente">
+                    <span class="role-chip role-chip-active">Cliente</span>
+                    <button type="button" class="role-chip role-chip-link" id="chipTornarTecnico" title="Tornar-se técnico e atender chamados.">Técnico</button>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/cliente/home" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Início</span>
+                </a>
+
+                <a href="#" class="nav-item" data-em-breve="abrir-chamado">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    <span>Abrir chamado</span>
+                </a>
+
+                <a href="/cliente/chamados" class="nav-item is-active">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>Meus chamados</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <label class="theme-switch sidebar-theme-switch">
+                    <input type="checkbox" class="themeToggle">
+                    <span class="slider">
+                        <svg class="icon sun" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                        </svg>
+                        <svg class="icon moon" viewBox="0 0 24 24">
+                            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                        </svg>
+                    </span>
+                    <small class="theme-text">Tema</small>
+                </label>
+
+                <a href="/logout" class="nav-item nav-item-logout">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Sair</span>
+                </a>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- ================= CONTEÚDO PRINCIPAL ================= -->
+        <div class="dash-main">
+
+            <header class="mobile-topbar">
+                <button type="button" class="sidebar-open" id="sidebarOpen" aria-label="Abrir menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span class="mobile-topbar-title">iFix</span>
+            </header>
+
+            <main class="dash-content">
+
+                <div id="toast" class="toast hidden"></div>
+
+                <section class="panel-header">
+                    <div>
+                        <h1>Meus chamados</h1>
+                        <p class="hero-subtitle">Acompanhe o andamento de cada reparo em tempo real.</p>
+                    </div>
+                </section>
+
+                <section class="section-block">
+                    <div class="chamados-list" id="chamadosList">
+                        <!-- Preenchido via JS (cliente-chamados.js) -->
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE DETALHE / HISTÓRICO ===== -->
+    <div class="modal-overlay hidden" id="detalheOverlay">
+        <div class="modal-card">
+            <button type="button" class="modal-close" id="detalheClose" aria-label="Fechar">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="detalheBody"></div>
+        </div>
+    </div>
+
+    <!-- ===== MODAL "TORNAR-SE TÉCNICO" ===== -->
+    <div class="modal-overlay hidden" id="tornarTecnicoOverlay">
+        <div class="modal-card tornar-tecnico-card">
+            <button type="button" class="modal-close" id="tornarTecnicoClose" aria-label="Fechar">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <span class="modal-icon-badge">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </span>
+
+            <h2>Deseja ter sua conta de técnico?</h2>
+            <p>Cadastre-se como técnico e comece a receber solicitações de clientes.</p>
+
+            <a href="/cliente/tornar-tecnico" class="primary-btn">Quero me tornar técnico</a>
+        </div>
+    </div>
+
+    <script src="/js/cliente-chamados.js"></script>
+</body>
+</html>

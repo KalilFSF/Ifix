@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Login</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <main class="login-container">
+        <section class="login-card">
+
+            <div class="logo">
+                <div class="logo-top">
+                    <div class="logo-info">
+                        <span>iFix</span>
+                        <p>Assistência técnica</p>
+                    </div>
+
+                    <label class="theme-switch">
+                        <input type="checkbox" class="themeToggle">
+                        <span class="slider">
+                            <svg class="icon sun" viewBox="0 0 24 24">
+                                <circle cx="12" cy="12" r="4"></circle>
+                                <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                                <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                                <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                                <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                                <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                                <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                                <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                                <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                            </svg>
+                            <svg class="icon moon" viewBox="0 0 24 24">
+                                <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                            </svg>
+                        </span>
+                        <small class="theme-text">Tema</small>
+                    </label>
+                </div>
+            </div>
+
+            <h1>Bem-vindo de volta</h1>
+            <p class="subtitle">Acesse sua conta para continuar.</p>
+
+            <!-- Preenchido via JS (login.js) quando a API devolve erro -->
+            <div id="mensagem" class="mensagem hidden"></div>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        placeholder="seuemail@exemplo.com"
+                        required
+                    >
+                </div>
+
+                <div class="input-group">
+                    <label for="senha">Senha</label>
+                    <input
+                        type="password"
+                        id="senha"
+                        name="senha"
+                        placeholder="Digite sua senha"
+                        required
+                    >
+                </div>
+
+                <button type="submit" class="primary-btn">Entrar</button>
+            </form>
+
+            <div class="register-link">
+                <p>Não possui uma conta?</p>
+                <a href="/cadastro">Cadastre-se</a>
+            </div>
+
+        </section>
+    </main>
+
+    <script src="/js/login.js"></script>
+</body>
+</html>

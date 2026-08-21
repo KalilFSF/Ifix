@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Painel do técnico</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <div class="dash-shell">
+
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+
+            <div class="sidebar-top">
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Fechar menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div class="sidebar-logo">
+                    <span>iFix</span>
+                    <p>Assistência técnica</p>
+                </div>
+
+                <div class="role-indicator" role="note" aria-label="Perfil da conta: Técnico">
+                    <span class="role-chip role-chip-disabled" title="Sua conta é de técnico.">Cliente</span>
+                    <span class="role-chip role-chip-active">Técnico</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/tecnico/home" class="nav-item is-active">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Painel técnico</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <label class="theme-switch sidebar-theme-switch">
+                    <input type="checkbox" class="themeToggle">
+                    <span class="slider">
+                        <svg class="icon sun" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                        </svg>
+                        <svg class="icon moon" viewBox="0 0 24 24">
+                            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                        </svg>
+                    </span>
+                    <small class="theme-text">Tema</small>
+                </label>
+
+                <a href="/logout" class="nav-item nav-item-logout">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Sair</span>
+                </a>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- ================= CONTEÚDO PRINCIPAL ================= -->
+        <div class="dash-main">
+
+            <header class="mobile-topbar">
+                <button type="button" class="sidebar-open" id="sidebarOpen" aria-label="Abrir menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span class="mobile-topbar-title">iFix</span>
+            </header>
+
+            <main class="dash-content">
+
+                <div id="toast" class="toast hidden"></div>
+
+                <!-- ===== CABEÇALHO ===== -->
+                <section class="panel-header">
+                    <div>
+                        <h1>Painel do técnico</h1>
+                        <p class="hero-subtitle" id="resumoPainel">Carregando seus chamados...</p>
+                    </div>
+                </section>
+
+                <!-- ===== SOLICITAÇÕES PENDENTES ===== -->
+                <section class="section-block hidden" id="solicitacoesSection">
+                    <div class="section-header">
+                        <h2>Solicitações pendentes</h2>
+                    </div>
+                    <div class="solicitacoes-list" id="solicitacoesList"></div>
+                </section>
+
+                <!-- ===== PAINEL DE CHAMADOS ===== -->
+                <section class="section-block">
+                    <div class="painel-toolbar">
+                        <div class="status-tabs" id="statusTabs"></div>
+                        <div class="search-box">
+                            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" id="buscaInput" placeholder="Buscar por código, cliente ou problema...">
+                        </div>
+                    </div>
+
+                    <div id="painelVazio" class="chamados-empty hidden">
+                        <p class="chamados-empty-titulo">Nenhum chamado por aqui ainda.</p>
+                        <p class="chamados-empty-texto">Quando você aceitar uma solicitação, ela aparece nesta lista.</p>
+                    </div>
+
+                    <div class="painel-table-wrap hidden" id="painelTableWrap">
+                        <table class="painel-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Problema</th>
+                                    <th>Cliente</th>
+                                    <th>Status</th>
+                                    <th>Valor</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="painelTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===== MODAL DE DETALHE ===== -->
+    <div class="modal-overlay hidden" id="detalheOverlay">
+        <div class="modal-card modal-card-tecnico">
+            <button type="button" class="modal-close" id="detalheClose" aria-label="Fechar">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <div id="detalheBody"></div>
+        </div>
+    </div>
+
+    <script src="/js/tecnico-home.js"></script>
+</body>
+</html>

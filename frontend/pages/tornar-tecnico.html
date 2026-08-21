@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Tornar-se técnico</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/cadastro.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <main class="register-container">
+        <section class="register-card">
+
+            <div class="title-row">
+                <h1>Tornar-se técnico</h1>
+
+                <label class="theme-switch">
+                    <input type="checkbox" class="themeToggle">
+                    <span class="slider">
+                        <svg class="icon sun" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                        </svg>
+                        <svg class="icon moon" viewBox="0 0 24 24">
+                            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                        </svg>
+                    </span>
+                    <p class="theme-text">TEMA</p>
+                </label>
+            </div>
+
+            <p class="subtitle">
+                Sua conta continua a mesma (mesmo email e senha) — só passa a
+                atender chamados também. Seus dados pessoais e de endereço já
+                cadastrados não precisam ser preenchidos de novo.
+            </p>
+
+            <div id="mensagem" class="mensagem hidden"></div>
+
+            <form id="tornarTecnicoForm">
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label>Escolaridade</label>
+                        <select name="escolaridade" required>
+                            <option value="">Selecione</option>
+                            <option>Ensino médio</option>
+                            <option>Técnico</option>
+                            <option>Superior cursando</option>
+                            <option>Superior completo</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Curso superior</label>
+                        <input type="text" name="curso_superior">
+                    </div>
+
+                    <div class="input-group">
+                        <label>Região de atendimento</label>
+                        <input type="text" name="regiao_atendimento" placeholder="Ex: Zona Sul, Centro, toda a cidade..." required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Especialidade</label>
+                        <input type="text" name="especialidade" placeholder="Ex: Celulares, notebooks, TVs..." required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Foto de perfil</label>
+                        <input type="file" name="foto_perfil" accept="image/*" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Diplomas e certificados</label>
+                        <input type="file" name="diplomas" accept="image/*,.pdf" multiple>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Cursos e experiências</label>
+                    <textarea name="cursos_experiencias" placeholder="Descreva seus cursos e experiências"></textarea>
+                </div>
+
+                <div class="input-group">
+                    <label>Especializações</label>
+                    <textarea name="especializacoes" placeholder="Ex: Sou profissional em concertos de celulares, notebooks e..."></textarea>
+                </div>
+
+                <div class="actions">
+                    <a href="/cliente/home" class="cancel-btn">Voltar</a>
+                    <button type="submit" class="primary-btn">Tornar-me técnico</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script src="/js/tornar-tecnico.js"></script>
+</body>
+</html>

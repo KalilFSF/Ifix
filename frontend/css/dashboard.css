@@ -1,0 +1,1557 @@
+/* Dashboard do cliente (frontend/pages/cliente-home.html).
+   Usa as variáveis de tema definidas em style.css (--bg-*, --text-*,
+   --border-*, --primary, --success, --warning, --radius-*), carregado
+   antes deste arquivo — nada de cor é redefinido aqui. */
+
+/* Utilitário genérico: várias telas (painel do técnico, sobretudo) fazem
+   classList.add/remove("hidden") em elementos que só tinham regras mais
+   específicas (.toast.hidden, .modal-overlay.hidden...) — sem uma regra
+   bare ".hidden", esses toggles não tinham efeito nenhum. */
+.hidden {
+    display: none;
+}
+
+/* ==================================================
+   SHELL (sidebar + conteúdo)
+================================================== */
+
+.dash-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Tamanho padrão de qualquer ícone inline (viewBox 24x24 sem width/height
+   próprios); contextos específicos abaixo (.hero-btn .icon-svg etc.) têm
+   seletor mais específico e sobrescrevem isso normalmente. Sem isso, um
+   <svg> sem width/height vira 300x150px (tamanho padrão de elemento
+   substituído do CSS). */
+.icon-svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+
+/* ==================================================
+   SIDEBAR
+================================================== */
+
+.sidebar {
+    width: 252px;
+    flex-shrink: 0;
+
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+
+    padding: 24px 16px;
+
+    background: var(--bg-card);
+    border-right: 1px solid var(--border);
+
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.sidebar-top {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.sidebar-close {
+    display: none;
+}
+
+.sidebar-logo span {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.sidebar-logo p {
+    margin-top: 2px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+
+/* ===== Indicador de perfil (Cliente / Técnico) =====
+   Não é um seletor funcional: a conta tem um único papel fixo
+   (ver Usuario.role no backend). É só uma pista visual de identidade. */
+
+.role-indicator {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: 999px;
+}
+
+.role-chip {
+    flex: 1;
+    text-align: center;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+
+    /* Chips são ora <span>, ora <a>, ora <button> — zera o estilo nativo
+       de botão pra todos ficarem visualmente idênticos. */
+    border: none;
+    background: transparent;
+    font-family: inherit;
+}
+
+.role-chip-active {
+    background: var(--primary);
+    color: var(--text-white);
+}
+
+.role-chip-disabled {
+    color: var(--text-secondary);
+    opacity: .55;
+    cursor: default;
+}
+
+/* Chip clicável: convida a conta atual (cliente) a virar técnico. */
+.role-chip-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+}
+
+.role-chip-link:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+
+/* ===== Navegação ===== */
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 12px 14px;
+    border-radius: var(--radius-input);
+
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14.5px;
+    font-weight: 600;
+
+    border: 1px solid transparent;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.nav-item .icon-svg {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.nav-item.is-active {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+
+/* ===== Rodapé da sidebar ===== */
+
+.sidebar-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+}
+
+.sidebar-theme-switch {
+    justify-content: flex-start;
+}
+
+.nav-item-logout {
+    color: var(--danger, #ef4444);
+}
+
+.nav-item-logout:hover {
+    background: rgba(239, 68, 68, .12);
+    color: var(--danger, #ef4444);
+}
+
+
+/* ==================================================
+   OVERLAY (mobile)
+================================================== */
+
+.sidebar-overlay {
+    display: none;
+}
+
+
+/* ==================================================
+   CONTEÚDO PRINCIPAL
+================================================== */
+
+.dash-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-topbar {
+    display: none;
+}
+
+.dash-content {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 32px 36px 56px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+
+/* ==================================================
+   HERO
+================================================== */
+
+.hero-card {
+    padding: 40px 44px;
+    border-radius: var(--radius-card);
+
+    background:
+        linear-gradient(135deg, rgba(59, 130, 246, .18), transparent 60%),
+        var(--bg-card);
+    border: 1px solid var(--border-card);
+}
+
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 7px 14px;
+    margin-bottom: 20px;
+    border-radius: 999px;
+
+    background: rgba(59, 130, 246, .14);
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.hero-badge .icon-svg {
+    width: 14px;
+    height: 14px;
+}
+
+.hero-card h1 {
+    font-size: 36px;
+    line-height: 1.15;
+    margin-bottom: 14px;
+}
+
+.hero-subtitle {
+    max-width: 600px;
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 28px;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.hero-btn {
+    width: auto;
+    margin-top: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+
+    padding: 15px 26px;
+    border-radius: 10px;
+    font-size: 15px;
+}
+
+.hero-btn .icon-svg {
+    width: 18px;
+    height: 18px;
+}
+
+
+/* ==================================================
+   RESUMO (STAT CARDS)
+================================================== */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+
+    padding: 26px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+}
+
+.stat-card-title {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 14px;
+}
+
+.stat-card-value {
+    font-size: 38px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.stat-icon {
+    flex-shrink: 0;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-icon .icon-svg {
+    width: 23px;
+    height: 23px;
+}
+
+.stat-icon-primary {
+    background: rgba(59, 130, 246, .14);
+    color: var(--primary);
+}
+
+.stat-icon-warning {
+    background: rgba(245, 158, 11, .14);
+    color: var(--warning);
+}
+
+.stat-icon-success {
+    background: rgba(34, 197, 94, .14);
+    color: var(--success);
+}
+
+
+/* ==================================================
+   SEÇÕES (chamados recentes / o que reparamos)
+================================================== */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.section-header h2 {
+    font-size: 19px;
+}
+
+.section-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-top: -6px;
+    margin-bottom: 18px;
+}
+
+.section-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+
+    color: var(--primary);
+    font-size: 13.5px;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.section-link .icon-svg {
+    width: 16px;
+    height: 16px;
+}
+
+.section-link:hover {
+    text-decoration: underline;
+}
+
+
+/* ===== Lista de chamados ===== */
+
+.chamados-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.chamado-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+
+    width: 100%;
+    padding: 18px 22px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+
+    color: var(--text-primary);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, transform .15s ease;
+}
+
+.chamado-row:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.chamado-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.chamado-titulo {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.chamado-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.chamado-right .icon-svg {
+    width: 17px;
+    height: 17px;
+    color: var(--text-secondary);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.status-reparo {
+    background: rgba(59, 130, 246, .14);
+    color: var(--primary);
+}
+
+.status-analise,
+.status-aguardando {
+    background: rgba(245, 158, 11, .14);
+    color: var(--warning);
+}
+
+.status-concluido {
+    background: rgba(34, 197, 94, .14);
+    color: var(--success);
+}
+
+
+/* ===== Estado vazio (usuário ainda não tem chamados) ===== */
+
+.chamados-empty {
+    text-align: center;
+    padding: 44px 24px;
+
+    background: var(--bg-card);
+    border: 1px dashed var(--border-card);
+    border-radius: 14px;
+}
+
+.chamados-empty-titulo {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.chamados-empty-texto {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.chamados-empty .primary-btn {
+    width: auto;
+    margin: 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    white-space: nowrap;
+}
+
+.chamados-empty .primary-btn .icon-svg {
+    width: 18px;
+    height: 18px;
+}
+
+
+/* ===== O que reparamos ===== */
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.service-card {
+    padding: 26px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+    transition: transform .2s ease, border-color .2s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary);
+}
+
+.service-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    border-radius: 10px;
+
+    background: rgba(59, 130, 246, .14);
+    color: var(--primary);
+}
+
+.service-icon .icon-svg {
+    width: 23px;
+    height: 23px;
+}
+
+.service-card h3 {
+    font-size: 16.5px;
+    margin-bottom: 7px;
+}
+
+.service-card p {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+}
+
+
+/* ==================================================
+   PAINEL DO TÉCNICO
+================================================== */
+
+.panel-header h1 {
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+
+.panel-header .hero-subtitle {
+    max-width: none;
+    margin-bottom: 0;
+}
+
+/* ===== Solicitações pendentes ===== */
+
+.solicitacoes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.solicitacao-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+
+    padding: 18px 22px;
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: 14px;
+}
+
+.solicitacao-titulo {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.solicitacao-meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.solicitacao-actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.solicitacao-actions .primary-btn,
+.solicitacao-actions .secondary-btn {
+    width: auto;
+    margin-top: 0;
+    padding: 10px 18px;
+    white-space: nowrap;
+}
+
+/* ===== Toolbar: tabs + busca ===== */
+
+.painel-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.status-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+
+.tab-btn:hover {
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.tab-btn.is-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-white);
+}
+
+.tab-count {
+    font-size: 11.5px;
+    opacity: .85;
+}
+
+.search-box {
+    position: relative;
+    flex: 1;
+    min-width: 220px;
+    max-width: 360px;
+}
+
+.search-box .icon-svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+}
+
+.search-box input {
+    padding-left: 42px;
+}
+
+/* ===== Tabela do painel ===== */
+
+.painel-table-wrap {
+    overflow-x: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 14px;
+}
+
+.painel-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.painel-table th {
+    text-align: left;
+    padding: 16px 20px;
+    font-size: 12px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-card);
+}
+
+.painel-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-card);
+    font-size: 14px;
+}
+
+.painel-row {
+    cursor: pointer;
+    transition: background .15s ease;
+}
+
+.painel-row:hover {
+    background: var(--bg-hover);
+}
+
+.painel-row:last-child td {
+    border-bottom: none;
+}
+
+.painel-codigo {
+    font-weight: 700;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.painel-problema {
+    font-weight: 700;
+}
+
+.painel-equipamento {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.painel-abrir {
+    color: var(--text-secondary);
+    text-align: right;
+}
+
+.painel-table-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 32px 20px;
+}
+
+/* ===== Modal de detalhe do chamado ===== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+
+    background: rgba(0, 0, 0, .55);
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    overflow-y: auto;
+
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card);
+    padding: 32px;
+}
+
+.modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.modal-card h2 {
+    font-size: 20px;
+    margin-bottom: 4px;
+    padding-right: 24px;
+}
+
+.modal-icon-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+    border-radius: 50%;
+
+    background: rgba(59, 130, 246, .14);
+    color: var(--primary);
+}
+
+.modal-icon-badge .icon-svg {
+    width: 26px;
+    height: 26px;
+}
+
+/* ===== Modal "Tornar-se técnico" ===== */
+
+.tornar-tecnico-card {
+    max-width: 420px;
+    text-align: center;
+}
+
+.tornar-tecnico-card h2 {
+    padding-right: 0;
+    margin-bottom: 10px;
+}
+
+.tornar-tecnico-card p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.tornar-tecnico-card .primary-btn {
+    width: 100%;
+}
+
+.modal-descricao {
+    margin-top: 14px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.modal-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-top: 20px;
+}
+
+.modal-info-grid span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+}
+
+.modal-info-grid p {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.modal-status-control {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.modal-status-control label {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.modal-status-row {
+    display: flex;
+    gap: 10px;
+}
+
+.modal-status-row select {
+    flex: 1;
+    padding: 11px;
+    border-radius: var(--radius-input);
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+}
+
+.modal-status-row .primary-btn {
+    width: auto;
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+.modal-historico {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+.modal-historico h3 {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.historico-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.historico-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.historico-data {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+
+/* ==================================================
+   DETALHE DO CHAMADO (painel do técnico) — stepper vivo,
+   cards e histórico animado. Classes próprias (não reaproveita
+   .modal-info-grid/.historico-list, que continuam servindo o modal
+   mais simples de "Acompanhar chamado" do cliente).
+================================================== */
+
+.modal-card-tecnico {
+    max-width: 900px;
+}
+
+.detalhe-topo {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    padding-right: 28px;
+}
+
+.detalhe-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.detalhe-topo h2 {
+    font-size: 21px;
+    margin-bottom: 4px;
+}
+
+.detalhe-valor-card {
+    flex-shrink: 0;
+    text-align: right;
+    padding: 12px 18px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-input);
+}
+
+.detalhe-valor-card span {
+    display: block;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.detalhe-valor-card strong {
+    font-size: 18px;
+}
+
+/* ===== Stepper "Progresso do serviço" ===== */
+
+.stepper {
+    display: flex;
+    align-items: flex-start;
+    margin: 28px 0 8px;
+}
+
+.stepper-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    width: 84px;
+}
+
+.stepper-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    background: var(--bg-input);
+    border: 2px solid var(--border-input);
+    color: var(--text-secondary);
+
+    transition: background .35s ease, border-color .35s ease, color .35s ease, transform .3s ease, box-shadow .35s ease;
+}
+
+.stepper-icon .icon-svg {
+    width: 18px;
+    height: 18px;
+}
+
+.stepper-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-align: center;
+    transition: color .3s ease, font-weight .3s ease;
+}
+
+.stepper-step.is-current .stepper-icon {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-white);
+    box-shadow: 0 0 0 5px rgba(59, 130, 246, .18);
+}
+
+.stepper-step.is-current .stepper-label {
+    color: var(--text-primary);
+    font-weight: 800;
+}
+
+.stepper-step.is-completed .stepper-icon {
+    background: var(--success);
+    border-color: var(--success);
+    color: var(--text-white);
+}
+
+.stepper-step.is-completed .stepper-label {
+    color: var(--text-primary);
+}
+
+.stepper-step.is-future .stepper-icon {
+    opacity: .7;
+}
+
+.stepper-step.is-future .stepper-label {
+    opacity: .6;
+}
+
+.stepper-step.is-pulsing .stepper-icon {
+    animation: stepperPulso .5s ease;
+}
+
+.stepper-step.is-celebrating .stepper-icon {
+    animation: stepperCelebrar .7s ease;
+}
+
+@keyframes stepperPulso {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.22); }
+    100% { transform: scale(1); }
+}
+
+@keyframes stepperCelebrar {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.3); box-shadow: 0 0 0 10px rgba(34, 197, 94, .22); }
+    70% { transform: scale(.96); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.stepper-line {
+    flex: 1;
+    min-width: 16px;
+    height: 3px;
+    margin-top: 20px;
+    border-radius: 999px;
+    background: var(--border-input);
+    overflow: hidden;
+}
+
+.stepper-line-fill {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--success);
+    border-radius: 999px;
+    transition: width .5s ease;
+}
+
+.stepper-line.is-filled .stepper-line-fill {
+    width: 100%;
+}
+
+/* ===== Grid de cards (descrição/histórico + cliente/status) ===== */
+
+.detalhe-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 20px;
+    margin-top: 28px;
+}
+
+.detalhe-col {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.detalhe-card {
+    padding: 20px 22px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    border-radius: var(--radius-input);
+}
+
+.detalhe-card h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.detalhe-cliente {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.detalhe-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--text-white);
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.detalhe-cliente-nome {
+    font-weight: 700;
+    font-size: 14.5px;
+}
+
+.detalhe-info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+}
+
+.detalhe-info-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.detalhe-info-list .icon-svg {
+    width: 15px;
+    height: 15px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+/* ===== Timeline de histórico ===== */
+
+.historico-timeline {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+}
+
+.historico-item {
+    position: relative;
+    padding: 0 0 18px 22px;
+    border-left: 2px solid var(--border-input);
+}
+
+.historico-item:last-child {
+    border-left-color: transparent;
+    padding-bottom: 0;
+}
+
+.historico-item::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--bg-input);
+}
+
+.historico-item-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.historico-item-texto {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.historico-vazio {
+    color: var(--text-secondary);
+    font-size: 13.5px;
+}
+
+.historico-item.is-entrando {
+    animation: historicoEntrada .4s ease;
+}
+
+@keyframes historicoEntrada {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Escolha de status (pills) ===== */
+
+.status-choices {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 14px 0 16px;
+}
+
+.status-choice {
+    padding: 10px 12px;
+    border-radius: var(--radius-input);
+    border: 1px solid var(--border-input);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    transition: background .2s ease, border-color .2s ease, color .2s ease, transform .15s ease;
+}
+
+.status-choice:hover:not(:disabled):not(.is-selected) {
+    border-color: var(--primary);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.status-choice.is-selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-white);
+}
+
+.status-choice:disabled {
+    cursor: default;
+    opacity: .7;
+}
+
+#statusFinalizarBtn {
+    width: 100%;
+}
+
+#statusFinalizarBtn:disabled {
+    opacity: .5;
+    cursor: default;
+}
+
+
+/* ==================================================
+   TOAST ("em breve" — funcionalidades ainda não implementadas)
+================================================== */
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 0);
+    z-index: 40;
+
+    padding: 12px 20px;
+    border-radius: var(--radius-input);
+
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
+
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    pointer-events: none;
+}
+
+.toast.is-visible {
+    opacity: 1;
+    transform: translate(-50%, -6px);
+}
+
+.toast.hidden {
+    display: none;
+}
+
+
+/* ==================================================
+   RESPONSIVIDADE
+================================================== */
+
+/* ===================== TABLET / DRAWER ===================== */
+@media (max-width: 992px) {
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 50;
+
+        width: 280px;
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+
+        box-shadow: 0 0 40px rgba(0, 0, 0, .35);
+    }
+
+    .sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .sidebar-close {
+        display: flex;
+        align-self: flex-end;
+        color: var(--text-secondary);
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sidebar-close .icon-svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+
+        background: rgba(0, 0, 0, .5);
+
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .25s ease;
+    }
+
+    .sidebar-overlay.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    .mobile-topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+
+        padding: 16px 20px;
+        background: var(--bg-card);
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+    }
+
+    .sidebar-open {
+        display: flex;
+        color: var(--text-primary);
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    .sidebar-open .icon-svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .mobile-topbar-title {
+        font-size: 18px;
+        font-weight: 800;
+        color: var(--primary);
+    }
+
+    .dash-content {
+        padding: 24px 20px 48px;
+    }
+
+    .hero-card {
+        padding: 30px;
+    }
+
+    .stats-grid,
+    .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+
+/* ===================== CELULAR ===================== */
+@media (max-width: 640px) {
+
+    .hero-card {
+        padding: 24px;
+    }
+
+    .hero-card h1 {
+        font-size: 26px;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .stats-grid,
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chamado-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .chamado-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .painel-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box {
+        max-width: none;
+    }
+
+    .solicitacao-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .solicitacao-actions {
+        width: 100%;
+    }
+
+    .solicitacao-actions .primary-btn,
+    .solicitacao-actions .secondary-btn {
+        flex: 1;
+    }
+
+    .modal-info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal-status-row {
+        flex-direction: column;
+    }
+
+    .detalhe-topo {
+        flex-direction: column;
+    }
+
+    .detalhe-valor-card {
+        text-align: left;
+        width: 100%;
+    }
+
+    .detalhe-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stepper-step {
+        width: 64px;
+    }
+
+    .stepper-label {
+        font-size: 11px;
+    }
+
+    .status-choices {
+        grid-template-columns: 1fr 1fr;
+    }
+}

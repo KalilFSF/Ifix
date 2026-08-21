@@ -1,0 +1,460 @@
+/* ==================================================
+   ROOT (BASE DO TEMA DARK)
+================================================== */
+
+:root {
+
+    --bg-body: #0f1726;
+    --bg-card: #111827;
+    --bg-input: #1f2937;
+    --bg-hover: #233b66;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-white: #ffffff;
+
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+
+    --border: #334155;
+    --border-input: #475569;
+    --border-card: #334155;
+    --border-button: #64748b;
+
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    --radius-card: 16px;
+    --radius-option: 12px;
+    --radius-input: 6px;
+
+}
+
+/* ==================================================
+   THEME LIGHT (LOGIN + SISTEMA)
+================================================== */
+
+:root.light {
+
+    /* ===== Backgrounds ===== */
+
+    --bg-body: #eef5ff;
+    --bg-card: #ffffff;
+    --bg-input: #f8fbff;
+    --bg-hover: #dbeafe;
+
+    /* ===== Textos ===== */
+
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-white: #ffffff;
+
+    /* ===== Azul Principal ===== */
+
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+
+    /* ===== Bordas ===== */
+
+    --border: #93c5fd;
+    --border-input: #93c5fd;
+    --border-card: #60a5fa;
+    --border-button: #60a5fa;
+
+    /* ===== Sombras (IMPORTANTE no light) ===== */
+
+    --shadow-card: rgba(59, 130, 246, .15);
+
+}
+
+
+/* ==================================================
+   RESET
+================================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* ==================================================
+   BODY
+================================================== */
+
+body {
+    min-height: 100vh;
+    background: var(--bg-body);
+    color: var(--text-primary);
+    transition: .3s ease;
+}
+
+
+/* ==================================================
+   CONTAINER LOGIN
+================================================== */
+
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+
+/* ==================================================
+   CARD LOGIN
+================================================== */
+
+.login-card {
+    width: 100%;
+    max-width: 430px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+        box-shadow: 0 20px 50px var(--shadow-card, rgba(0,0,0,.35));
+}
+
+
+/* ==================================================
+   LOGO + SWITCH
+================================================== */
+
+.logo {
+    margin-bottom: 28px;
+}
+
+.logo-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.logo-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.logo-info span {
+    font-size: 30px;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.logo-info p {
+    font-size: 12px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+
+/* ==================================================
+   SWITCH DE TEMA
+================================================== */
+
+.theme-switch {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.theme-switch input {
+    display: none;
+}
+
+.slider {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    position: relative;
+    overflow: hidden;
+
+    transition: .3s ease;
+}
+
+.slider:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+.icon {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: var(--text-primary);
+    stroke-width: 2;
+
+    transition: .4s ease;
+}
+
+/* estado inicial (dark = lua ativa) */
+.sun {
+    opacity: 0;
+    transform: scale(.3) rotate(-180deg);
+}
+
+.moon {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* toggle */
+.theme-switch input:checked + .slider .sun {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.theme-switch input:checked + .slider .moon {
+    opacity: 0;
+    transform: scale(.3) rotate(180deg);
+}
+
+.theme-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+
+/* ==================================================
+   TITULOS
+================================================== */
+
+h1 {
+    margin-bottom: 8px;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+}
+
+
+/* ==================================================
+   FORM
+================================================== */
+
+.input-group {
+    margin-bottom: 16px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+
+/* ==================================================
+   INPUTS
+================================================== */
+
+input {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+
+    outline: none;
+}
+
+input:focus {
+    border-color: var(--primary);
+}
+
+
+/* ==================================================
+   BOTÃO
+================================================== */
+
+.primary-btn {
+    width: 100%;
+    margin-top: 8px;
+
+    padding: 12px 18px;
+
+    border: none;
+    border-radius: 6px;
+
+    background: var(--primary);
+    color: #fff;
+
+    font-weight: 700;
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+.primary-btn:hover {
+    background: var(--primary-hover);
+}
+
+/* Ação secundária (fundo escuro sólido) — irmã do primary-btn, mesmo
+   box model, cor diferente. Usada onde uma segunda ação precisa de peso
+   visual próprio, sem competir com a azul primária. */
+.secondary-btn {
+    width: 100%;
+    margin-top: 8px;
+
+    padding: 12px 18px;
+
+    border: 1px solid var(--border-input);
+    border-radius: 6px;
+
+    background: var(--bg-input);
+    color: var(--text-primary);
+
+    font-weight: 700;
+    cursor: pointer;
+
+    transition: .2s ease;
+}
+
+.secondary-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary);
+}
+
+/* .primary-btn/.secondary-btn às vezes são um <a> (link estilizado como
+   botão) em vez de <button> — sem isso, herdava sublinhado/cor padrão de link. */
+a.primary-btn,
+a.secondary-btn {
+    display: inline-block;
+    text-decoration: none;
+    text-align: center;
+}
+
+
+/* ==================================================
+   LINK CADASTRO
+================================================== */
+
+.register-link {
+    margin-top: 24px;
+    padding-top: 20px;
+
+    border-top: 1px solid var(--border);
+
+    text-align: center;
+}
+
+.register-link p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.register-link a {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+
+/* ==================================================
+   MENSAGENS DE FEEDBACK (erro/sucesso mostrados via JS)
+================================================== */
+
+.mensagem {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.mensagem.hidden {
+    display: none;
+}
+
+.mensagem-erro {
+    background: rgba(239, 68, 68, .12);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+}
+
+.mensagem-sucesso {
+    background: rgba(34, 197, 94, .12);
+    border: 1px solid #22c55e;
+    color: #22c55e;
+}
+
+.mensagem a {
+    color: inherit;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+
+/* ==================================================
+   RESPONSIVIDADE
+================================================== */
+
+/* ===================== TABLET ===================== */
+@media (max-width: 992px) {
+
+    .login-card {
+        max-width: 520px;
+        padding: 26px;
+    }
+}
+
+
+/* ===================== CELULAR ===================== */
+@media (max-width: 768px) {
+
+    .login-card {
+        max-width: 92%;
+        padding: 22px;
+    }
+
+    .logo-info span {
+        font-size: 26px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+}
+
+
+/* ===================== TELAS PEQUENAS ===================== */
+@media (max-width: 480px) {
+
+    .login-card {
+        padding: 18px;
+    }
+
+    .logo-info span {
+        font-size: 24px;
+    }
+
+    .theme-text {
+        display: none; /* evita poluição no mobile */
+    }
+
+    input {
+        font-size: 16px; /* evita zoom no iPhone */
+    }
+}
