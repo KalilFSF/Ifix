@@ -2,10 +2,20 @@
 # (routes.py). Ficam separadas pra não inchar routes.py com lógica que não
 # é sobre "o que fazer com a requisição", e sim "como validar um dado".
 
+import math
 import os
 import re
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+
+import cloudinary
+import cloudinary.uploader
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+)
 
 from werkzeug.utils import secure_filename
 
@@ -57,26 +67,75 @@ def validar_data_nascimento(valor):
     return data_convertida
 
 
+RAIO_TERRA_KM = 6371.0
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Distância em linha reta (km) entre duas coordenadas, pela fórmula de
+    Haversine — Python puro, sem PostGIS/geopy (usado pelo ranking de
+    técnicos em SelecionarTecnicosService)."""
+    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(math.radians, (lat1, lon1, lat2, lon2))
+    delta_lat = lat2_rad - lat1_rad
+    delta_lon = lon2_rad - lon1_rad
+
+    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return RAIO_TERRA_KM * c
+
+
+def isoformat_utc(dt):
+    """Serializa um datetime pra ISO 8601 com o offset UTC explícito.
+
+    Toda data do projeto é gravada como datetime.now(timezone.utc), mas o
+    Postgres (TIMESTAMP WITHOUT TIME ZONE, o tipo do db.DateTime puro) joga
+    fora o tzinfo ao salvar — o valor lido de volta vem "naive". Sem
+    recolocar o offset aqui, dt.isoformat() sai sem sufixo de fuso, e o
+    front (new Date(str) em JS) interpreta a string como horário LOCAL em
+    vez de UTC, mostrando a hora errada.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.isoformat()
+
+
+def parsear_coordenada(valor):
+    """Converte a string de latitude/longitude vinda do formulário (captura
+    via navigator.geolocation no front) em float, ou None se vazia/inválida
+    — a coordenada é sempre opcional, nunca bloqueia cadastro/chamado."""
+    if valor in (None, ""):
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
 def extensao_permitida(filename, extensoes):
     """Checa se a extensão do arquivo (ex: 'jpg') está no conjunto permitido."""
     return bool(filename) and "." in filename and filename.rsplit(".", 1)[1].lower() in extensoes
 
 
 def salvar_arquivo(arquivo, pasta_destino):
-    """Salva um arquivo enviado por upload com um nome único e retorna o nome salvo.
+    """Envia o arquivo pro Cloudinary com um nome único e retorna a URL pública dele.
 
     O prefixo uuid4 evita que dois uploads com o mesmo nome de arquivo
-    (ex: "foto.jpg" de dois técnicos diferentes) se sobrescrevam no disco.
-    secure_filename() limpa o nome original de caracteres perigosos
-    (ex: "../../etc/passwd" viraria só "etc_passwd").
+    (ex: "foto.jpg" de dois técnicos diferentes) se sobrescrevam. A pasta_destino
+    vira o "folder" dentro do Cloudinary, mantendo a mesma organização que
+    tínhamos localmente (perfil/, diplomas/, chamados/).
     """
     nome_seguro = secure_filename(arquivo.filename)
-    nome_final = f"{uuid.uuid4().hex}_{nome_seguro}"
+    nome_sem_extensao = os.path.splitext(nome_seguro)[0]
+    public_id = f"{uuid.uuid4().hex}_{nome_sem_extensao}"
 
-    os.makedirs(pasta_destino, exist_ok=True)
-    arquivo.save(os.path.join(pasta_destino, nome_final))
+    resultado = cloudinary.uploader.upload(
+        arquivo,
+        public_id=public_id,
+        folder=pasta_destino,
+    )
 
-    return nome_final
+    return resultado["secure_url"]
 
 
 ESCOLARIDADES_VALIDAS = {"Ensino médio", "Técnico", "Superior cursando", "Superior completo"}

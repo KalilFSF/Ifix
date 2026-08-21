@@ -6,6 +6,9 @@
 
 import os
 import socket
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from flask import Flask, jsonify, redirect, request
 from flask_login import LoginManager
@@ -73,10 +76,11 @@ def create_app():
 
     # Garante que as pastas usadas pelo app existam antes de qualquer upload/uso,
     # já que elas não são versionadas no git (uploads de usuário, banco local).
-    os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "perfil"), exist_ok=True)
-    os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "diplomas"), exist_ok=True)
-    os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chamados"), exist_ok=True)
-    os.makedirs(os.path.join(BACKEND_DIR, "database"), exist_ok=True)
+    if not os.environ.get("VERCEL"):
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "perfil"), exist_ok=True)
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "diplomas"), exist_ok=True)
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chamados"), exist_ok=True)
+        os.makedirs(os.path.join(BACKEND_DIR, "database"), exist_ok=True)
 
     # As Models de todo módulo precisam estar importadas (registradas no
     # metadata do SQLAlchemy) antes do create_all() — os imports acima já
@@ -84,31 +88,45 @@ def create_app():
     # models), então a esta altura já estão todas carregadas.
     with app.app_context():
         db.create_all()
-        _garantir_colunas_servicos()
+        _garantir_colunas_novas()
 
     return app
 
 
-def _garantir_colunas_servicos():
-    """Migration leve sem Alembic: adiciona colunas novas em servicos se o
-    SQLite antigo ainda não as tiver (create_all não altera tabelas existentes)."""
+def _garantir_colunas_novas():
+    """Migration leve sem Alembic: adiciona colunas novas em tabelas já
+    existentes (create_all só cria tabelas que ainda não existem, nunca
+    altera as que já existem)."""
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
-    if "servicos" not in inspector.get_table_names():
-        return
-    colunas = {coluna["name"] for coluna in inspector.get_columns("servicos")}
+    tabelas = inspector.get_table_names()
+
+    alteracoes_por_tabela = {
+        "servicos": [
+            ("tipo_equipamento", "ALTER TABLE servicos ADD COLUMN tipo_equipamento VARCHAR(20) NOT NULL DEFAULT 'notebook'"),
+            ("garantia", "ALTER TABLE servicos ADD COLUMN garantia BOOLEAN NOT NULL DEFAULT FALSE"),
+            ("latitude", "ALTER TABLE servicos ADD COLUMN latitude FLOAT"),
+            ("longitude", "ALTER TABLE servicos ADD COLUMN longitude FLOAT"),
+        ],
+        "usuarios": [
+            ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
+            ("longitude", "ALTER TABLE usuarios ADD COLUMN longitude FLOAT"),
+        ],
+        "perfis_tecnicos": [
+            ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),
+            ("nota_media", "ALTER TABLE perfis_tecnicos ADD COLUMN nota_media NUMERIC(3, 2)"),
+            ("total_avaliacoes", "ALTER TABLE perfis_tecnicos ADD COLUMN total_avaliacoes INTEGER NOT NULL DEFAULT 0"),
+        ],
+    }
+
     alteracoes = []
-    if "tipo_equipamento" not in colunas:
-        alteracoes.append(
-            "ALTER TABLE servicos ADD COLUMN tipo_equipamento "
-            "VARCHAR(20) NOT NULL DEFAULT 'notebook'"
-        )
-    if "garantia" not in colunas:
-        alteracoes.append(
-            "ALTER TABLE servicos ADD COLUMN garantia "
-            "BOOLEAN NOT NULL DEFAULT 0"
-        )
+    for tabela, colunas_novas in alteracoes_por_tabela.items():
+        if tabela not in tabelas:
+            continue
+        colunas_existentes = {coluna["name"] for coluna in inspector.get_columns(tabela)}
+        alteracoes.extend(sql for nome, sql in colunas_novas if nome not in colunas_existentes)
+
     if not alteracoes:
         return
     with db.engine.begin() as conn:

@@ -277,6 +277,10 @@ async function enviarCadastro(form, url, elementoMensagem) {
     // o navegador monta o multipart/form-data sozinho a partir do FormData).
     const formData = new FormData(form);
 
+    // coordenadasPromise (geolocalizacao.js) foi disparada no load da
+    // página, então geralmente já está resolvida aqui — não trava o envio.
+    anexarCoordenadas(formData, await coordenadasPromise);
+
     const resposta = await fetch(url, {
         method: "POST",
         body: formData,

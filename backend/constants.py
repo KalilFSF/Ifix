@@ -38,3 +38,18 @@ MAX_BYTES_FOTO_CHAMADO = 2 * 1024 * 1024  # 2 MB por foto
 # pedir reembolso ou um novo atendimento gratuito.
 GARANTIA_PERCENTUAL = 0.07
 GARANTIA_DIAS = 10
+
+# Seleção automática de técnicos (SelecionarTecnicosService): raio inicial
+# de busca, dobrado sucessivamente até achar TECNICOS_SELECIONADOS_MIN
+# candidatos ou estourar o raio máximo — a partir daí usa todos os técnicos
+# cadastrados (com lat/long), mesmo fora do raio, pra nunca deixar um
+# chamado sem nenhum técnico notificado se houver algum no sistema.
+RAIO_SELECAO_TECNICOS_KM = 15
+RAIO_SELECAO_TECNICOS_KM_MAXIMO = 240
+TECNICOS_SELECIONADOS_MIN = 2
+TECNICOS_SELECIONADOS_MAX = 3
+
+# Pesos do score combinado (proximidade + avaliação + preço) — devem somar 1.
+PESO_DISTANCIA = 0.5
+PESO_AVALIACAO = 0.3
+PESO_PRECO = 0.2

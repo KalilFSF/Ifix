@@ -23,3 +23,5 @@ frontend/uploads/*
 # Sistema operacional / editor
 .DS_Store
 Thumbs.db
+
+.vercel

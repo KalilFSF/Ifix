@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from database import db
+from utils import isoformat_utc
 
 
 class SolicitacaoTecnico(db.Model):
@@ -77,8 +78,8 @@ class SolicitacaoTecnico(db.Model):
             "servico_id": self.servico_id,
             "tecnico_id": self.tecnico_id,
             "status": self.status,
-            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
-            "respondido_em": self.respondido_em.isoformat() if self.respondido_em else None,
+            "criado_em": isoformat_utc(self.criado_em),
+            "respondido_em": isoformat_utc(self.respondido_em),
         }
 
     def to_dict_painel(self):

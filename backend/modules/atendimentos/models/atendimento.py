@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from database import db
+from utils import isoformat_utc
 
 
 class Atendimento(db.Model):
@@ -96,6 +97,6 @@ class Atendimento(db.Model):
             "cliente_id": self.cliente_id,
             "tecnico_id": self.tecnico_id,
             "servico_id": self.servico_id,
-            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
-            "atualizado_em": self.atualizado_em.isoformat() if self.atualizado_em else None,
+            "criado_em": isoformat_utc(self.criado_em),
+            "atualizado_em": isoformat_utc(self.atualizado_em),
         }

@@ -51,6 +51,8 @@ class ServicoController:
                 "descricao": (request.form.get("descricao") or "").strip(),
                 "preco_estimado": request.form.get("preco_estimado") or 0,
                 "garantia": request.form.get("garantia"),
+                "latitude": request.form.get("latitude"),
+                "longitude": request.form.get("longitude"),
             }
             fotos = [f for f in request.files.getlist("fotos") if f and f.filename]
         else:
@@ -58,7 +60,7 @@ class ServicoController:
             fotos = []
 
         try:
-            servico = self.criar_servico_service.executar(dados, current_user.id, fotos)
+            servico = self.criar_servico_service.executar(dados, current_user, fotos)
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 

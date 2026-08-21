@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from database import db
+from utils import isoformat_utc
 
 
 class PerfilTecnico(db.Model):
@@ -17,6 +18,18 @@ class PerfilTecnico(db.Model):
     especializacoes = db.Column(db.Text)
     foto_perfil = db.Column(db.String(255), nullable=False)
 
+    # Faixa de preço que o técnico informa no cadastro/perfil — usada como
+    # critério de ranking em SelecionarTecnicosService. Nula até o técnico
+    # preencher.
+    valor_medio = db.Column(db.Numeric(10, 2))
+
+    # Alimentados por AvaliarService (ver módulo atendimentos) sempre que o
+    # técnico recebe uma nova avaliação do cliente — nota_media é a média
+    # corrente (0 a 5), recalculada a partir de total_avaliacoes a cada nova
+    # nota, sem precisar reprocessar o histórico inteiro.
+    nota_media = db.Column(db.Numeric(3, 2))
+    total_avaliacoes = db.Column(db.Integer, nullable=False, default=0)
+
     usuario = db.relationship("Usuario", back_populates="perfil_tecnico")
     diplomas = db.relationship(
         "Diploma",
@@ -32,7 +45,10 @@ class PerfilTecnico(db.Model):
         return self
 
     def atualizar(self, dados):
-        for campo in ("especialidade", "escolaridade", "curso_superior", "regiao_atendimento", "cursos_experiencias", "especializacoes"):
+        for campo in (
+            "especialidade", "escolaridade", "curso_superior", "regiao_atendimento",
+            "cursos_experiencias", "especializacoes", "valor_medio",
+        ):
             if campo in dados:
                 setattr(self, campo, dados[campo])
         return self.salvar()
@@ -76,6 +92,9 @@ class PerfilTecnico(db.Model):
             "cursos_experiencias": self.cursos_experiencias,
             "especializacoes": self.especializacoes,
             "foto_perfil": self.foto_perfil,
+            "valor_medio": float(self.valor_medio) if self.valor_medio is not None else None,
+            "nota_media": float(self.nota_media) if self.nota_media is not None else None,
+            "total_avaliacoes": self.total_avaliacoes,
         }
 
 
@@ -112,5 +131,5 @@ class Diploma(db.Model):
         return {
             "id": self.id,
             "arquivo": self.arquivo,
-            "enviado_em": self.enviado_em.isoformat() if self.enviado_em else None,
+            "enviado_em": isoformat_utc(self.enviado_em),
         }
