@@ -109,16 +109,3 @@ class SolicitacaoTecnico(db.Model):
             "criado_em": isoformat_utc(self.criado_em),
             "respondido_em": isoformat_utc(self.respondido_em),
         }
-
-    def to_dict_painel(self):
-        """Versão enriquecida usada pela área "Solicitações pendentes" do
-        painel do técnico — servico/cliente já vêm carregados pelo JOIN do
-        SolicitacaoRepository, então acessar self.servico.cliente aqui não
-        dispara consulta nova."""
-        dados = self.to_dict()
-        dados["servico"] = self.servico.to_dict() if self.servico else None
-        dados["cliente"] = (
-            {"id": self.servico.cliente.id, "nome": self.servico.cliente.nome, "telefone": self.servico.cliente.telefone}
-            if self.servico and self.servico.cliente else None
-        )
-        return dados

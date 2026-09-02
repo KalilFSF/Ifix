@@ -15,8 +15,13 @@ de consultas com JOIN) repositories:
 backend/
   app.py            # application factory: registra os módulos e cria o banco
   config.py, database.py, exceptions.py, utils.py, constants.py
-  email_service.py   # envio de e-mail transacional via Brevo (API REST, sem SDK)
   page_routes.py     # rotas de página HTML (login, cadastro, home de cliente/técnico...)
+
+  services/           # Services compartilhados entre módulos (não pertencem a um domínio só)
+    email_service.py    # envio de e-mail transacional via Brevo (API REST, sem SDK)
+
+  database/
+    procedures.sql     # procedures/functions em SQL chamadas pelas Repositories
 
   modules/
     usuarios/         # Usuario, PerfilTecnico, Diploma — cadastro, login, perfil técnico
@@ -25,8 +30,10 @@ backend/
 ```
 
 Fluxo padrão de uma requisição: `Route → Controller → Service.executar() →
-Model` (CRUD simples) ou `→ Repository → Model` (consulta com JOIN entre
-tabelas).
+Model` (CRUD simples) ou `→ Repository → procedure (SQL)` (consulta com
+JOIN entre tabelas — a Repository só chama a procedure/function definida
+em `backend/database/procedures.sql` via `db.session.execute(text(...))`,
+nunca Model ou `db.session.query` diretamente).
 
 `frontend/` é HTML/CSS/JavaScript puro (sem framework/build step), servido
 diretamente pelo Flask como estático.
@@ -74,8 +81,10 @@ pip install -r requirements.txt
 python app.py
 ```
 
-O banco SQLite (`backend/database/ifix.db`) é criado automaticamente na
-primeira execução — não precisa rodar nada à parte para isso.
+O projeto usa Postgres (Neon) como único banco — defina `DATABASE_URL` com a
+connection string do Neon antes de rodar (`.venv` não sobe sem ela). Tabelas
+e procedures são criadas/atualizadas automaticamente a cada início do app —
+não precisa rodar nada à parte para isso.
 
 A API ficará disponível em:
 
@@ -169,15 +178,16 @@ http://127.0.0.1:5000
 
 ## Observações
 
-- O backend usa SQLite por padrão; a connection string pode ser trocada
-  via a variável de ambiente `DATABASE_URL`.
-- O banco é criado automaticamente na pasta `backend/database/`.
+- O backend usa Postgres (Neon) — defina a variável de ambiente
+  `DATABASE_URL` com a connection string antes de rodar.
 - Não há Alembic/Flask-Migrate configurado — mas `app.py` tem uma
   "migration leve" que roda a cada início do app: `db.create_all()` cria
-  tabelas novas, e duas funções (`_garantir_colunas_novas`/
+  tabelas novas, duas funções (`_garantir_colunas_novas`/
   `_garantir_cascade_exclusao`) rodam `ALTER TABLE` pra colunas/constraints
-  novas em tabelas que já existiam. Não precisa apagar o banco pra pegar
-  uma Model nova — só reiniciar o app.
+  novas em tabelas que já existiam, e `_instalar_procedures()` aplica
+  `backend/database/procedures.sql` (`CREATE OR REPLACE FUNCTION`,
+  idempotente). Não precisa apagar o banco pra pegar uma Model ou procedure
+  nova — só reiniciar o app.
 - Upload de fotos (perfil, diplomas, chamados) usa Cloudinary — defina
   `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` e `CLOUDINARY_API_SECRET`.
 - Notificação por e-mail (Brevo) é opcional: sem `BREVO_API_KEY` definida,

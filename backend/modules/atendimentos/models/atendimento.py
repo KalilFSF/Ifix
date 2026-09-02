@@ -125,20 +125,3 @@ class Atendimento(db.Model):
             "criado_em": isoformat_utc(self.criado_em),
             "atualizado_em": isoformat_utc(self.atualizado_em),
         }
-
-    def to_dict_com_tecnico(self):
-        """Versão enriquecida usada pelo cliente pra comparar orçamentos —
-        precisa do nome do técnico e da avaliação média dele (ver
-        AtendimentoRepository, que já traz tecnico/perfil_tecnico via JOIN,
-        então acessar aqui não dispara consulta nova)."""
-        dados = self.to_dict()
-        tecnico = self.tecnico
-        perfil = tecnico.perfil_tecnico if tecnico else None
-        dados["tecnico"] = {
-            "id": tecnico.id,
-            "nome": tecnico.nome,
-            "telefone": tecnico.telefone,
-            "nota_media": float(perfil.nota_media) if perfil and perfil.nota_media is not None else None,
-            "total_avaliacoes": perfil.total_avaliacoes if perfil else 0,
-        } if tecnico else None
-        return dados

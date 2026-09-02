@@ -137,20 +137,6 @@ class Servico(db.Model):
             "fotos": [foto.to_dict() for foto in self.fotos],
         }
 
-    def to_dict_painel(self):
-        """Versão enriquecida usada pelo painel do técnico e por "Acompanhar
-        chamado" do cliente — inclui os dados do cliente/técnico."""
-        dados = self.to_dict()
-        dados["cliente"] = (
-            {"id": self.cliente.id, "nome": self.cliente.nome, "telefone": self.cliente.telefone}
-            if self.cliente else None
-        )
-        dados["tecnico"] = (
-            {"id": self.tecnico.id, "nome": self.tecnico.nome, "telefone": self.tecnico.telefone}
-            if self.tecnico else None
-        )
-        return dados
-
 
 class FotoServico(db.Model):
     """Referência a uma foto anexada a um chamado — o upload vai pro

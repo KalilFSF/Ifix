@@ -81,8 +81,7 @@ class UsuarioController:
 
     @login_required
     def listar_tecnicos(self):
-        tecnicos = self.listar_tecnicos_service.executar()
-        return jsonify([tecnico.to_dict() for tecnico in tecnicos])
+        return jsonify(self.listar_tecnicos_service.executar())
 
     @login_required
     def atualizar_me(self):
