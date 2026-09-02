@@ -75,12 +75,11 @@ def create_app():
     app.register_blueprint(atendimentos_bp)
 
     # Garante que as pastas usadas pelo app existam antes de qualquer upload/uso,
-    # já que elas não são versionadas no git (uploads de usuário, banco local).
+    # já que elas não são versionadas no git (uploads de usuário).
     if not os.environ.get("VERCEL"):
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "perfil"), exist_ok=True)
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "diplomas"), exist_ok=True)
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chamados"), exist_ok=True)
-        os.makedirs(os.path.join(BACKEND_DIR, "database"), exist_ok=True)
 
     # As Models de todo módulo precisam estar importadas (registradas no
     # metadata do SQLAlchemy) antes do create_all() — os imports acima já
@@ -90,6 +89,7 @@ def create_app():
         db.create_all()
         _garantir_colunas_novas()
         _garantir_cascade_exclusao()
+        _instalar_procedures()
 
     return app
 
@@ -153,14 +153,7 @@ def _garantir_cascade_exclusao():
     com cascade="all, delete-orphan") — sem isso, apagar um usuário ou
     chamado fora do ORM (ex: direto pelo SQL editor do Neon) esbarra em
     ForeignKeyViolation mesmo quando o cascade já é o comportamento que a
-    aplicação pretende.
-
-    Só roda em Postgres: SQLite não suporta ALTER de constraint de FK (só
-    dá pra recriar a tabela inteira), e como SQLite nem aplica FK por
-    padrão isso não chega a ser um problema prático em dev local."""
-    if db.engine.dialect.name != "postgresql":
-        return
-
+    aplicação pretende."""
     from sqlalchemy import inspect, text
 
     inspector = inspect(db.engine)
@@ -205,6 +198,23 @@ def _garantir_cascade_exclusao():
                 f'ALTER TABLE {tabela} ADD CONSTRAINT "{constraint}" '
                 f'FOREIGN KEY ({coluna}) REFERENCES {tabela_ref}(id) ON DELETE {acao}'
             ))
+
+
+def _instalar_procedures():
+    """(Re)cria no Postgres as procedures/functions que as Repositories
+    chamam (ver backend/database/procedures.sql — arquitetura da disciplina:
+    Repository só acessa o banco por procedure, nunca via Model/ORM direto).
+    CREATE OR REPLACE é idempotente, então isso roda a cada início do app,
+    igual às outras duas migrations leves acima — sem precisar de um passo
+    manual separado no Neon."""
+    from sqlalchemy import text
+
+    caminho_sql = os.path.join(BACKEND_DIR, "database", "procedures.sql")
+    with open(caminho_sql, encoding="utf-8") as arquivo:
+        script_sql = arquivo.read()
+
+    with db.engine.begin() as conn:
+        conn.execute(text(script_sql))
 
 
 app = create_app()

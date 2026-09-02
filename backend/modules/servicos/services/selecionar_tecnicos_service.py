@@ -40,13 +40,18 @@ class SelecionarTecnicosService:
         self._calcular_scores(selecionados)
         selecionados.sort(key=lambda candidato: candidato["score"], reverse=True)
 
-        return [candidato["usuario"].id for candidato in selecionados[:TECNICOS_SELECIONADOS_MAX]]
+        return [candidato["usuario_id"] for candidato in selecionados[:TECNICOS_SELECIONADOS_MAX]]
 
     def _calcular_distancias(self, servico):
         candidatos = []
-        for usuario, perfil in self.usuario_repository.buscar_tecnicos_para_ranking():
-            distancia_km = haversine_km(servico.latitude, servico.longitude, usuario.latitude, usuario.longitude)
-            candidatos.append({"usuario": usuario, "perfil": perfil, "distancia_km": distancia_km})
+        for linha in self.usuario_repository.buscar_tecnicos_para_ranking():
+            distancia_km = haversine_km(servico.latitude, servico.longitude, linha["latitude"], linha["longitude"])
+            candidatos.append({
+                "usuario_id": linha["usuario_id"],
+                "valor_medio": linha["valor_medio"],
+                "nota_media": linha["nota_media"],
+                "distancia_km": distancia_km,
+            })
         return candidatos
 
     def _filtrar_por_raio(self, candidatos):
@@ -66,16 +71,16 @@ class SelecionarTecnicosService:
         distancias = [c["distancia_km"] for c in candidatos]
         dist_min, dist_max = min(distancias), max(distancias)
 
-        valores = [float(c["perfil"].valor_medio) for c in candidatos if c["perfil"].valor_medio is not None]
+        valores = [float(c["valor_medio"]) for c in candidatos if c["valor_medio"] is not None]
         valor_min, valor_max = (min(valores), max(valores)) if valores else (None, None)
 
         for candidato in candidatos:
             score_distancia = self._normalizar_inverso(candidato["distancia_km"], dist_min, dist_max)
 
-            nota = candidato["perfil"].nota_media
+            nota = candidato["nota_media"]
             score_avaliacao = (float(nota) / NOTA_MAXIMA) if nota is not None else 0.5
 
-            valor = candidato["perfil"].valor_medio
+            valor = candidato["valor_medio"]
             if valor is None or valor_min is None:
                 score_preco = 0.5  # sem preço informado: nem penaliza nem favorece
             else:

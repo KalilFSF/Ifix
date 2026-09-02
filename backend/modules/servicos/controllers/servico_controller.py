@@ -42,7 +42,7 @@ class ServicoController:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         servicos = self.listar_meus_servicos_service.executar(current_user.id, como, status)
-        return jsonify([servico.to_dict_painel() for servico in servicos])
+        return jsonify(servicos)
 
     @login_required
     def criar(self):
@@ -131,7 +131,7 @@ class ServicoController:
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
-        return jsonify([atendimento.to_dict_com_tecnico() for atendimento in atendimentos])
+        return jsonify(atendimentos)
 
     @login_required
     def avaliar(self, servico_id):

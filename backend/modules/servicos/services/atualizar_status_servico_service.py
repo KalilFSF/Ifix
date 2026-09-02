@@ -1,8 +1,8 @@
 from constants import STATUS_LABELS_EMAIL, STATUS_TECNICO_CHOICES
-from email_service import enviar_email
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import Servico
+from services.email_service import EmailService
 
 
 class AtualizarStatusServicoService:
@@ -34,4 +34,4 @@ class AtualizarStatusServicoService:
             <p style="font-size:18px;"><strong>{rotulo}</strong></p>
             <p>Acesse sua conta no iFix pra ver os detalhes e o histórico completo.</p>
         """
-        enviar_email(cliente.email, cliente.nome, f"Chamado {servico.codigo} — {rotulo}", corpo_html)
+        EmailService.enviar_email(cliente.email, cliente.nome, f"Chamado {servico.codigo} — {rotulo}", corpo_html)

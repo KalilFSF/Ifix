@@ -5,7 +5,6 @@ import os
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
-DATABASE_DIR = os.path.join(BASE_DIR, "database")
 
 
 class Config:
@@ -14,12 +13,12 @@ class Config:
     # aleatório e secreto — nunca deixe o valor padrão abaixo.
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-troque-em-producao")
 
-    # Banco SQLite local, salvo em backend/database/ifix.db.
-    # Pra trocar por outro banco (Postgres, MySQL...) no futuro, basta setar
-    # a variável de ambiente DATABASE_URL com a connection string.
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{os.path.join(DATABASE_DIR, 'ifix.db')}"
-    )
+    # Banco Postgres (Neon), único ambiente suportado — sem fallback local
+    # em SQLite: as Repositories chamam procedures/functions definidas em
+    # backend/database/procedures.sql, recurso que o SQLite não tem. Defina
+    # DATABASE_URL com a connection string do Neon (Vercel > Settings >
+    # Environment Variables).
+    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Uploads de foto de perfil e diplomas do técnico ficam dentro de

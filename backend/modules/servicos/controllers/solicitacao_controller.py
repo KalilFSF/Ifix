@@ -21,7 +21,7 @@ class SolicitacaoController:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
         solicitacoes = self.listar_solicitacoes_pendentes_service.executar(current_user.id)
-        return jsonify([solicitacao.to_dict_painel() for solicitacao in solicitacoes])
+        return jsonify(solicitacoes)
 
     @login_required
     def aceitar(self, solicitacao_id):
