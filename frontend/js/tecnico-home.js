@@ -467,6 +467,9 @@ function montarEstruturaModal(servico) {
                     <span class="status-badge ${badgeClasse}" id="detalheBadge">${badgeLabel}</span>
                 </div>
                 <h2>${escaparHtml(servico.titulo)}</h2>
+                ${servico.titulo && servico.titulo.startsWith("[Garantia]")
+                    ? `<p class="detalhe-garantia-aviso">Atendimento em garantia — sem custo para o cliente.</p>`
+                    : ""}
                 <p class="painel-equipamento">${escaparHtml(servico.equipamento || servico.categoria)}</p>
             </div>
             <div class="detalhe-valor-card">

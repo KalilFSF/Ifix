@@ -16,6 +16,25 @@
 -- constants.CAUSAS_DEFEITO_LABELS, que é o que Servico.to_dict() usa —
 -- as duas listagens abaixo precisam devolver o mesmo texto que o to_dict(),
 -- senão a mesma tela mostraria rótulos diferentes dependendo do endpoint.
+-- Prazo de garantia em dias (funcionalidade 2). Espelha GARANTIA_DIAS de
+-- constants.py — está numa função só pra não ficar um INTERVAL '10 days'
+-- solto em cada lugar que calcula validade, que é como esse tipo de regra
+-- diverge silenciosamente do backend.
+CREATE OR REPLACE FUNCTION fn_garantia_dias()
+RETURNS integer AS $$
+    SELECT 10;
+$$ LANGUAGE sql IMMUTABLE;
+
+
+-- Momento em que a garantia de um chamado expira, ou NULL se ele não tem
+-- garantia contratada ou ainda não foi finalizado.
+CREATE OR REPLACE FUNCTION fn_garantia_expira_em(p_garantia boolean, p_finalizado_em timestamp)
+RETURNS timestamp AS $$
+    SELECT CASE WHEN NOT p_garantia OR p_finalizado_em IS NULL THEN NULL
+        ELSE p_finalizado_em + (fn_garantia_dias() || ' days')::interval END;
+$$ LANGUAGE sql IMMUTABLE;
+
+
 CREATE OR REPLACE FUNCTION fn_rotulo_causa_defeito(p_causa varchar)
 RETURNS varchar AS $$
     SELECT CASE p_causa
@@ -164,6 +183,21 @@ RETURNS TABLE(dado json) AS $$
             WHERE ap.servico_id = s.id AND ap.status = 'pendente'
         ),
         'garantia', s.garantia,
+        -- Garantia (funcionalidade 2): os mesmos cálculos das properties de
+        -- Servico, porque o front usa este payload pra decidir se mostra o
+        -- botão "Acionar garantia" e quantos dias ainda restam.
+        'finalizado_em', CASE WHEN s.finalizado_em IS NULL THEN NULL
+            ELSE to_char(s.finalizado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END,
+        'garantia_expira_em', CASE
+            WHEN fn_garantia_expira_em(s.garantia, s.finalizado_em) IS NULL THEN NULL
+            ELSE to_char(fn_garantia_expira_em(s.garantia, s.finalizado_em),
+                         'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END,
+        'garantia_ativa', COALESCE(
+            fn_garantia_expira_em(s.garantia, s.finalizado_em) >= (NOW() AT TIME ZONE 'UTC'), FALSE),
+        'garantia_dias_restantes', CASE
+            WHEN fn_garantia_expira_em(s.garantia, s.finalizado_em) IS NULL THEN NULL
+            ELSE GREATEST(EXTRACT(DAY FROM fn_garantia_expira_em(s.garantia, s.finalizado_em)
+                                       - (NOW() AT TIME ZONE 'UTC'))::int, 0) END,
         'status', s.status,
         'causa_defeito', s.causa_defeito,
         'causa_defeito_label', fn_rotulo_causa_defeito(s.causa_defeito),

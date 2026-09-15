@@ -10,6 +10,8 @@ from modules.servicos.services.atribuir_tecnico_service import AtribuirTecnicoSe
 from modules.servicos.services.atualizar_status_servico_service import AtualizarStatusServicoService
 from modules.servicos.services.cancelar_servico_service import CancelarServicoService, ExcluirServicoService
 from modules.servicos.services.criar_servico_service import CriarServicoService
+from modules.servicos.services.acionar_garantia_service import AcionarGarantiaService
+from modules.servicos.services.listar_acionamentos_garantia_service import ListarAcionamentosGarantiaService
 from modules.servicos.services.listar_aprovacoes_service import ListarAprovacoesService
 from modules.servicos.services.listar_meus_servicos_service import ListarMeusServicosService
 from modules.servicos.services.obter_detalhes_servico_service import ObterDetalhesServicoService
@@ -31,6 +33,8 @@ class ServicoController:
         self.solicitar_aprovacao_service = SolicitarAprovacaoService()
         self.responder_aprovacao_service = ResponderAprovacaoService()
         self.listar_aprovacoes_service = ListarAprovacoesService()
+        self.acionar_garantia_service = AcionarGarantiaService()
+        self.listar_acionamentos_garantia_service = ListarAcionamentosGarantiaService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
         self.atribuir_tecnico_service = AtribuirTecnicoService()
         self.cancelar_servico_service = CancelarServicoService()
@@ -132,6 +136,17 @@ class ServicoController:
     def aprovacoes(self, servico_id):
         aprovacoes = self.listar_aprovacoes_service.executar(servico_id, current_user)
         return jsonify(aprovacoes)
+
+    @login_required
+    def acionar_garantia(self, servico_id):
+        dados = request.get_json(silent=True) or {}
+        acionamento = self.acionar_garantia_service.executar(servico_id, current_user, dados)
+        return jsonify({"ok": True, "acionamento": acionamento.to_dict()}), 201
+
+    @login_required
+    def acionamentos_garantia(self, servico_id):
+        acionamentos = self.listar_acionamentos_garantia_service.executar(servico_id, current_user)
+        return jsonify([acionamento.to_dict() for acionamento in acionamentos])
 
     @login_required
     def cancelar(self, servico_id):

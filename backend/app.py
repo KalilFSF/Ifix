@@ -122,6 +122,7 @@ def _garantir_colunas_novas():
             ("causa_defeito", "ALTER TABLE servicos ADD COLUMN causa_defeito VARCHAR(50)"),
             ("laudo_tecnico", "ALTER TABLE servicos ADD COLUMN laudo_tecnico TEXT"),
             ("solucao_aplicada", "ALTER TABLE servicos ADD COLUMN solucao_aplicada TEXT"),
+            ("finalizado_em", "ALTER TABLE servicos ADD COLUMN finalizado_em TIMESTAMP"),
         ],
         "usuarios": [
             ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
@@ -192,6 +193,9 @@ def _garantir_cascade_exclusao():
         ("atendimentos", "servico_id", "servicos", "CASCADE"),
         ("solicitacoes_aprovacao", "servico_id", "servicos", "CASCADE"),
         ("solicitacoes_aprovacao", "tecnico_id", "usuarios", "CASCADE"),
+        ("acionamentos_garantia", "servico_id", "servicos", "CASCADE"),
+        ("acionamentos_garantia", "cliente_id", "usuarios", "CASCADE"),
+        ("acionamentos_garantia", "servico_novo_id", "servicos", "SET NULL"),
     ]
 
     with db.engine.begin() as conn:

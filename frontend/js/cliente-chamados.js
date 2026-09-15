@@ -35,6 +35,17 @@ const TIPO_LABELS = {
     desktop: "Desktop",
 };
 
+/* Garantia (funcionalidade 2) — espelha GARANTIA_DIAS e os GARANTIA_STATUS_*
+   de backend/constants.py. */
+const GARANTIA_DIAS = 10;
+const GARANTIA_STATUS_LABELS = {
+    pendente: "Em análise",
+    aprovado: "Aprovado",
+    recusado: "Recusado",
+    concluido: "Concluído",
+};
+const MIN_CARACTERES_DESCRICAO_GARANTIA = 15;
+
 const POLL_INTERVALO_MS = 7000;
 
 let chamados = [];
@@ -188,6 +199,17 @@ async function renderizarDetalhe() {
     }
     const aprovacoesPendentes = aprovacoes.filter(item => item.status === "pendente");
 
+    // Garantia (funcionalidade 2): só faz sentido buscar se foi contratada e
+    // o chamado já foi finalizado — é daí que corre o prazo.
+    let acionamentosGarantia = [];
+    if (chamado.garantia && finalizado) {
+        const respostaGarantia = await fetch(`/api/servicos/${chamado.id}/garantia`);
+        acionamentosGarantia = respostaGarantia.ok ? await respostaGarantia.json() : [];
+    }
+    const garantiaEmAndamento = acionamentosGarantia.some(
+        item => item.status === "pendente" || item.status === "aprovado"
+    );
+
     const tecnico = chamado.tecnico || {};
     const badgeClasse = STATUS_BADGE_CLASS[chamado.status] || "status-aguardando";
     const badgeLabel = STATUS_LABELS[chamado.status] || chamado.status;
@@ -225,7 +247,7 @@ async function renderizarDetalhe() {
             <div><span>Tipo</span><p>${tipo}</p></div>
             <div><span>Categoria</span><p>${escaparHtml(chamado.categoria)}</p></div>
             <div><span>Técnico responsável</span><p>${escaparHtml(tecnico.nome || "Aguardando definição")}</p></div>
-            <div><span>Garantia</span><p>${chamado.garantia ? "Sim (+7% · 10 dias)" : "Não"}</p></div>
+            <div><span>Garantia</span><p>${chamado.garantia ? `Sim (+7% · ${GARANTIA_DIAS} dias)` : "Não"}</p></div>
             ${chamado.valor_maximo_aprovado !== null && chamado.valor_maximo_aprovado !== undefined ? `
                 <div><span>Teto de gasto</span><p>${formatarMoeda(chamado.valor_maximo_aprovado)}</p></div>
             ` : ""}
@@ -255,6 +277,67 @@ async function renderizarDetalhe() {
                         ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento)).join("")}
                     </div>
                 ` : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
+            </div>
+        ` : ""}
+
+        ${chamado.garantia && finalizado ? `
+            <div class="garantia-bloco">
+                <h3>Garantia iFix</h3>
+                ${chamado.garantia_ativa ? `
+                    <p class="painel-equipamento">
+                        ${chamado.garantia_dias_restantes === 0
+                            ? "Último dia de cobertura."
+                            : `${chamado.garantia_dias_restantes} dia(s) restante(s) de cobertura.`}
+                        Se o problema voltou, você pode pedir reembolso ou um novo atendimento gratuito.
+                    </p>
+                    ${garantiaEmAndamento ? "" : `
+                        <button type="button" class="primary-btn" id="btnAbrirGarantia" style="width:auto; margin-top:10px;">
+                            Acionar garantia
+                        </button>
+                        <div class="garantia-form hidden" id="garantiaForm">
+                            <div class="input-group">
+                                <label for="garantiaDescricao">O que voltou a acontecer?</label>
+                                <textarea id="garantiaDescricao" rows="3" placeholder="Descreva o problema que reapareceu."></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label>O que você prefere?</label>
+                                <div class="choice-grid" id="garantiaTipos">
+                                    <button type="button" class="choice-card is-selected" data-tipo="novo_atendimento">
+                                        <strong>Novo atendimento</strong>
+                                        <span>Gratuito, com o mesmo técnico</span>
+                                    </button>
+                                    <button type="button" class="choice-card" data-tipo="reembolso">
+                                        <strong>Reembolso</strong>
+                                        <span>Devolução do valor pago</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="primary-btn" id="btnConfirmarGarantia" style="width:auto;">
+                                Confirmar acionamento
+                            </button>
+                        </div>
+                    `}
+                ` : `
+                    <p class="painel-equipamento">
+                        O prazo de ${GARANTIA_DIAS} dias de cobertura após a finalização já expirou.
+                    </p>
+                `}
+                ${acionamentosGarantia.length ? `
+                    <div class="garantia-historico">
+                        ${acionamentosGarantia.map(acionamento => `
+                            <div class="aprovacao-item is-${acionamento.status}">
+                                <div class="aprovacao-item-topo">
+                                    <strong>${escaparHtml(acionamento.tipo_solicitado_label || "")}</strong>
+                                    <span class="aprovacao-status">${GARANTIA_STATUS_LABELS[acionamento.status] || acionamento.status}</span>
+                                </div>
+                                <p class="painel-equipamento">${escaparHtml(acionamento.descricao_problema)}</p>
+                                ${acionamento.servico_novo_codigo
+                                    ? `<p class="painel-equipamento">Chamado gerado: <strong>${escaparHtml(acionamento.servico_novo_codigo)}</strong></p>`
+                                    : ""}
+                            </div>
+                        `).join("")}
+                    </div>
+                ` : ""}
             </div>
         ` : ""}
 
@@ -324,6 +407,8 @@ async function renderizarDetalhe() {
         });
     }
 
+    iniciarFormularioGarantia(chamado.id);
+
     elModalBody.querySelectorAll(".btn-autorizar").forEach(botao => {
         botao.addEventListener("click", () => responderAprovacao(Number(botao.dataset.id), "aprovada"));
     });
@@ -333,6 +418,76 @@ async function renderizarDetalhe() {
 
     if (finalizado) {
         carregarAvaliacaoCliente(chamado);
+    }
+}
+
+/* Acionamento da garantia (funcionalidade 2): o formulário fica escondido
+   atrás do botão pra não poluir o modal de quem só quer ver o chamado. A
+   escolha reembolso/novo atendimento usa o mesmo padrão .choice-card da tela
+   de abrir chamado. */
+function iniciarFormularioGarantia(servicoId) {
+    const elAbrir = document.getElementById("btnAbrirGarantia");
+    const elForm = document.getElementById("garantiaForm");
+    const elTipos = document.getElementById("garantiaTipos");
+    const elConfirmar = document.getElementById("btnConfirmarGarantia");
+    if (!elAbrir || !elForm || !elTipos || !elConfirmar) return;
+
+    elAbrir.addEventListener("click", () => {
+        elForm.classList.remove("hidden");
+        elAbrir.classList.add("hidden");
+    });
+
+    elTipos.addEventListener("click", (evento) => {
+        const botao = evento.target.closest(".choice-card");
+        if (!botao) return;
+        elTipos.querySelectorAll(".choice-card").forEach(item => item.classList.remove("is-selected"));
+        botao.classList.add("is-selected");
+    });
+
+    elConfirmar.addEventListener("click", () => acionarGarantia(servicoId));
+}
+
+async function acionarGarantia(servicoId) {
+    const elDescricao = document.getElementById("garantiaDescricao");
+    const elSelecionado = document.querySelector("#garantiaTipos .choice-card.is-selected");
+    const elConfirmar = document.getElementById("btnConfirmarGarantia");
+    if (!elDescricao || !elSelecionado) return;
+
+    const descricao = elDescricao.value.trim();
+    if (descricao.length < MIN_CARACTERES_DESCRICAO_GARANTIA) {
+        mostrarToast(`Descreva o problema com pelo menos ${MIN_CARACTERES_DESCRICAO_GARANTIA} caracteres.`);
+        return;
+    }
+
+    const tipo = elSelecionado.dataset.tipo;
+    const confirmacao = tipo === "novo_atendimento"
+        ? "Abrir um novo atendimento gratuito com o mesmo técnico?"
+        : "Solicitar reembolso do valor pago?";
+    if (!confirm(confirmacao)) return;
+
+    elConfirmar.disabled = true;
+    try {
+        const resposta = await fetch(`/api/servicos/${servicoId}/garantia`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ descricao_problema: descricao, tipo_solicitado: tipo }),
+        });
+        const resultado = await resposta.json();
+        if (!resposta.ok || !resultado.ok) {
+            mostrarToast(resultado.erro || "Não foi possível acionar a garantia.");
+            return;
+        }
+
+        const codigoNovo = resultado.acionamento.servico_novo_codigo;
+        mostrarToast(codigoNovo
+            ? `Garantia acionada. Chamado ${codigoNovo} aberto.`
+            : "Garantia acionada. O técnico foi avisado.");
+        await carregarChamados();
+        await renderizarDetalhe();
+    } catch (erro) {
+        mostrarToast("Falha de conexão ao acionar a garantia.");
+    } finally {
+        elConfirmar.disabled = false;
     }
 }
 
