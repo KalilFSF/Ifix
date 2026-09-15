@@ -179,6 +179,10 @@ http://127.0.0.1:5000
 
 ## Como testar o fluxo pelo navegador
 
+> Para testar **cada funcionalidade isoladamente** — com a tela onde ela aparece,
+> os casos que devem falhar e o que ainda não foi verificado —, veja
+> [TESTES.md](TESTES.md). O roteiro abaixo é o caminho feliz, de ponta a ponta.
+
 1. Cadastre um técnico em `/cadastro` — **permita o acesso à localização**
    quando o navegador pedir (sem isso a conta fica de fora da seleção
    automática de técnicos).
