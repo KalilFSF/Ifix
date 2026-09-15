@@ -164,9 +164,12 @@
                             <textarea id="descricao" name="descricao" rows="5" placeholder="O que aconteceu, quando começou, se há algum barulho, mensagem de erro..." required></textarea>
                         </div>
                         <div class="input-group">
-                            <label for="preco_estimado">Quanto você gostaria de gastar, no máximo (R$)? <span class="input-helper">(opcional)</span></label>
+                            <label for="preco_estimado">Limite máximo de gasto (R$) <span class="input-helper">(opcional)</span></label>
                             <input type="number" id="preco_estimado" name="preco_estimado" placeholder="0" min="0" step="0.01" inputmode="decimal" autocomplete="off">
-                            <small class="field-hint">Se não quiser informar, pode deixar em branco.</small>
+                            <small class="field-hint">
+                                Nenhum reparo adicional ou peça nova acima desse valor será executado sem a
+                                sua aprovação. Se não quiser definir um limite, deixe em branco.
+                            </small>
                         </div>
                         <div class="input-group">
                             <label for="fotos">Anexar fotos (opcional)</label>

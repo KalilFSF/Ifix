@@ -118,6 +118,7 @@ def _garantir_colunas_novas():
             ("garantia", "ALTER TABLE servicos ADD COLUMN garantia BOOLEAN NOT NULL DEFAULT FALSE"),
             ("latitude", "ALTER TABLE servicos ADD COLUMN latitude FLOAT"),
             ("longitude", "ALTER TABLE servicos ADD COLUMN longitude FLOAT"),
+            ("valor_maximo_aprovado", "ALTER TABLE servicos ADD COLUMN valor_maximo_aprovado NUMERIC(10, 2)"),
             ("causa_defeito", "ALTER TABLE servicos ADD COLUMN causa_defeito VARCHAR(50)"),
             ("laudo_tecnico", "ALTER TABLE servicos ADD COLUMN laudo_tecnico TEXT"),
             ("solucao_aplicada", "ALTER TABLE servicos ADD COLUMN solucao_aplicada TEXT"),
@@ -189,6 +190,8 @@ def _garantir_cascade_exclusao():
         ("atendimentos", "cliente_id", "usuarios", "CASCADE"),
         ("atendimentos", "tecnico_id", "usuarios", "CASCADE"),
         ("atendimentos", "servico_id", "servicos", "CASCADE"),
+        ("solicitacoes_aprovacao", "servico_id", "servicos", "CASCADE"),
+        ("solicitacoes_aprovacao", "tecnico_id", "usuarios", "CASCADE"),
     ]
 
     with db.engine.begin() as conn:

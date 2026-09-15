@@ -179,6 +179,15 @@ async function renderizarDetalhe() {
         avaliacoes = respostaAvaliacoes.ok ? await respostaAvaliacoes.json() : [];
     }
 
+    // Autorizações de custo adicional (funcionalidades 6 e 7): só existem
+    // depois que um técnico assumiu o chamado.
+    let aprovacoes = [];
+    if (chamado.tecnico_id) {
+        const respostaAprovacoes = await fetch(`/api/servicos/${chamado.id}/aprovacoes`);
+        aprovacoes = respostaAprovacoes.ok ? await respostaAprovacoes.json() : [];
+    }
+    const aprovacoesPendentes = aprovacoes.filter(item => item.status === "pendente");
+
     const tecnico = chamado.tecnico || {};
     const badgeClasse = STATUS_BADGE_CLASS[chamado.status] || "status-aguardando";
     const badgeLabel = STATUS_LABELS[chamado.status] || chamado.status;
@@ -192,12 +201,34 @@ async function renderizarDetalhe() {
         <p class="painel-equipamento">${chamado.codigo} ${chamado.equipamento ? "• " + escaparHtml(chamado.equipamento) : ""}</p>
         <p class="modal-descricao">${escaparHtml(chamado.descricao)}</p>
 
+        ${aprovacoesPendentes.length ? `
+            <div class="aprovacao-destaque">
+                <h3>Autorização necessária</h3>
+                <p class="painel-equipamento">
+                    O técnico encontrou um problema adicional. Nada será executado sem a sua autorização.
+                </p>
+                ${aprovacoesPendentes.map(aprovacao => `
+                    <div class="aprovacao-pendente-card">
+                        <p class="modal-descricao">${escaparHtml(aprovacao.descricao)}</p>
+                        <p class="aprovacao-valor">Custo adicional: <strong>${formatarMoeda(aprovacao.valor_adicional)}</strong></p>
+                        <div class="modal-actions">
+                            <button type="button" class="primary-btn btn-autorizar" data-id="${aprovacao.id}">Autorizar</button>
+                            <button type="button" class="secondary-btn btn-recusar-aprovacao" data-id="${aprovacao.id}">Recusar</button>
+                        </div>
+                    </div>
+                `).join("")}
+            </div>
+        ` : ""}
+
         <div class="modal-info-grid">
             <div><span>Status</span><p><span class="status-badge ${badgeClasse}">${badgeLabel}</span></p></div>
             <div><span>Tipo</span><p>${tipo}</p></div>
             <div><span>Categoria</span><p>${escaparHtml(chamado.categoria)}</p></div>
             <div><span>Técnico responsável</span><p>${escaparHtml(tecnico.nome || "Aguardando definição")}</p></div>
             <div><span>Garantia</span><p>${chamado.garantia ? "Sim (+7% · 10 dias)" : "Não"}</p></div>
+            ${chamado.valor_maximo_aprovado !== null && chamado.valor_maximo_aprovado !== undefined ? `
+                <div><span>Teto de gasto</span><p>${formatarMoeda(chamado.valor_maximo_aprovado)}</p></div>
+            ` : ""}
         </div>
 
         ${(podeCancelar || podeExcluir) ? `
@@ -224,6 +255,21 @@ async function renderizarDetalhe() {
                         ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento)).join("")}
                     </div>
                 ` : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
+            </div>
+        ` : ""}
+
+        ${aprovacoes.length > aprovacoesPendentes.length ? `
+            <div class="modal-historico">
+                <h3>Custos adicionais</h3>
+                ${aprovacoes.filter(item => item.status !== "pendente").map(aprovacao => `
+                    <div class="aprovacao-item is-${aprovacao.status}">
+                        <div class="aprovacao-item-topo">
+                            <strong>${formatarMoeda(aprovacao.valor_adicional)}</strong>
+                            <span class="aprovacao-status">${aprovacao.status === "aprovada" ? "Autorizado" : "Recusado"}</span>
+                        </div>
+                        <p class="painel-equipamento">${escaparHtml(aprovacao.descricao)}</p>
+                    </div>
+                `).join("")}
             </div>
         ` : ""}
 
@@ -278,9 +324,48 @@ async function renderizarDetalhe() {
         });
     }
 
+    elModalBody.querySelectorAll(".btn-autorizar").forEach(botao => {
+        botao.addEventListener("click", () => responderAprovacao(Number(botao.dataset.id), "aprovada"));
+    });
+    elModalBody.querySelectorAll(".btn-recusar-aprovacao").forEach(botao => {
+        botao.addEventListener("click", () => responderAprovacao(Number(botao.dataset.id), "recusada"));
+    });
+
     if (finalizado) {
         carregarAvaliacaoCliente(chamado);
     }
+}
+
+/* Autorização remota (funcionalidade 7): o cliente decide de onde estiver se
+   o técnico pode ou não executar o serviço adicional. Aprovar eleva o teto
+   de gasto do chamado no valor autorizado. */
+async function responderAprovacao(aprovacaoId, status) {
+    const autorizando = status === "aprovada";
+    const pergunta = autorizando
+        ? "Autorizar este custo adicional? O valor será somado ao seu teto de gasto."
+        : "Recusar este custo adicional? O técnico será orientado a não executar o serviço.";
+    if (!confirm(pergunta)) return;
+
+    let justificativa = null;
+    if (!autorizando) {
+        justificativa = prompt("Quer explicar o motivo da recusa? (opcional)") || null;
+    }
+
+    const resposta = await fetch(`/api/aprovacoes/${aprovacaoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, justificativa_recusa: justificativa }),
+    });
+    const resultado = await resposta.json().catch(() => ({ ok: false }));
+
+    if (!resposta.ok || !resultado.ok) {
+        mostrarToast(resultado.erro || "Não foi possível responder a autorização.");
+        return;
+    }
+
+    mostrarToast(autorizando ? "Custo adicional autorizado." : "Custo adicional recusado.");
+    await carregarChamados();
+    await renderizarDetalhe();
 }
 
 function renderizarOrcamentoHTML(orcamento) {

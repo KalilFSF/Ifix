@@ -1,5 +1,6 @@
 from constants import STATUS_FINALIZADO, STATUS_LABELS_EMAIL, STATUS_TECNICO_CHOICES
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
+from modules.servicos.models.aprovacao import SolicitacaoAprovacao
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import Servico
 from services.email_service import EmailService
@@ -16,6 +17,15 @@ class AtualizarStatusServicoService:
             raise PermissaoNegadaError("Apenas o técnico responsável pode atualizar este chamado.")
 
         if novo_status == STATUS_FINALIZADO:
+            # A aprovação pendente vem primeiro de propósito: ela depende de
+            # uma ação de OUTRA pessoa (o cliente), então é a informação mais
+            # útil pro técnico — o laudo ele resolve sozinho, na hora.
+            # Funcionalidades 6 e 7: finalizar com pedido pendente daria por
+            # encerrado um serviço que o cliente ainda não autorizou.
+            if SolicitacaoAprovacao.buscar_pendente_do_servico(servico.id):
+                raise ValidacaoError(
+                    "Existe uma autorização de custo aguardando resposta do cliente."
+                )
             # Sem isso o cliente ficaria sem explicação nenhuma do que houve
             # com o aparelho, e a reincidência por modelo (funcionalidade 10)
             # não teria dado nenhum pra agregar.

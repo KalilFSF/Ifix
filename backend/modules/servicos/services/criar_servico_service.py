@@ -81,6 +81,12 @@ class CriarServicoService:
         if preco < 0:
             raise ValidacaoError("O valor estimado não pode ser negativo.")
 
+        # O teto de gasto (funcionalidade 6) é o valor que o cliente digitou,
+        # capturado ANTES do acréscimo da garantia: o limite é sobre o que ele
+        # aceita gastar em reparo, não sobre a taxa opcional de garantia.
+        # Zero/vazio = não quis definir teto (fica None, sem limite).
+        valor_maximo = preco if preco > 0 else None
+
         # Se já houver valor e a garantia estiver marcada, aplica +7%.
         if garantia and preco > 0:
             preco = round(preco * (1 + GARANTIA_PERCENTUAL), 2)
@@ -102,6 +108,7 @@ class CriarServicoService:
             "titulo": titulo,
             "descricao": descricao,
             "preco_estimado": preco,
+            "valor_maximo_aprovado": valor_maximo,
             "garantia": garantia,
             "latitude": latitude,
             "longitude": longitude,
@@ -130,6 +137,8 @@ class CriarServicoService:
             tamanho = arquivo.stream.tell()
             arquivo.stream.seek(pos)
             if tamanho > MAX_BYTES_FOTO_CHAMADO:
-                raise ValidacaoError("Cada foto deve ter no máximo 2 MB.")
+                raise ValidacaoError(
+                    f"Cada foto deve ter no máximo {MAX_BYTES_FOTO_CHAMADO // (1024 * 1024)} MB."
+                )
             validadas.append(arquivo)
         return validadas

@@ -437,6 +437,9 @@ function renderizarChamado(servico, historico) {
         montarEstruturaModal(servico);
         estadoModal = { servicoId: servico.id, status: servico.status, historicoIds: new Set() };
         sincronizarHistorico(historico, { animar: false });
+        if (podeRegistrarLaudo(servico.status)) {
+            carregarAprovacoes(servico.id);
+        }
         if (servico.status === "finalizado") {
             carregarAvaliacaoTecnico(servico);
         }
@@ -521,6 +524,8 @@ function montarEstruturaModal(servico) {
                     </button>
                 </div>
 
+                ${podeRegistrarLaudo(servico.status) ? renderizarCardAutorizacaoHTML(servico) : ""}
+
                 ${podeRegistrarLaudo(servico.status) ? renderizarCardLaudoHTML(servico) : ""}
 
                 ${servico.status === "finalizado" ? `
@@ -532,6 +537,114 @@ function montarEstruturaModal(servico) {
             </div>
         </div>
     `;
+}
+
+/* Autorização de custo adicional (funcionalidades 6 e 7) — achou um problema
+   novo no meio do reparo? Não executa por conta própria: descreve, informa
+   quanto custa a mais e espera o cliente autorizar. Enquanto o pedido estiver
+   pendente o backend não deixa finalizar o chamado. */
+const APROVACAO_LABELS = {
+    pendente: "Aguardando cliente",
+    aprovada: "Autorizado",
+    recusada: "Recusado",
+};
+const MIN_CARACTERES_DESCRICAO_APROVACAO = 15;
+
+function renderizarCardAutorizacaoHTML(servico) {
+    const finalizado = servico.status === "finalizado";
+    const teto = servico.valor_maximo_aprovado;
+
+    return `
+        <div class="detalhe-card" id="autorizacaoCard">
+            <h3>Custo adicional</h3>
+            <p class="historico-item-texto" style="margin-bottom:8px;">
+                ${teto !== null && teto !== undefined
+                    ? `Teto autorizado pelo cliente: <strong>${formatarMoeda(teto)}</strong>. Qualquer reparo além disso precisa de autorização.`
+                    : "O cliente não definiu teto de gasto para este chamado."}
+            </p>
+
+            <div id="aprovacoesList"><p class="historico-item-texto">Carregando...</p></div>
+
+            ${finalizado ? "" : `
+                <div class="input-group">
+                    <label for="aprovacaoDescricao">Problema encontrado</label>
+                    <textarea id="aprovacaoDescricao" rows="2" placeholder="O que você encontrou e por que precisa de mais serviço."></textarea>
+                </div>
+                <div class="input-group">
+                    <label for="aprovacaoValor">Custo adicional (R$)</label>
+                    <input type="number" id="aprovacaoValor" min="0" step="0.01" inputmode="decimal" placeholder="0,00">
+                </div>
+                <button type="button" class="secondary-btn" id="aprovacaoSolicitarBtn">Solicitar autorização</button>
+            `}
+        </div>
+    `;
+}
+
+function renderizarAprovacaoHTML(aprovacao) {
+    const rotulo = APROVACAO_LABELS[aprovacao.status] || aprovacao.status;
+    return `
+        <div class="aprovacao-item is-${aprovacao.status}">
+            <div class="aprovacao-item-topo">
+                <strong>${formatarMoeda(aprovacao.valor_adicional)}</strong>
+                <span class="aprovacao-status">${rotulo}</span>
+            </div>
+            <p class="historico-item-texto">${escaparHtml(aprovacao.descricao)}</p>
+            ${aprovacao.justificativa_recusa
+                ? `<p class="historico-item-texto"><em>Motivo: ${escaparHtml(aprovacao.justificativa_recusa)}</em></p>`
+                : ""}
+        </div>
+    `;
+}
+
+async function carregarAprovacoes(servicoId) {
+    const container = document.getElementById("aprovacoesList");
+    if (!container) return;
+
+    const resposta = await fetch(`/api/servicos/${servicoId}/aprovacoes`);
+    const aprovacoes = resposta.ok ? await resposta.json() : [];
+    container.innerHTML = aprovacoes.length
+        ? aprovacoes.map(renderizarAprovacaoHTML).join("")
+        : `<p class="historico-item-texto">Nenhuma autorização solicitada.</p>`;
+}
+
+async function solicitarAutorizacao(servicoId) {
+    const elDescricao = document.getElementById("aprovacaoDescricao");
+    const elValor = document.getElementById("aprovacaoValor");
+    const elBotao = document.getElementById("aprovacaoSolicitarBtn");
+    if (!elDescricao || !elValor) return;
+
+    const descricao = elDescricao.value.trim();
+    const valor = Number(elValor.value);
+    if (descricao.length < MIN_CARACTERES_DESCRICAO_APROVACAO) {
+        mostrarToast(`Descreva o problema com pelo menos ${MIN_CARACTERES_DESCRICAO_APROVACAO} caracteres.`);
+        return;
+    }
+    if (!valor || valor <= 0) {
+        mostrarToast("Informe um custo adicional maior que zero.");
+        return;
+    }
+
+    elBotao.disabled = true;
+    try {
+        const resposta = await fetch(`/api/servicos/${servicoId}/aprovacoes`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ descricao, valor_adicional: valor }),
+        });
+        const resultado = await resposta.json();
+        if (!resposta.ok || !resultado.ok) {
+            mostrarToast(resultado.erro || "Não foi possível solicitar a autorização.");
+            return;
+        }
+        mostrarToast("Autorização solicitada. O cliente foi avisado.");
+        elDescricao.value = "";
+        elValor.value = "";
+        await carregarAprovacoes(servicoId);
+    } catch (erro) {
+        mostrarToast("Falha de conexão ao solicitar autorização.");
+    } finally {
+        elBotao.disabled = false;
+    }
 }
 
 /* Relatório técnico (funcionalidade 8) — o técnico registra a causa do
@@ -892,6 +1005,11 @@ function travarBotoesStatus(travado) {
 elModalBody.addEventListener("click", async (evento) => {
     if (evento.target.closest("#laudoSalvarBtn") && estadoModal) {
         await salvarLaudo(estadoModal.servicoId);
+        return;
+    }
+
+    if (evento.target.closest("#aprovacaoSolicitarBtn") && estadoModal) {
+        await solicitarAutorizacao(estadoModal.servicoId);
         return;
     }
 

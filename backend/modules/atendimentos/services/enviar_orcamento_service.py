@@ -26,8 +26,14 @@ class EnviarOrcamentoService:
         observacoes = (dados.get("observacoes") or "").strip()
 
         servico = solicitacao.servico
+        # Teto de gasto (funcionalidade 6): orçamento acima do limite do
+        # cliente é permitido, mas fica marcado — bloquear aqui deixaria um
+        # chamado de teto baixo sem nenhum orçamento, e quem decide se o
+        # valor vale a pena é o cliente, na hora de escolher.
+        acima_do_teto = not servico.cabe_no_teto(valor_orcamento)
+
         dados_atendimento = {
-            "titulo": "Orçamento",
+            "titulo": "Orçamento acima do teto" if acima_do_teto else "Orçamento",
             "descricao": observacoes or "Orçamento enviado pelo técnico.",
             "status": ORCAMENTO_PENDENTE,
             "valor_orcamento": valor_orcamento,
