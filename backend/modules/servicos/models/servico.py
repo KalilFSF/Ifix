@@ -15,6 +15,13 @@ class Servico(db.Model):
     tipo_equipamento = db.Column(db.String(20), nullable=False, default="notebook")
     equipamento = db.Column(db.String(150))
     preco_estimado = db.Column(db.Numeric(10, 2), nullable=False, default=0)
+
+    # Teto de gasto (funcionalidade 6): o quanto o cliente aceita gastar em
+    # reparo. Separado de preco_estimado de propósito — preco_estimado é
+    # exibido como referência e recebe o acréscimo da garantia (+7%), então
+    # não serve de limite. Nulo = cliente não definiu teto.
+    valor_maximo_aprovado = db.Column(db.Numeric(10, 2))
+
     garantia = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(30), nullable=False, default="aberto")
 
@@ -60,6 +67,12 @@ class Servico(db.Model):
         cascade="all, delete-orphan",
         order_by="FotoServico.enviado_em",
     )
+    aprovacoes = db.relationship(
+        "SolicitacaoAprovacao",
+        back_populates="servico",
+        cascade="all, delete-orphan",
+        order_by="SolicitacaoAprovacao.criado_em.desc()",
+    )
 
     # ============== CRUD (Active Record) ==============
 
@@ -97,6 +110,7 @@ class Servico(db.Model):
             tipo_equipamento=dados["tipo_equipamento"],
             equipamento=dados.get("equipamento"),
             preco_estimado=dados.get("preco_estimado", 0),
+            valor_maximo_aprovado=dados.get("valor_maximo_aprovado"),
             garantia=bool(dados.get("garantia", False)),
             latitude=dados.get("latitude"),
             longitude=dados.get("longitude"),
@@ -131,6 +145,24 @@ class Servico(db.Model):
     def tem_laudo(self):
         return bool(self.causa_defeito and self.laudo_tecnico)
 
+    def elevar_teto(self, valor_adicional):
+        """Soma ao teto o valor que o cliente acabou de autorizar. Sem teto
+        definido não há o que elevar — o chamado segue sem limite."""
+        if self.valor_maximo_aprovado is None:
+            return self
+        self.valor_maximo_aprovado = float(self.valor_maximo_aprovado) + float(valor_adicional)
+        return self.salvar()
+
+    @property
+    def tem_teto(self):
+        return self.valor_maximo_aprovado is not None
+
+    def cabe_no_teto(self, valor):
+        """Sem teto definido, tudo cabe — o cliente optou por não limitar."""
+        if not self.tem_teto:
+            return True
+        return float(valor) <= float(self.valor_maximo_aprovado)
+
     @property
     def codigo(self):
         return f"IFX-{1000 + self.id}"
@@ -145,6 +177,7 @@ class Servico(db.Model):
             "tipo_equipamento": self.tipo_equipamento,
             "equipamento": self.equipamento,
             "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
+            "valor_maximo_aprovado": float(self.valor_maximo_aprovado) if self.valor_maximo_aprovado is not None else None,
             "garantia": bool(self.garantia),
             "status": self.status,
             "causa_defeito": self.causa_defeito,

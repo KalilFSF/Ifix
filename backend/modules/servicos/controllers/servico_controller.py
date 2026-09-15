@@ -10,10 +10,13 @@ from modules.servicos.services.atribuir_tecnico_service import AtribuirTecnicoSe
 from modules.servicos.services.atualizar_status_servico_service import AtualizarStatusServicoService
 from modules.servicos.services.cancelar_servico_service import CancelarServicoService, ExcluirServicoService
 from modules.servicos.services.criar_servico_service import CriarServicoService
+from modules.servicos.services.listar_aprovacoes_service import ListarAprovacoesService
 from modules.servicos.services.listar_meus_servicos_service import ListarMeusServicosService
 from modules.servicos.services.obter_detalhes_servico_service import ObterDetalhesServicoService
 from modules.servicos.services.obter_historico_servico_service import ObterHistoricoServicoService
 from modules.servicos.services.registrar_laudo_service import RegistrarLaudoService
+from modules.servicos.services.responder_aprovacao_service import ResponderAprovacaoService
+from modules.servicos.services.solicitar_aprovacao_service import SolicitarAprovacaoService
 from modules.servicos.services.solicitar_tecnicos_service import SolicitarTecnicosService
 
 
@@ -25,6 +28,9 @@ class ServicoController:
         self.atualizar_status_servico_service = AtualizarStatusServicoService()
         self.obter_historico_servico_service = ObterHistoricoServicoService()
         self.registrar_laudo_service = RegistrarLaudoService()
+        self.solicitar_aprovacao_service = SolicitarAprovacaoService()
+        self.responder_aprovacao_service = ResponderAprovacaoService()
+        self.listar_aprovacoes_service = ListarAprovacoesService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
         self.atribuir_tecnico_service = AtribuirTecnicoService()
         self.cancelar_servico_service = CancelarServicoService()
@@ -108,6 +114,24 @@ class ServicoController:
         dados = request.get_json(silent=True) or {}
         servico = self.registrar_laudo_service.executar(servico_id, current_user, dados)
         return jsonify({"ok": True, "servico": servico.to_dict()})
+
+    @login_required
+    @apenas_tecnico
+    def solicitar_aprovacao(self, servico_id):
+        dados = request.get_json(silent=True) or {}
+        aprovacao = self.solicitar_aprovacao_service.executar(servico_id, current_user, dados)
+        return jsonify({"ok": True, "aprovacao": aprovacao.to_dict()}), 201
+
+    @login_required
+    def responder_aprovacao(self, aprovacao_id):
+        dados = request.get_json(silent=True) or {}
+        aprovacao = self.responder_aprovacao_service.executar(aprovacao_id, current_user, dados)
+        return jsonify({"ok": True, "aprovacao": aprovacao.to_dict()})
+
+    @login_required
+    def aprovacoes(self, servico_id):
+        aprovacoes = self.listar_aprovacoes_service.executar(servico_id, current_user)
+        return jsonify(aprovacoes)
 
     @login_required
     def cancelar(self, servico_id):

@@ -112,6 +112,33 @@ RETURNS TABLE(dado json) AS $$
 $$ LANGUAGE sql STABLE;
 
 
+-- AprovacaoRepository.listar_por_servico(servico_id)
+-- Usada por ListarAprovacoesService -> GET /api/servicos/<id>/aprovacoes.
+-- Formato igual a SolicitacaoAprovacao.to_dict() (funcionalidades 6 e 7).
+-- respondido_em é NULL enquanto o cliente não respondeu, e o to_char tem que
+-- respeitar isso em vez de virar a string "+00:00" sozinha.
+CREATE OR REPLACE FUNCTION fn_listar_aprovacoes_por_servico(p_servico_id integer)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', ap.id,
+        'servico_id', ap.servico_id,
+        'tecnico_id', ap.tecnico_id,
+        'tecnico_nome', t.nome,
+        'descricao', ap.descricao,
+        'valor_adicional', COALESCE(ap.valor_adicional, 0),
+        'status', ap.status,
+        'justificativa_recusa', ap.justificativa_recusa,
+        'criado_em', to_char(ap.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00',
+        'respondido_em', CASE WHEN ap.respondido_em IS NULL THEN NULL
+            ELSE to_char(ap.respondido_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END
+    )
+    FROM solicitacoes_aprovacao ap
+    LEFT JOIN usuarios t ON t.id = ap.tecnico_id
+    WHERE ap.servico_id = p_servico_id
+    ORDER BY ap.criado_em DESC;
+$$ LANGUAGE sql STABLE;
+
+
 -- ServicoRepository.buscar_meus_com_participantes(usuario_id, como, status)
 -- Usada por ListarMeusServicosService -> GET /api/servicos/meus.
 -- Formato igual a Servico.to_dict_painel() (que já inclui as fotos do
@@ -131,6 +158,11 @@ RETURNS TABLE(dado json) AS $$
         'tipo_equipamento', s.tipo_equipamento,
         'equipamento', s.equipamento,
         'preco_estimado', COALESCE(s.preco_estimado, 0),
+        'valor_maximo_aprovado', s.valor_maximo_aprovado,
+        'aprovacoes_pendentes', (
+            SELECT COUNT(*) FROM solicitacoes_aprovacao ap
+            WHERE ap.servico_id = s.id AND ap.status = 'pendente'
+        ),
         'garantia', s.garantia,
         'status', s.status,
         'causa_defeito', s.causa_defeito,

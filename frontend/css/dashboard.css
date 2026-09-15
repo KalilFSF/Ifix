@@ -560,6 +560,71 @@
 }
 
 
+/* ===== Autorização de custo adicional (funcionalidades 6 e 7) ===== */
+
+/* Destaque no topo do modal do cliente: é ação bloqueante — o chamado não
+   avança enquanto ele não responder. */
+.aprovacao-destaque {
+    margin: 16px 0;
+    padding: 18px;
+    background: var(--bg-card);
+    border: 1px solid var(--warning);
+    border-left: 4px solid var(--warning);
+    border-radius: var(--radius-option);
+}
+
+.aprovacao-destaque h3 {
+    margin-bottom: 4px;
+    font-size: 15px;
+    color: var(--warning);
+}
+
+.aprovacao-pendente-card {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.aprovacao-valor {
+    margin: 8px 0;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.aprovacao-item {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--bg-input);
+    border-left: 3px solid var(--border-input);
+    border-radius: var(--radius-input);
+}
+
+.aprovacao-item.is-aprovada {
+    border-left-color: var(--success);
+}
+
+.aprovacao-item.is-recusada {
+    border-left-color: var(--danger);
+}
+
+.aprovacao-item.is-pendente {
+    border-left-color: var(--warning);
+}
+
+.aprovacao-item-topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.aprovacao-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+
 /* ===== Restrição de horário (funcionalidade 9) ===== */
 
 .horario-form {

@@ -64,6 +64,28 @@ def api_laudo_servico(servico_id):
     return ServicoController().registrar_laudo(servico_id)
 
 
+# Autorização de custo adicional (funcionalidades 6 e 7): sub-recurso do
+# chamado, no plural — vários pedidos ao longo de um mesmo atendimento.
+@servicos_bp.route("/api/servicos/<int:servico_id>/aprovacoes", methods=["POST"])
+@login_required
+def api_solicitar_aprovacao(servico_id):
+    return ServicoController().solicitar_aprovacao(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/aprovacoes", methods=["GET"])
+@login_required
+def api_listar_aprovacoes(servico_id):
+    return ServicoController().aprovacoes(servico_id)
+
+
+@servicos_bp.route("/api/aprovacoes/<int:aprovacao_id>", methods=["PATCH"])
+@login_required
+def api_responder_aprovacao(aprovacao_id):
+    # PATCH: altera só o status (e a justificativa) de uma aprovação que já
+    # existe — o recurso não é substituído por inteiro.
+    return ServicoController().responder_aprovacao(aprovacao_id)
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>/cancelar", methods=["POST"])
 @login_required
 def api_cancelar_servico(servico_id):

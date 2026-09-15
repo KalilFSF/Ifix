@@ -140,3 +140,17 @@ MIN_CARACTERES_LAUDO = 20
 # e evita qualquer conversão de fuso horário no caminho.
 HORARIO_ATENDIMENTO_PADRAO_INICIO = "08:00"
 HORARIO_ATENDIMENTO_PADRAO_FIM = "18:00"
+
+# Autorização de custo adicional (funcionalidades 6 e 7): quando o técnico
+# encontra um problema novo durante o reparo, ele não executa nada por conta
+# própria — abre um pedido de autorização com o valor a mais, e o cliente
+# aprova ou recusa remotamente. Enquanto houver pedido pendente, o chamado
+# não pode ser finalizado (ver AtualizarStatusServicoService).
+APROVACAO_PENDENTE = "pendente"
+APROVACAO_APROVADA = "aprovada"
+APROVACAO_RECUSADA = "recusada"
+APROVACAO_STATUS_RESPOSTA = (APROVACAO_APROVADA, APROVACAO_RECUSADA)
+
+# Tamanho mínimo da descrição do problema novo, pelo mesmo motivo do laudo:
+# o cliente precisa entender o que está autorizando.
+MIN_CARACTERES_DESCRICAO_APROVACAO = 15

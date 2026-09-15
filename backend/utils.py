@@ -67,6 +67,16 @@ def validar_data_nascimento(valor):
     return data_convertida
 
 
+def formatar_moeda_brl(valor):
+    """Formata um número como 'R$ 1.234,56' para uso em corpo de e-mail.
+
+    O front tem seu próprio formatarMoeda (Intl.NumberFormat), mas o backend
+    não tem acesso a ele — e um e-mail com "1234.56" passa a impressão de
+    valor errado justamente na hora em que o cliente autoriza um gasto.
+    """
+    return f"R$ {float(valor or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def parsear_horario(valor):
     """Converte a string 'HH:MM' do <input type="time"> em time e valida.
 
