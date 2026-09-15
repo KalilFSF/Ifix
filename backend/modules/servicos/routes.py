@@ -86,6 +86,19 @@ def api_responder_aprovacao(aprovacao_id):
     return ServicoController().responder_aprovacao(aprovacao_id)
 
 
+# Acionamento da garantia (funcionalidade 2).
+@servicos_bp.route("/api/servicos/<int:servico_id>/garantia", methods=["POST"])
+@login_required
+def api_acionar_garantia(servico_id):
+    return ServicoController().acionar_garantia(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/garantia", methods=["GET"])
+@login_required
+def api_listar_acionamentos_garantia(servico_id):
+    return ServicoController().acionamentos_garantia(servico_id)
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>/cancelar", methods=["POST"])
 @login_required
 def api_cancelar_servico(servico_id):

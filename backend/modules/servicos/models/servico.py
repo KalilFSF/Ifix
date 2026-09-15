@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from constants import CAUSAS_DEFEITO_LABELS
+from constants import CAUSAS_DEFEITO_LABELS, GARANTIA_DIAS, STATUS_FINALIZADO
 from database import db
 from utils import isoformat_utc
 
@@ -32,6 +32,12 @@ class Servico(db.Model):
     causa_defeito = db.Column(db.String(50))
     laudo_tecnico = db.Column(db.Text)
     solucao_aplicada = db.Column(db.Text)
+
+    # Marco zero da garantia (funcionalidade 2): é a partir daqui que correm
+    # os GARANTIA_DIAS. Dá pra derivar do historico_servicos, mas uma coluna
+    # explícita evita um JOIN em toda checagem de prazo e deixa a regra
+    # legível na própria Model.
+    finalizado_em = db.Column(db.DateTime)
 
     # Localização do chamado, usada por SelecionarTecnicosService pra
     # calcular distância (Haversine) até cada técnico. Preenchida em
@@ -72,6 +78,16 @@ class Servico(db.Model):
         back_populates="servico",
         cascade="all, delete-orphan",
         order_by="SolicitacaoAprovacao.criado_em.desc()",
+    )
+    # foreign_keys explícito: AcionamentoGarantia aponta pra servicos duas
+    # vezes (o chamado com garantia e o chamado novo que ele gera), então o
+    # SQLAlchemy não tem como adivinhar qual das duas usar aqui.
+    acionamentos_garantia = db.relationship(
+        "AcionamentoGarantia",
+        foreign_keys="AcionamentoGarantia.servico_id",
+        back_populates="servico",
+        cascade="all, delete-orphan",
+        order_by="AcionamentoGarantia.criado_em.desc()",
     )
 
     # ============== CRUD (Active Record) ==============
@@ -128,6 +144,11 @@ class Servico(db.Model):
 
     def atualizar_status(self, novo_status):
         self.status = novo_status
+        # Marca o início do prazo de garantia na primeira finalização (só na
+        # primeira: um chamado reaberto e finalizado de novo não deveria
+        # renovar a garantia original sozinho).
+        if novo_status == STATUS_FINALIZADO and self.finalizado_em is None:
+            self.finalizado_em = datetime.now(timezone.utc)
         return self.salvar()
 
     def atribuir_tecnico(self, tecnico_id, novo_status):
@@ -163,6 +184,35 @@ class Servico(db.Model):
             return True
         return float(valor) <= float(self.valor_maximo_aprovado)
 
+    # ============== Garantia (funcionalidade 2) ==============
+
+    @property
+    def garantia_expira_em(self):
+        if not self.garantia or self.finalizado_em is None:
+            return None
+        return self.finalizado_em + timedelta(days=GARANTIA_DIAS)
+
+    @property
+    def garantia_ativa(self):
+        expira_em = self.garantia_expira_em
+        if expira_em is None:
+            return False
+        # finalizado_em é gravado em UTC, mas o Postgres devolve naive —
+        # comparar com utcnow() naive mantém os dois lados na mesma régua.
+        return datetime.utcnow() <= self._sem_fuso(expira_em)
+
+    @property
+    def garantia_dias_restantes(self):
+        expira_em = self.garantia_expira_em
+        if expira_em is None:
+            return None
+        restantes = (self._sem_fuso(expira_em) - datetime.utcnow()).days
+        return max(restantes, 0)
+
+    @staticmethod
+    def _sem_fuso(momento):
+        return momento.replace(tzinfo=None) if momento.tzinfo else momento
+
     @property
     def codigo(self):
         return f"IFX-{1000 + self.id}"
@@ -179,6 +229,10 @@ class Servico(db.Model):
             "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
             "valor_maximo_aprovado": float(self.valor_maximo_aprovado) if self.valor_maximo_aprovado is not None else None,
             "garantia": bool(self.garantia),
+            "garantia_ativa": self.garantia_ativa,
+            "garantia_expira_em": isoformat_utc(self.garantia_expira_em),
+            "garantia_dias_restantes": self.garantia_dias_restantes,
+            "finalizado_em": isoformat_utc(self.finalizado_em),
             "status": self.status,
             "causa_defeito": self.causa_defeito,
             "causa_defeito_label": CAUSAS_DEFEITO_LABELS.get(self.causa_defeito),

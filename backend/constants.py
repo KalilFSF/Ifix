@@ -154,3 +154,24 @@ APROVACAO_STATUS_RESPOSTA = (APROVACAO_APROVADA, APROVACAO_RECUSADA)
 # Tamanho mínimo da descrição do problema novo, pelo mesmo motivo do laudo:
 # o cliente precisa entender o que está autorizando.
 MIN_CARACTERES_DESCRICAO_APROVACAO = 15
+
+# Acionamento da garantia (funcionalidade 2): se o problema voltar dentro de
+# GARANTIA_DIAS após a finalização, o cliente escolhe entre ser reembolsado
+# ou receber um novo atendimento gratuito com o mesmo técnico.
+GARANTIA_TIPO_REEMBOLSO = "reembolso"
+GARANTIA_TIPO_NOVO_ATENDIMENTO = "novo_atendimento"
+GARANTIA_TIPOS = (GARANTIA_TIPO_REEMBOLSO, GARANTIA_TIPO_NOVO_ATENDIMENTO)
+
+GARANTIA_TIPOS_LABELS = {
+    GARANTIA_TIPO_REEMBOLSO: "Reembolso",
+    GARANTIA_TIPO_NOVO_ATENDIMENTO: "Novo atendimento gratuito",
+}
+
+GARANTIA_STATUS_PENDENTE = "pendente"
+GARANTIA_STATUS_APROVADO = "aprovado"
+GARANTIA_STATUS_RECUSADO = "recusado"
+GARANTIA_STATUS_CONCLUIDO = "concluido"
+
+# Mesma razão do laudo e da aprovação: o técnico precisa entender o que
+# voltou a acontecer pra saber se é o mesmo defeito.
+MIN_CARACTERES_DESCRICAO_GARANTIA = 15
