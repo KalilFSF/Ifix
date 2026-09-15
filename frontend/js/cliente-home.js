@@ -150,10 +150,68 @@ async function carregarDashboard() {
     renderizarChamadosRecentes(recentes);
 }
 
+function mostrarToast(mensagem) {
+    const elToast = document.getElementById("toast");
+    if (!elToast) return;
+    elToast.textContent = mensagem;
+    elToast.classList.remove("hidden");
+    elToast.classList.add("is-visible");
+    setTimeout(() => {
+        elToast.classList.remove("is-visible");
+        elToast.classList.add("hidden");
+    }, 3000);
+}
+
+/* Restrição de horário (funcionalidade 9): a faixa vem junto de /api/me e é
+   salva por PUT — fora dela o usuário não recebe aviso de atendimento. */
+function iniciarRestricaoHorario(dados) {
+    const elInicio = document.getElementById("horarioInicio");
+    const elFim = document.getElementById("horarioFim");
+    const elBotao = document.getElementById("horarioSalvarBtn");
+    if (!elInicio || !elFim || !elBotao) return;
+
+    elInicio.value = dados.horario_inicio_atendimento || "08:00";
+    elFim.value = dados.horario_fim_atendimento || "18:00";
+
+    elBotao.addEventListener("click", async () => {
+        if (!elInicio.value || !elFim.value) {
+            mostrarToast("Preencha os dois horários.");
+            return;
+        }
+        if (elInicio.value === elFim.value) {
+            mostrarToast("O horário de início e o de término não podem ser iguais.");
+            return;
+        }
+
+        elBotao.disabled = true;
+        try {
+            const resposta = await fetch("/api/me/horario-atendimento", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    horario_inicio_atendimento: elInicio.value,
+                    horario_fim_atendimento: elFim.value,
+                }),
+            });
+            const resultado = await resposta.json();
+            if (!resposta.ok || !resultado.ok) {
+                mostrarToast(resultado.erro || "Não foi possível salvar o horário.");
+                return;
+            }
+            mostrarToast("Horário de atendimento atualizado.");
+        } catch (erro) {
+            mostrarToast("Falha de conexão ao salvar o horário.");
+        } finally {
+            elBotao.disabled = false;
+        }
+    });
+}
+
 (async function () {
     iniciarSidebarMobile();
     const dados = await iniciarRoleChips("cliente");
     if (!dados) return;
     await carregarUsuario(dados);
+    iniciarRestricaoHorario(dados);
     await carregarDashboard();
 })();

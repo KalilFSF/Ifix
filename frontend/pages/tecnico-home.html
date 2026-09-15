@@ -93,6 +93,29 @@
                     </div>
                 </section>
 
+                <!-- ===== RESTRIÇÃO DE HORÁRIO ===== -->
+                <section class="section-block">
+                    <div class="section-header">
+                        <h2>Meu horário de atendimento</h2>
+                    </div>
+                    <p class="section-subtitle">
+                        Fora dessa faixa você não recebe aviso de novas solicitações — elas continuam
+                        aparecendo no painel.
+                    </p>
+
+                    <div class="horario-form">
+                        <div class="input-group">
+                            <label for="horarioInicio">A partir de</label>
+                            <input type="time" id="horarioInicio" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="horarioFim">Até</label>
+                            <input type="time" id="horarioFim" required>
+                        </div>
+                        <button type="button" class="primary-btn" id="horarioSalvarBtn">Salvar horário</button>
+                    </div>
+                </section>
+
                 <!-- ===== SOLICITAÇÕES PENDENTES ===== -->
                 <section class="section-block hidden" id="solicitacoesSection">
                     <div class="section-header">
@@ -147,6 +170,7 @@
         </div>
     </div>
 
+    <script src="/js/html-utils.js"></script>
     <script src="/js/tecnico-home.js"></script>
 </body>
 </html>

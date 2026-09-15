@@ -35,6 +35,7 @@ const STATUS_ICONES = {
 const ICONE_CHECK = '<polyline points="20 6 9 17 4 12"></polyline>';
 const ICONE_TELEFONE = '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"></path>';
 const ICONE_CALENDARIO = '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>';
+const ICONE_RELOGIO = '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>';
 
 const TABS = [
     { chave: "todos", titulo: "Todos" },
@@ -425,8 +426,14 @@ async function recusarSolicitacaoModal() {
 function renderizarChamado(servico, historico) {
     const precisaMontar = !estadoModal || estadoModal.servicoId !== servico.id;
     const acabouDeFinalizar = !precisaMontar && estadoModal.status !== "finalizado" && servico.status === "finalizado";
+    // O card do relatório técnico só existe a partir de "em análise"; quando o
+    // chamado cruza essa fronteira o modal precisa ser remontado pra ele
+    // aparecer (o caminho rápido abaixo só mexe em badge/stepper/botões).
+    const laudoPassouAAparecer = !precisaMontar
+        && !podeRegistrarLaudo(estadoModal.status)
+        && podeRegistrarLaudo(servico.status);
 
-    if (precisaMontar || acabouDeFinalizar) {
+    if (precisaMontar || acabouDeFinalizar || laudoPassouAAparecer) {
         montarEstruturaModal(servico);
         estadoModal = { servicoId: servico.id, status: servico.status, historicoIds: new Set() };
         sincronizarHistorico(historico, { animar: false });
@@ -456,8 +463,8 @@ function montarEstruturaModal(servico) {
                     <span class="painel-codigo">${servico.codigo}</span>
                     <span class="status-badge ${badgeClasse}" id="detalheBadge">${badgeLabel}</span>
                 </div>
-                <h2>${servico.titulo}</h2>
-                <p class="painel-equipamento">${servico.equipamento || servico.categoria}</p>
+                <h2>${escaparHtml(servico.titulo)}</h2>
+                <p class="painel-equipamento">${escaparHtml(servico.equipamento || servico.categoria)}</p>
             </div>
             <div class="detalhe-valor-card">
                 <span>Valor estimado</span>
@@ -475,7 +482,7 @@ function montarEstruturaModal(servico) {
             <div class="detalhe-col">
                 <div class="detalhe-card">
                     <h3>Descrição do problema</h3>
-                    <p class="historico-item-texto">${servico.descricao}</p>
+                    <p class="historico-item-texto">${escaparHtml(servico.descricao)}</p>
                 </div>
                 <div class="detalhe-card">
                     <h3>Histórico</h3>
@@ -487,12 +494,15 @@ function montarEstruturaModal(servico) {
                 <div class="detalhe-card">
                     <h3>Cliente</h3>
                     <div class="detalhe-cliente">
-                        <span class="detalhe-avatar">${(cliente.nome || "?").charAt(0).toUpperCase()}</span>
-                        <p class="detalhe-cliente-nome">${cliente.nome || "-"}</p>
+                        <span class="detalhe-avatar">${escaparHtml((cliente.nome || "?").charAt(0).toUpperCase())}</span>
+                        <p class="detalhe-cliente-nome">${escaparHtml(cliente.nome || "-")}</p>
                     </div>
                     <ul class="detalhe-info-list">
-                        <li>${iconeSvg(ICONE_TELEFONE)} ${cliente.telefone || "-"}</li>
+                        <li>${iconeSvg(ICONE_TELEFONE)} ${escaparHtml(cliente.telefone || "-")}</li>
                         <li>${iconeSvg(ICONE_CALENDARIO)} Aberto em ${formatarDataCurta(servico.criado_em)}</li>
+                        ${cliente.horario_inicio_atendimento ? `
+                            <li>${iconeSvg(ICONE_RELOGIO)} Atende das ${escaparHtml(cliente.horario_inicio_atendimento)} às ${escaparHtml(cliente.horario_fim_atendimento)}</li>
+                        ` : ""}
                     </ul>
                 </div>
 
@@ -511,6 +521,8 @@ function montarEstruturaModal(servico) {
                     </button>
                 </div>
 
+                ${podeRegistrarLaudo(servico.status) ? renderizarCardLaudoHTML(servico) : ""}
+
                 ${servico.status === "finalizado" ? `
                     <div class="detalhe-card" id="avaliacaoCard">
                         <h3>Avaliação</h3>
@@ -520,6 +532,111 @@ function montarEstruturaModal(servico) {
             </div>
         </div>
     `;
+}
+
+/* Relatório técnico (funcionalidade 8) — o técnico registra a causa do
+   defeito, explica em linguagem de cliente e descreve o que fez. O backend
+   exige o laudo preenchido antes de deixar finalizar o chamado, então o
+   card aparece assim que a análise começa. Os valores do select espelham
+   constants.CAUSAS_DEFEITO no backend. */
+const CAUSAS_DEFEITO = [
+    { valor: "componente_defeituoso", rotulo: "Componente defeituoso" },
+    { valor: "superaquecimento", rotulo: "Superaquecimento" },
+    { valor: "dano_por_liquido", rotulo: "Dano por líquido" },
+    { valor: "software_corrompido", rotulo: "Software corrompido" },
+    { valor: "malware", rotulo: "Vírus / malware" },
+    { valor: "desgaste_natural", rotulo: "Desgaste natural" },
+    { valor: "mau_uso", rotulo: "Mau uso" },
+    { valor: "outro", rotulo: "Outro" },
+];
+const MIN_CARACTERES_LAUDO = 20;
+
+function podeRegistrarLaudo(status) {
+    return status === "em_analise" || status === "em_reparo" || status === "finalizado";
+}
+
+function renderizarCardLaudoHTML(servico) {
+    const jaTemLaudo = Boolean(servico.causa_defeito && servico.laudo_tecnico);
+    const finalizado = servico.status === "finalizado";
+
+    return `
+        <div class="detalhe-card" id="laudoCard">
+            <h3>Relatório técnico</h3>
+            <p class="historico-item-texto" style="margin-bottom:8px;">
+                ${jaTemLaudo
+                    ? "O cliente já consegue ver esta explicação."
+                    : "Obrigatório para finalizar o chamado."}
+            </p>
+            <div class="input-group">
+                <label for="laudoCausa">Causa do defeito</label>
+                <select id="laudoCausa" ${finalizado ? "disabled" : ""}>
+                    <option value="">Selecione…</option>
+                    ${CAUSAS_DEFEITO.map(causa => `
+                        <option value="${causa.valor}" ${servico.causa_defeito === causa.valor ? "selected" : ""}>${causa.rotulo}</option>
+                    `).join("")}
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="laudoTexto">O que causou o problema</label>
+                <textarea id="laudoTexto" rows="3" placeholder="Explique de forma simples, para o cliente entender."
+                    ${finalizado ? "disabled" : ""}>${escaparHtml(servico.laudo_tecnico || "")}</textarea>
+            </div>
+            <div class="input-group">
+                <label for="laudoSolucao">O que foi feito <span class="input-helper">(opcional)</span></label>
+                <textarea id="laudoSolucao" rows="2" placeholder="Peças trocadas, procedimentos aplicados…"
+                    ${finalizado ? "disabled" : ""}>${escaparHtml(servico.solucao_aplicada || "")}</textarea>
+            </div>
+            ${finalizado ? "" : `
+                <button type="button" class="primary-btn" id="laudoSalvarBtn">
+                    ${jaTemLaudo ? "Atualizar relatório" : "Salvar relatório"}
+                </button>
+            `}
+        </div>
+    `;
+}
+
+async function salvarLaudo(servicoId) {
+    const elCausa = document.getElementById("laudoCausa");
+    const elTexto = document.getElementById("laudoTexto");
+    const elSolucao = document.getElementById("laudoSolucao");
+    const elBotao = document.getElementById("laudoSalvarBtn");
+    if (!elCausa || !elTexto) return;
+
+    const causa = elCausa.value;
+    const laudo = elTexto.value.trim();
+    if (!causa) {
+        mostrarToast("Selecione a causa do defeito.");
+        return;
+    }
+    if (laudo.length < MIN_CARACTERES_LAUDO) {
+        mostrarToast(`Explique a causa com pelo menos ${MIN_CARACTERES_LAUDO} caracteres.`);
+        return;
+    }
+
+    elBotao.disabled = true;
+    try {
+        const resposta = await fetch(`/api/servicos/${servicoId}/laudo`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                causa_defeito: causa,
+                laudo_tecnico: laudo,
+                solucao_aplicada: elSolucao ? elSolucao.value.trim() : "",
+            }),
+        });
+        const resultado = await resposta.json();
+        if (!resposta.ok || !resultado.ok) {
+            mostrarToast(resultado.erro || "Não foi possível salvar o relatório.");
+            return;
+        }
+        mostrarToast("Relatório técnico salvo.");
+        elBotao.textContent = "Atualizar relatório";
+        await carregarServicos();
+    } catch (erro) {
+        mostrarToast("Falha de conexão ao salvar o relatório.");
+    } finally {
+        elBotao.disabled = false;
+    }
 }
 
 /* Critérios diferentes por direção — não faz sentido pedir "preço justo"
@@ -773,6 +890,11 @@ function travarBotoesStatus(travado) {
    assíncrona com o backend. Se a API recusar, volta pro status anterior
    e avisa com um toast — nunca deixa a tela "mentindo" sobre o estado real. */
 elModalBody.addEventListener("click", async (evento) => {
+    if (evento.target.closest("#laudoSalvarBtn") && estadoModal) {
+        await salvarLaudo(estadoModal.servicoId);
+        return;
+    }
+
     const botaoFinalizar = evento.target.closest("#statusFinalizarBtn");
     const botaoEscolha = evento.target.closest(".status-choice");
     if ((!botaoFinalizar && !botaoEscolha) || !estadoModal) return;
@@ -868,6 +990,52 @@ async function carregarSaudacao() {
     const dados = await resposta.json();
     meuUsuarioId = dados.id;
     elResumo.textContent = `Olá, ${dados.nome.split(" ")[0]}! Carregando seus chamados...`;
+    return dados;
+}
+
+/* Restrição de horário (funcionalidade 9) — mesma faixa do cliente, aqui no
+   sentido "quando aceito ser acionado por uma solicitação nova". */
+function iniciarRestricaoHorario(dados) {
+    const elInicio = document.getElementById("horarioInicio");
+    const elFim = document.getElementById("horarioFim");
+    const elBotao = document.getElementById("horarioSalvarBtn");
+    if (!elInicio || !elFim || !elBotao || !dados) return;
+
+    elInicio.value = dados.horario_inicio_atendimento || "08:00";
+    elFim.value = dados.horario_fim_atendimento || "18:00";
+
+    elBotao.addEventListener("click", async () => {
+        if (!elInicio.value || !elFim.value) {
+            mostrarToast("Preencha os dois horários.");
+            return;
+        }
+        if (elInicio.value === elFim.value) {
+            mostrarToast("O horário de início e o de término não podem ser iguais.");
+            return;
+        }
+
+        elBotao.disabled = true;
+        try {
+            const resposta = await fetch("/api/me/horario-atendimento", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    horario_inicio_atendimento: elInicio.value,
+                    horario_fim_atendimento: elFim.value,
+                }),
+            });
+            const resultado = await resposta.json();
+            if (!resposta.ok || !resultado.ok) {
+                mostrarToast(resultado.erro || "Não foi possível salvar o horário.");
+                return;
+            }
+            mostrarToast("Horário de atendimento atualizado.");
+        } catch (erro) {
+            mostrarToast("Falha de conexão ao salvar o horário.");
+        } finally {
+            elBotao.disabled = false;
+        }
+    });
 }
 
 function iniciarSidebarMobile() {
@@ -889,7 +1057,8 @@ function iniciarSidebarMobile() {
 (async function iniciar() {
     iniciarSidebarMobile();
     renderizarTabs();
-    await carregarSaudacao();
+    const dadosUsuario = await carregarSaudacao();
+    iniciarRestricaoHorario(dadosUsuario);
     await Promise.all([carregarSolicitacoes(), carregarServicos()]);
 
     setInterval(() => {

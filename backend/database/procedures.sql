@@ -12,6 +12,26 @@
 -- Repository só repassa o resultado, sem reconstruir objeto/Model nenhum.
 
 
+-- Rótulo pt-BR da causa do defeito (funcionalidade 8). Espelha
+-- constants.CAUSAS_DEFEITO_LABELS, que é o que Servico.to_dict() usa —
+-- as duas listagens abaixo precisam devolver o mesmo texto que o to_dict(),
+-- senão a mesma tela mostraria rótulos diferentes dependendo do endpoint.
+CREATE OR REPLACE FUNCTION fn_rotulo_causa_defeito(p_causa varchar)
+RETURNS varchar AS $$
+    SELECT CASE p_causa
+        WHEN 'componente_defeituoso' THEN 'Componente defeituoso'
+        WHEN 'superaquecimento'      THEN 'Superaquecimento'
+        WHEN 'dano_por_liquido'      THEN 'Dano por líquido'
+        WHEN 'software_corrompido'   THEN 'Software corrompido'
+        WHEN 'malware'               THEN 'Vírus / malware'
+        WHEN 'desgaste_natural'      THEN 'Desgaste natural'
+        WHEN 'mau_uso'               THEN 'Mau uso'
+        WHEN 'outro'                 THEN 'Outro'
+        ELSE NULL
+    END;
+$$ LANGUAGE sql IMMUTABLE;
+
+
 -- UsuarioRepository.buscar_tecnicos_com_perfil()
 -- Usada por ListarTecnicosService -> GET /api/usuarios/tecnicos.
 CREATE OR REPLACE FUNCTION fn_listar_tecnicos_com_perfil()
@@ -113,6 +133,10 @@ RETURNS TABLE(dado json) AS $$
         'preco_estimado', COALESCE(s.preco_estimado, 0),
         'garantia', s.garantia,
         'status', s.status,
+        'causa_defeito', s.causa_defeito,
+        'causa_defeito_label', fn_rotulo_causa_defeito(s.causa_defeito),
+        'laudo_tecnico', s.laudo_tecnico,
+        'solucao_aplicada', s.solucao_aplicada,
         'latitude', s.latitude,
         'longitude', s.longitude,
         'cliente_id', s.cliente_id,
@@ -129,7 +153,9 @@ RETURNS TABLE(dado json) AS $$
             FROM fotos_servicos f WHERE f.servico_id = s.id
         ), '[]'::json),
         'cliente', CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object(
-            'id', c.id, 'nome', c.nome, 'telefone', c.telefone
+            'id', c.id, 'nome', c.nome, 'telefone', c.telefone,
+            'horario_inicio_atendimento', c.horario_inicio_atendimento,
+            'horario_fim_atendimento', c.horario_fim_atendimento
         ) END,
         'tecnico', CASE WHEN t.id IS NULL THEN NULL ELSE json_build_object(
             'id', t.id, 'nome', t.nome, 'telefone', t.telefone

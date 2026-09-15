@@ -40,6 +40,14 @@ def api_atualizar_me():
     return UsuarioController().atualizar_me()
 
 
+@usuarios_bp.route("/api/me/horario-atendimento", methods=["PUT"])
+@login_required
+def api_horario_atendimento():
+    # PUT: a faixa de horário é um recurso único do usuário e reenviar o
+    # mesmo par de horários tem o mesmo efeito (idempotente).
+    return UsuarioController().definir_horario_atendimento()
+
+
 @usuarios_bp.route("/api/tecnicos", methods=["GET"])
 @login_required
 def api_tecnicos():

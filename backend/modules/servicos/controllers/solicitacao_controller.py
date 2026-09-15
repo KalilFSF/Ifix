@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
+from decorators import apenas_tecnico
 from exceptions import DominioError
 from modules.atendimentos.services.enviar_orcamento_service import EnviarOrcamentoService
 from modules.servicos.services.aceitar_solicitacao_service import AceitarSolicitacaoService
@@ -16,18 +17,14 @@ class SolicitacaoController:
         self.enviar_orcamento_service = EnviarOrcamentoService()
 
     @login_required
+    @apenas_tecnico
     def listar(self):
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Acesso negado."}), 403
-
         solicitacoes = self.listar_solicitacoes_pendentes_service.executar(current_user.id)
         return jsonify(solicitacoes)
 
     @login_required
+    @apenas_tecnico
     def aceitar(self, solicitacao_id):
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Acesso negado."}), 403
-
         try:
             solicitacao = self.aceitar_solicitacao_service.executar(solicitacao_id, current_user.id)
         except DominioError as erro:
@@ -36,10 +33,8 @@ class SolicitacaoController:
         return jsonify({"ok": True, "solicitacao": solicitacao.to_dict()})
 
     @login_required
+    @apenas_tecnico
     def enviar_orcamento(self, solicitacao_id):
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Acesso negado."}), 403
-
         dados = request.get_json(silent=True) or {}
         try:
             atendimento = self.enviar_orcamento_service.executar(solicitacao_id, current_user.id, dados)
@@ -49,10 +44,8 @@ class SolicitacaoController:
         return jsonify({"ok": True, "atendimento": atendimento.to_dict()})
 
     @login_required
+    @apenas_tecnico
     def recusar(self, solicitacao_id):
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Acesso negado."}), 403
-
         try:
             solicitacao = self.recusar_solicitacao_service.executar(solicitacao_id, current_user.id)
         except DominioError as erro:

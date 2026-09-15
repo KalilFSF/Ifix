@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
+from decorators import apenas_tecnico
 from exceptions import DominioError
 from modules.atendimentos.services.avaliar_service import AvaliarService
 from modules.atendimentos.services.listar_avaliacoes_service import ListarAvaliacoesService
@@ -12,6 +13,7 @@ from modules.servicos.services.criar_servico_service import CriarServicoService
 from modules.servicos.services.listar_meus_servicos_service import ListarMeusServicosService
 from modules.servicos.services.obter_detalhes_servico_service import ObterDetalhesServicoService
 from modules.servicos.services.obter_historico_servico_service import ObterHistoricoServicoService
+from modules.servicos.services.registrar_laudo_service import RegistrarLaudoService
 from modules.servicos.services.solicitar_tecnicos_service import SolicitarTecnicosService
 
 
@@ -22,6 +24,7 @@ class ServicoController:
         self.obter_detalhes_servico_service = ObterDetalhesServicoService()
         self.atualizar_status_servico_service = AtualizarStatusServicoService()
         self.obter_historico_servico_service = ObterHistoricoServicoService()
+        self.registrar_laudo_service = RegistrarLaudoService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
         self.atribuir_tecnico_service = AtribuirTecnicoService()
         self.cancelar_servico_service = CancelarServicoService()
@@ -98,6 +101,15 @@ class ServicoController:
         return jsonify({"ok": True, "servico": servico.to_dict()})
 
     @login_required
+    @apenas_tecnico
+    def registrar_laudo(self, servico_id):
+        # Sem try/except: DominioError sobe e o errorhandler global de app.py
+        # devolve a mensagem com o status certo.
+        dados = request.get_json(silent=True) or {}
+        servico = self.registrar_laudo_service.executar(servico_id, current_user, dados)
+        return jsonify({"ok": True, "servico": servico.to_dict()})
+
+    @login_required
     def cancelar(self, servico_id):
         try:
             servico = self.cancelar_servico_service.executar(servico_id, current_user)
@@ -168,11 +180,9 @@ class ServicoController:
         return jsonify({"ok": True, "solicitacoes": [solicitacao.to_dict() for solicitacao in solicitacoes]})
 
     @login_required
+    @apenas_tecnico
     def atribuir_tecnico(self, servico_id):
         """Legado — ver AtribuirTecnicoService."""
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Apenas técnicos podem aceitar serviços."}), 403
-
         try:
             servico = self.atribuir_tecnico_service.executar(servico_id, current_user.id)
         except DominioError as erro:

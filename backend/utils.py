@@ -67,6 +67,34 @@ def validar_data_nascimento(valor):
     return data_convertida
 
 
+def parsear_horario(valor):
+    """Converte a string 'HH:MM' do <input type="time"> em time e valida.
+
+    Mesma ideia de validar_data_nascimento: devolve um `time` se for válido
+    ou None se o formato estiver errado — quem chama decide a mensagem.
+    """
+    try:
+        return datetime.strptime((valor or "").strip(), "%H:%M").time()
+    except (ValueError, TypeError):
+        return None
+
+
+def horario_dentro_da_faixa(momento, inicio, fim):
+    """Diz se `momento` (time) está dentro da faixa [inicio, fim] em 'HH:MM'.
+
+    Faixa que vira a meia-noite (ex: 22:00 às 06:00) é tratada como válida e
+    interpretada como "atravessa o dia" — daí a comparação com `or` quando
+    inicio > fim. Faixa não configurada é tratada como "sempre disponível".
+    """
+    hora_inicio = parsear_horario(inicio)
+    hora_fim = parsear_horario(fim)
+    if hora_inicio is None or hora_fim is None:
+        return True
+    if hora_inicio <= hora_fim:
+        return hora_inicio <= momento <= hora_fim
+    return momento >= hora_inicio or momento <= hora_fim
+
+
 RAIO_TERRA_KM = 6371.0
 
 

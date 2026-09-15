@@ -1,4 +1,4 @@
-from constants import STATUS_LABELS_EMAIL, STATUS_TECNICO_CHOICES
+from constants import STATUS_FINALIZADO, STATUS_LABELS_EMAIL, STATUS_TECNICO_CHOICES
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import Servico
@@ -14,6 +14,13 @@ class AtualizarStatusServicoService:
             raise ValidacaoError(f"Status inválido: {novo_status}")
         if servico.tecnico_id != usuario.id:
             raise PermissaoNegadaError("Apenas o técnico responsável pode atualizar este chamado.")
+
+        if novo_status == STATUS_FINALIZADO:
+            # Sem isso o cliente ficaria sem explicação nenhuma do que houve
+            # com o aparelho, e a reincidência por modelo (funcionalidade 10)
+            # não teria dado nenhum pra agregar.
+            if not servico.tem_laudo:
+                raise ValidacaoError("Registre o laudo técnico antes de finalizar o chamado.")
 
         status_anterior = servico.status
         servico.atualizar_status(novo_status)

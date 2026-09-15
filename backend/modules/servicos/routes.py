@@ -56,6 +56,14 @@ def api_status_servico(servico_id):
     return ServicoController().atualizar_status(servico_id)
 
 
+@servicos_bp.route("/api/servicos/<int:servico_id>/laudo", methods=["PUT"])
+@login_required
+def api_laudo_servico(servico_id):
+    # PUT: o laudo é um recurso único do chamado e reenviar o mesmo conteúdo
+    # tem o mesmo efeito (idempotente).
+    return ServicoController().registrar_laudo(servico_id)
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>/cancelar", methods=["POST"])
 @login_required
 def api_cancelar_servico(servico_id):
