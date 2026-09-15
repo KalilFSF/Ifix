@@ -188,15 +188,15 @@ async function renderizarDetalhe() {
     const podeExcluir = chamado.status === "cancelado";
 
     elModalBody.innerHTML = `
-        <h2>${chamado.titulo}</h2>
-        <p class="painel-equipamento">${chamado.codigo} ${chamado.equipamento ? "• " + chamado.equipamento : ""}</p>
-        <p class="modal-descricao">${chamado.descricao}</p>
+        <h2>${escaparHtml(chamado.titulo)}</h2>
+        <p class="painel-equipamento">${chamado.codigo} ${chamado.equipamento ? "• " + escaparHtml(chamado.equipamento) : ""}</p>
+        <p class="modal-descricao">${escaparHtml(chamado.descricao)}</p>
 
         <div class="modal-info-grid">
             <div><span>Status</span><p><span class="status-badge ${badgeClasse}">${badgeLabel}</span></p></div>
             <div><span>Tipo</span><p>${tipo}</p></div>
-            <div><span>Categoria</span><p>${chamado.categoria}</p></div>
-            <div><span>Técnico responsável</span><p>${tecnico.nome || "Aguardando definição"}</p></div>
+            <div><span>Categoria</span><p>${escaparHtml(chamado.categoria)}</p></div>
+            <div><span>Técnico responsável</span><p>${escaparHtml(tecnico.nome || "Aguardando definição")}</p></div>
             <div><span>Garantia</span><p>${chamado.garantia ? "Sim (+7% · 10 dias)" : "Não"}</p></div>
         </div>
 
@@ -224,6 +224,20 @@ async function renderizarDetalhe() {
                         ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento)).join("")}
                     </div>
                 ` : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
+            </div>
+        ` : ""}
+
+        ${chamado.laudo_tecnico ? `
+            <div class="modal-historico">
+                <h3>Relatório técnico</h3>
+                <div class="modal-info-grid">
+                    <div><span>Causa identificada</span><p>${escaparHtml(chamado.causa_defeito_label || "—")}</p></div>
+                </div>
+                <p class="modal-descricao">${escaparHtml(chamado.laudo_tecnico)}</p>
+                ${chamado.solucao_aplicada ? `
+                    <h3 style="margin-top:10px;">O que foi feito</h3>
+                    <p class="modal-descricao">${escaparHtml(chamado.solucao_aplicada)}</p>
+                ` : ""}
             </div>
         ` : ""}
 

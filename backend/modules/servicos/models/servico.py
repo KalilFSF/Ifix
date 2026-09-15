@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from constants import CAUSAS_DEFEITO_LABELS
 from database import db
 from utils import isoformat_utc
 
@@ -16,6 +17,14 @@ class Servico(db.Model):
     preco_estimado = db.Column(db.Numeric(10, 2), nullable=False, default=0)
     garantia = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(30), nullable=False, default="aberto")
+
+    # Relatório técnico (funcionalidade 8): preenchido pelo técnico durante o
+    # atendimento e exigido antes de finalizar o chamado (ver
+    # AtualizarStatusServicoService). causa_defeito é um valor de
+    # constants.CAUSAS_DEFEITO — padronizado pra permitir agregação.
+    causa_defeito = db.Column(db.String(50))
+    laudo_tecnico = db.Column(db.Text)
+    solucao_aplicada = db.Column(db.Text)
 
     # Localização do chamado, usada por SelecionarTecnicosService pra
     # calcular distância (Haversine) até cada técnico. Preenchida em
@@ -112,6 +121,16 @@ class Servico(db.Model):
         self.status = novo_status
         return self.salvar()
 
+    def registrar_laudo(self, causa_defeito, laudo_tecnico, solucao_aplicada=None):
+        self.causa_defeito = causa_defeito
+        self.laudo_tecnico = laudo_tecnico
+        self.solucao_aplicada = solucao_aplicada
+        return self.salvar()
+
+    @property
+    def tem_laudo(self):
+        return bool(self.causa_defeito and self.laudo_tecnico)
+
     @property
     def codigo(self):
         return f"IFX-{1000 + self.id}"
@@ -128,6 +147,10 @@ class Servico(db.Model):
             "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
             "garantia": bool(self.garantia),
             "status": self.status,
+            "causa_defeito": self.causa_defeito,
+            "causa_defeito_label": CAUSAS_DEFEITO_LABELS.get(self.causa_defeito),
+            "laudo_tecnico": self.laudo_tecnico,
+            "solucao_aplicada": self.solucao_aplicada,
             "latitude": self.latitude,
             "longitude": self.longitude,
             "cliente_id": self.cliente_id,

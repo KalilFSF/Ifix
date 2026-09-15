@@ -6,6 +6,7 @@ from modules.usuarios.services.atualizar_usuario_service import AtualizarUsuario
 from modules.usuarios.services.cadastrar_cliente_service import CadastrarClienteService
 from modules.usuarios.services.cadastrar_tecnico_service import CadastrarTecnicoService
 from modules.usuarios.services.converter_para_tecnico_service import ConverterParaTecnicoService
+from modules.usuarios.services.definir_horario_atendimento_service import DefinirHorarioAtendimentoService
 from modules.usuarios.services.listar_tecnicos_service import ListarTecnicosService
 from utils import parsear_coordenada, somente_digitos
 
@@ -17,6 +18,7 @@ class UsuarioController:
         self.listar_tecnicos_service = ListarTecnicosService()
         self.atualizar_usuario_service = AtualizarUsuarioService()
         self.converter_para_tecnico_service = ConverterParaTecnicoService()
+        self.definir_horario_atendimento_service = DefinirHorarioAtendimentoService()
 
     @login_required
     def me(self):
@@ -31,6 +33,8 @@ class UsuarioController:
             "role": usuario.role,
             "eh_tecnico": usuario.eh_tecnico,
             "suspenso": usuario.suspenso,
+            "horario_inicio_atendimento": usuario.horario_inicio_atendimento,
+            "horario_fim_atendimento": usuario.horario_fim_atendimento,
         }
 
         if usuario.eh_tecnico and usuario.perfil_tecnico:
@@ -43,6 +47,17 @@ class UsuarioController:
             })
 
         return jsonify(dados)
+
+    @login_required
+    def definir_horario_atendimento(self):
+        # Sem try/except: DominioError sobe pro errorhandler global (app.py).
+        dados = request.get_json(silent=True) or {}
+        usuario = self.definir_horario_atendimento_service.executar(current_user, dados)
+        return jsonify({
+            "ok": True,
+            "horario_inicio_atendimento": usuario.horario_inicio_atendimento,
+            "horario_fim_atendimento": usuario.horario_fim_atendimento,
+        })
 
     def cadastrar_cliente(self):
         dados = self._ler_dados_comuns(request.form)

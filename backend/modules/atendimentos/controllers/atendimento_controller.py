@@ -1,6 +1,7 @@
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
+from decorators import apenas_tecnico
 from exceptions import DominioError
 from modules.atendimentos.services.atualizar_status_atendimento_service import AtualizarStatusAtendimentoService
 from modules.atendimentos.services.criar_ou_atualizar_atendimento_service import CriarOuAtualizarAtendimentoService
@@ -45,11 +46,9 @@ class AtendimentoController:
         return jsonify({"ok": True, "servico": servico.to_dict()})
 
     @login_required
+    @apenas_tecnico
     def atualizar_status(self, atendimento_id):
         dados = request.get_json(silent=True) or {}
-        if not current_user.eh_tecnico:
-            return jsonify({"ok": False, "erro": "Acesso negado."}), 403
-
         try:
             atendimento = self.atualizar_status_atendimento_service.executar(atendimento_id, dados, current_user.id)
         except DominioError as erro:

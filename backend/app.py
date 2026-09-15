@@ -15,6 +15,7 @@ from flask_login import LoginManager
 
 from config import Config
 from database import db
+from exceptions import DominioError
 from modules.usuarios.models.usuario import Usuario
 
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +62,14 @@ def create_app():
         if request.path.startswith("/api/"):
             return jsonify(ok=False, erro="Não autenticado."), 401
         return redirect("/")
+
+    @app.errorhandler(DominioError)
+    def tratar_erro_dominio(erro):
+        # Rede de segurança: qualquer DominioError que suba de um Service sem
+        # passar por um try/except de Controller vira a resposta certa (400/
+        # 403/404/409) em vez de um 500 genérico do Flask. Os Controllers
+        # antigos ainda tratam na mão; os novos podem só deixar propagar.
+        return jsonify({"ok": False, "erro": erro.mensagem, **erro.extra}), erro.status_code
 
     # Import tardio (depois do login_manager pronto) pra evitar import circular
     # entre os módulos e app.py.
@@ -109,12 +118,17 @@ def _garantir_colunas_novas():
             ("garantia", "ALTER TABLE servicos ADD COLUMN garantia BOOLEAN NOT NULL DEFAULT FALSE"),
             ("latitude", "ALTER TABLE servicos ADD COLUMN latitude FLOAT"),
             ("longitude", "ALTER TABLE servicos ADD COLUMN longitude FLOAT"),
+            ("causa_defeito", "ALTER TABLE servicos ADD COLUMN causa_defeito VARCHAR(50)"),
+            ("laudo_tecnico", "ALTER TABLE servicos ADD COLUMN laudo_tecnico TEXT"),
+            ("solucao_aplicada", "ALTER TABLE servicos ADD COLUMN solucao_aplicada TEXT"),
         ],
         "usuarios": [
             ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
             ("longitude", "ALTER TABLE usuarios ADD COLUMN longitude FLOAT"),
             ("alertas_comportamento", "ALTER TABLE usuarios ADD COLUMN alertas_comportamento INTEGER NOT NULL DEFAULT 0"),
             ("suspenso", "ALTER TABLE usuarios ADD COLUMN suspenso BOOLEAN NOT NULL DEFAULT FALSE"),
+            ("horario_inicio_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_inicio_atendimento VARCHAR(5) NOT NULL DEFAULT '08:00'"),
+            ("horario_fim_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_fim_atendimento VARCHAR(5) NOT NULL DEFAULT '18:00'"),
         ],
         "perfis_tecnicos": [
             ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),

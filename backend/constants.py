@@ -93,3 +93,50 @@ PESO_PRECO = 0.2
 # Usuario.registrar_alerta_comportamento / AvaliarService).
 NOTA_COMPORTAMENTO_LIMITE = 2
 LIMITE_ALERTAS_COMPORTAMENTO = 3
+
+# Relatório técnico (funcionalidade 8): causa do defeito identificada pelo
+# técnico. É um catálogo fechado, e não texto livre, de propósito — a
+# funcionalidade 10 (alerta de reincidência por modelo de aparelho) precisa
+# agrupar defeitos iguais, o que só dá pra fazer com valor padronizado. O
+# detalhe em texto livre fica no laudo, ao lado.
+CAUSA_COMPONENTE_DEFEITUOSO = "componente_defeituoso"
+CAUSA_SUPERAQUECIMENTO = "superaquecimento"
+CAUSA_DANO_POR_LIQUIDO = "dano_por_liquido"
+CAUSA_SOFTWARE_CORROMPIDO = "software_corrompido"
+CAUSA_MALWARE = "malware"
+CAUSA_DESGASTE_NATURAL = "desgaste_natural"
+CAUSA_MAU_USO = "mau_uso"
+CAUSA_OUTRO = "outro"
+
+CAUSAS_DEFEITO = (
+    CAUSA_COMPONENTE_DEFEITUOSO,
+    CAUSA_SUPERAQUECIMENTO,
+    CAUSA_DANO_POR_LIQUIDO,
+    CAUSA_SOFTWARE_CORROMPIDO,
+    CAUSA_MALWARE,
+    CAUSA_DESGASTE_NATURAL,
+    CAUSA_MAU_USO,
+    CAUSA_OUTRO,
+)
+
+CAUSAS_DEFEITO_LABELS = {
+    CAUSA_COMPONENTE_DEFEITUOSO: "Componente defeituoso",
+    CAUSA_SUPERAQUECIMENTO: "Superaquecimento",
+    CAUSA_DANO_POR_LIQUIDO: "Dano por líquido",
+    CAUSA_SOFTWARE_CORROMPIDO: "Software corrompido",
+    CAUSA_MALWARE: "Vírus / malware",
+    CAUSA_DESGASTE_NATURAL: "Desgaste natural",
+    CAUSA_MAU_USO: "Mau uso",
+    CAUSA_OUTRO: "Outro",
+}
+
+# Tamanho mínimo do laudo, pra evitar "ok"/"consertado" como explicação —
+# a funcionalidade pede um relatório que o cliente leigo entenda.
+MIN_CARACTERES_LAUDO = 20
+
+# Restrição de horário de atendimento (funcionalidade 9): faixa em que o
+# usuário aceita ser contatado/atendido, guardada como "HH:MM" (string) em
+# vez de Time — é o formato que o <input type="time"> do front manda e lê,
+# e evita qualquer conversão de fuso horário no caminho.
+HORARIO_ATENDIMENTO_PADRAO_INICIO = "08:00"
+HORARIO_ATENDIMENTO_PADRAO_FIM = "18:00"

@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from constants import LIMITE_ALERTAS_COMPORTAMENTO
+from constants import (
+    HORARIO_ATENDIMENTO_PADRAO_FIM,
+    HORARIO_ATENDIMENTO_PADRAO_INICIO,
+    LIMITE_ALERTAS_COMPORTAMENTO,
+)
 from database import db
 from utils import isoformat_utc
 
@@ -43,6 +47,17 @@ class Usuario(UserMixin, db.Model):
     # novos (ver CriarServicoService).
     alertas_comportamento = db.Column(db.Integer, nullable=False, default=0)
     suspenso = db.Column(db.Boolean, nullable=False, default=False)
+
+    # Restrição de horário (funcionalidade 9): faixa "HH:MM" em que o usuário
+    # aceita ser atendido/acionado. Cliente usa pra não receber contato fora
+    # de hora; técnico, pra não ser notificado de chamado fora do expediente
+    # (ver SolicitarTecnicosService).
+    horario_inicio_atendimento = db.Column(
+        db.String(5), nullable=False, default=HORARIO_ATENDIMENTO_PADRAO_INICIO
+    )
+    horario_fim_atendimento = db.Column(
+        db.String(5), nullable=False, default=HORARIO_ATENDIMENTO_PADRAO_FIM
+    )
 
     criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -102,6 +117,11 @@ class Usuario(UserMixin, db.Model):
         self.alertas_comportamento = (self.alertas_comportamento or 0) + 1
         if self.alertas_comportamento >= LIMITE_ALERTAS_COMPORTAMENTO:
             self.suspenso = True
+        return self.salvar()
+
+    def definir_horario_atendimento(self, inicio, fim):
+        self.horario_inicio_atendimento = inicio
+        self.horario_fim_atendimento = fim
         return self.salvar()
 
     @classmethod
@@ -182,5 +202,7 @@ class Usuario(UserMixin, db.Model):
             "longitude": self.longitude,
             "alertas_comportamento": self.alertas_comportamento,
             "suspenso": self.suspenso,
+            "horario_inicio_atendimento": self.horario_inicio_atendimento,
+            "horario_fim_atendimento": self.horario_fim_atendimento,
             "criado_em": isoformat_utc(self.criado_em),
         }
