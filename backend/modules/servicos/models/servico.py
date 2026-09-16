@@ -17,9 +17,8 @@ class Servico(db.Model):
     preco_estimado = db.Column(db.Numeric(10, 2), nullable=False, default=0)
 
     # Teto de gasto (funcionalidade 6): o quanto o cliente aceita gastar em
-    # reparo. Separado de preco_estimado de propósito — preco_estimado é
-    # exibido como referência e recebe o acréscimo da garantia (+7%), então
-    # não serve de limite. Nulo = cliente não definiu teto.
+    # reparo. Mantido separado de preco_estimado porque pode ser elevado
+    # depois por autorizações de custo. Nulo = cliente não definiu teto.
     valor_maximo_aprovado = db.Column(db.Numeric(10, 2))
 
     # Gorjeta opcional (valor que o cliente decide somar depois de concluído).

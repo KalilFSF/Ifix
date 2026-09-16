@@ -287,6 +287,7 @@ RETURNS TABLE(dado json) AS $$
             'tipo_equipamento', s.tipo_equipamento,
             'equipamento', s.equipamento,
             'preco_estimado', COALESCE(s.preco_estimado, 0),
+            'valor_maximo_aprovado', s.valor_maximo_aprovado,
             'garantia', s.garantia,
             'status', s.status,
             'latitude', s.latitude,

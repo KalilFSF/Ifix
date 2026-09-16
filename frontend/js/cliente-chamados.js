@@ -217,10 +217,11 @@ async function renderizarDetalhe(opcoes = {}) {
     const podeCancelar = ["aberto", "aguardando"].includes(chamado.status);
     const podeExcluir = chamado.status === "cancelado";
 
-    // Só o cliente encerra o chamado, e só depois que o técnico colocou em
-    // reparo e enviou o laudo (ver AtualizarStatusServicoService no backend).
+    // O cliente pode confirmar a conclusão depois que o técnico colocou em
+    // reparo, enviou o laudo e não deixou autorização de custo pendente.
     const podeConcluir = chamado.status === "em_reparo";
-    const laudoPronto = Boolean(chamado.laudo_tecnico);
+    const laudoPronto = Boolean(chamado.causa_defeito && chamado.laudo_tecnico);
+    const conclusaoLiberada = laudoPronto && aprovacoesPendentes.length === 0;
 
     const chat = criarChat({
         servicoId: chamado.id,
@@ -269,13 +270,16 @@ async function renderizarDetalhe(opcoes = {}) {
             <div class="modal-actions">
                 ${podeConcluir ? `
                     <button type="button" class="primary-btn btn-concluir-chamado" data-id="${chamado.id}"
-                            ${laudoPronto ? "" : "disabled"}>Confirmar conclusão</button>
+                            ${conclusaoLiberada ? "" : "disabled"}>Confirmar conclusão</button>
                 ` : ""}
                 ${podeCancelar ? `<button type="button" class="secondary-btn btn-cancelar-chamado" data-id="${chamado.id}">Cancelar chamado</button>` : ""}
                 ${podeExcluir ? `<button type="button" class="secondary-btn btn-excluir-chamado" data-id="${chamado.id}">Excluir chamado</button>` : ""}
             </div>
             ${podeConcluir && !laudoPronto ? `
                 <p class="painel-equipamento">O técnico ainda não enviou o relatório técnico. Assim que ele enviar, você poderá confirmar a conclusão.</p>
+            ` : ""}
+            ${podeConcluir && aprovacoesPendentes.length ? `
+                <p class="painel-equipamento">Responda às autorizações de custo pendentes antes de confirmar a conclusão.</p>
             ` : ""}
         ` : ""}
 
