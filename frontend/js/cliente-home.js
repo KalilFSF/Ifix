@@ -24,13 +24,16 @@ const STATUS_INFO = {
     finalizado: { balde: "concluido", rotulo: "Finalizado", classe: "status-concluido" },
 };
 
+/* Devolve `ok:false` quando a API falha, em vez do resumo zerado que
+   existia antes: um erro de servidor pintava exatamente a mesma tela de
+   "Você ainda não possui chamados" que um cliente recém-cadastrado vê. */
 async function buscarChamadosDoUsuario() {
-    const resposta = await fetch("/api/servicos/meus?como=cliente");
-    if (!resposta.ok) {
-        return { resumo: { andamento: 0, aguardando: 0, concluido: 0 }, recentes: [] };
+    const resultado = await obterLista("/api/servicos/meus?como=cliente");
+    if (!resultado.ok) {
+        return { ok: false, erro: resultado.erro };
     }
 
-    const chamados = await resposta.json();
+    const chamados = resultado.lista;
 
     const resumo = { andamento: 0, aguardando: 0, concluido: 0 };
     chamados.forEach(chamado => {
@@ -49,7 +52,7 @@ async function buscarChamadosDoUsuario() {
         };
     });
 
-    return { resumo, recentes };
+    return { ok: true, resumo, recentes };
 }
 
 function iconeSvg(pathInterno) {
@@ -96,8 +99,8 @@ function renderizarChamadosRecentes(chamados) {
     container.innerHTML = chamados.slice(0, MAX_CHAMADOS_RECENTES).map(chamado => `
         <a href="/cliente/chamados" class="chamado-row">
             <div>
-                <p class="chamado-meta">${chamado.codigo} • ${chamado.equipamento}</p>
-                <p class="chamado-titulo">${chamado.titulo}</p>
+                <p class="chamado-meta">${escaparHtml(chamado.codigo)} • ${escaparHtml(chamado.equipamento)}</p>
+                <p class="chamado-titulo">${escaparHtml(chamado.titulo)}</p>
             </div>
             <div class="chamado-right">
                 <span class="status-badge ${chamado.statusClasse}">${chamado.status}</span>
@@ -105,36 +108,6 @@ function renderizarChamadosRecentes(chamados) {
             </div>
         </a>
     `).join("");
-}
-
-function iniciarSidebarMobile() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    const btnAbrir = document.getElementById("sidebarOpen");
-    const btnFechar = document.getElementById("sidebarClose");
-    if (!sidebar || !overlay || !btnAbrir || !btnFechar) return;
-
-    function abrir() {
-        sidebar.classList.add("is-open");
-        overlay.classList.add("is-visible");
-    }
-
-    function fechar() {
-        sidebar.classList.remove("is-open");
-        overlay.classList.remove("is-visible");
-    }
-
-    btnAbrir.addEventListener("click", abrir);
-    btnFechar.addEventListener("click", fechar);
-    overlay.addEventListener("click", fechar);
-
-    document.addEventListener("keydown", (evento) => {
-        if (evento.key === "Escape") fechar();
-    });
-
-    sidebar.querySelectorAll(".nav-item").forEach(item => {
-        item.addEventListener("click", fechar);
-    });
 }
 
 async function carregarUsuario(dados) {
@@ -145,66 +118,21 @@ async function carregarUsuario(dados) {
 }
 
 async function carregarDashboard() {
-    const { resumo, recentes } = await buscarChamadosDoUsuario();
-    renderizarResumo(resumo);
-    renderizarChamadosRecentes(recentes);
-}
+    const resultado = await buscarChamadosDoUsuario();
 
-function mostrarToast(mensagem) {
-    const elToast = document.getElementById("toast");
-    if (!elToast) return;
-    elToast.textContent = mensagem;
-    elToast.classList.remove("hidden");
-    elToast.classList.add("is-visible");
-    setTimeout(() => {
-        elToast.classList.remove("is-visible");
-        elToast.classList.add("hidden");
-    }, 3000);
-}
+    if (!resultado.ok) {
+        const grid = document.getElementById("statsGrid");
+        if (grid) grid.innerHTML = "";
+        renderizarEstadoErro(
+            document.getElementById("chamadosList"),
+            resultado.erro,
+            carregarDashboard,
+        );
+        return;
+    }
 
-/* Restrição de horário (funcionalidade 9): a faixa vem junto de /api/me e é
-   salva por PUT — fora dela o usuário não recebe aviso de atendimento. */
-function iniciarRestricaoHorario(dados) {
-    const elInicio = document.getElementById("horarioInicio");
-    const elFim = document.getElementById("horarioFim");
-    const elBotao = document.getElementById("horarioSalvarBtn");
-    if (!elInicio || !elFim || !elBotao) return;
-
-    elInicio.value = dados.horario_inicio_atendimento || "08:00";
-    elFim.value = dados.horario_fim_atendimento || "18:00";
-
-    elBotao.addEventListener("click", async () => {
-        if (!elInicio.value || !elFim.value) {
-            mostrarToast("Preencha os dois horários.");
-            return;
-        }
-        if (elInicio.value === elFim.value) {
-            mostrarToast("O horário de início e o de término não podem ser iguais.");
-            return;
-        }
-
-        elBotao.disabled = true;
-        try {
-            const resposta = await fetch("/api/me/horario-atendimento", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    horario_inicio_atendimento: elInicio.value,
-                    horario_fim_atendimento: elFim.value,
-                }),
-            });
-            const resultado = await resposta.json();
-            if (!resposta.ok || !resultado.ok) {
-                mostrarToast(resultado.erro || "Não foi possível salvar o horário.");
-                return;
-            }
-            mostrarToast("Horário de atendimento atualizado.");
-        } catch (erro) {
-            mostrarToast("Falha de conexão ao salvar o horário.");
-        } finally {
-            elBotao.disabled = false;
-        }
-    });
+    renderizarResumo(resultado.resumo);
+    renderizarChamadosRecentes(resultado.recentes);
 }
 
 (async function () {
@@ -212,6 +140,5 @@ function iniciarRestricaoHorario(dados) {
     const dados = await iniciarRoleChips("cliente");
     if (!dados) return;
     await carregarUsuario(dados);
-    iniciarRestricaoHorario(dados);
     await carregarDashboard();
 })();

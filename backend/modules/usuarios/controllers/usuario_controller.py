@@ -2,13 +2,15 @@ from flask import jsonify, request
 from flask_login import current_user, login_required
 
 from exceptions import DominioError
+from modules.usuarios.services.alterar_senha_service import AlterarSenhaService
 from modules.usuarios.services.atualizar_usuario_service import AtualizarUsuarioService
+from modules.usuarios.services.definir_foto_perfil_service import DefinirFotoPerfilService
 from modules.usuarios.services.cadastrar_cliente_service import CadastrarClienteService
 from modules.usuarios.services.cadastrar_tecnico_service import CadastrarTecnicoService
 from modules.usuarios.services.converter_para_tecnico_service import ConverterParaTecnicoService
 from modules.usuarios.services.definir_horario_atendimento_service import DefinirHorarioAtendimentoService
 from modules.usuarios.services.listar_tecnicos_service import ListarTecnicosService
-from utils import parsear_coordenada, somente_digitos
+from utils import corpo_json, parsear_coordenada, somente_digitos
 
 
 class UsuarioController:
@@ -19,39 +21,33 @@ class UsuarioController:
         self.atualizar_usuario_service = AtualizarUsuarioService()
         self.converter_para_tecnico_service = ConverterParaTecnicoService()
         self.definir_horario_atendimento_service = DefinirHorarioAtendimentoService()
+        self.definir_foto_perfil_service = DefinirFotoPerfilService()
+        self.alterar_senha_service = AlterarSenhaService()
 
     @login_required
     def me(self):
+        """Payload base do usuário logado. A tela de perfil consome isto —
+        por isso vem o endereço completo e o `perfil` técnico inteiro, e não
+        só os três campos que a sidebar usava."""
         usuario = current_user
-        dados = {
-            "id": usuario.id,
-            "nome": usuario.nome,
-            "email": usuario.email,
-            "telefone": usuario.telefone,
-            "cidade": usuario.cidade,
-            "estado": usuario.estado,
-            "role": usuario.role,
-            "eh_tecnico": usuario.eh_tecnico,
-            "suspenso": usuario.suspenso,
-            "horario_inicio_atendimento": usuario.horario_inicio_atendimento,
-            "horario_fim_atendimento": usuario.horario_fim_atendimento,
-        }
+        dados = usuario.to_dict()
 
         if usuario.eh_tecnico and usuario.perfil_tecnico:
             perfil = usuario.perfil_tecnico
-            dados.update({
-                "especialidade": perfil.especialidade,
-                "regiao_atendimento": perfil.regiao_atendimento,
-                "foto_perfil": perfil.foto_perfil,
-                "diplomas_count": len(perfil.diplomas),
-            })
+            dados["perfil"] = perfil.to_dict()
+            dados["diplomas"] = [diploma.to_dict() for diploma in perfil.diplomas]
+            # Mantidos no nível de cima por compatibilidade: role-chips.js e
+            # o painel do técnico já liam daqui.
+            dados["especialidade"] = perfil.especialidade
+            dados["regiao_atendimento"] = perfil.regiao_atendimento
+            dados["diplomas_count"] = len(perfil.diplomas)
 
         return jsonify(dados)
 
     @login_required
     def definir_horario_atendimento(self):
         # Sem try/except: DominioError sobe pro errorhandler global (app.py).
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         usuario = self.definir_horario_atendimento_service.executar(current_user, dados)
         return jsonify({
             "ok": True,
@@ -100,9 +96,22 @@ class UsuarioController:
 
     @login_required
     def atualizar_me(self):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         usuario = self.atualizar_usuario_service.executar(current_user, dados)
         return jsonify({"ok": True, "usuario": usuario.to_dict()})
+
+    @login_required
+    def definir_foto_perfil(self):
+        usuario = self.definir_foto_perfil_service.executar(
+            current_user, request.files.get("foto_perfil")
+        )
+        return jsonify({"ok": True, "foto_perfil": usuario.foto_perfil})
+
+    @login_required
+    def alterar_senha(self):
+        dados = corpo_json()
+        self.alterar_senha_service.executar(current_user, dados)
+        return jsonify({"ok": True})
 
     @login_required
     def tornar_tecnico(self):

@@ -5,6 +5,7 @@ from decorators import apenas_tecnico
 from exceptions import DominioError
 from modules.usuarios.services.atualizar_perfil_tecnico_service import AtualizarPerfilTecnicoService
 from modules.usuarios.services.obter_perfil_tecnico_service import ObterPerfilTecnicoService
+from utils import corpo_json
 
 
 class PerfilTecnicoController:
@@ -31,7 +32,7 @@ class PerfilTecnicoController:
     @apenas_tecnico
     def atualizar(self):
 
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         try:
             perfil = self.atualizar_perfil_tecnico_service.executar(current_user, dados)
         except DominioError as erro:

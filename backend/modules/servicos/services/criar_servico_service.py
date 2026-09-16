@@ -52,7 +52,11 @@ class CriarServicoService:
         if tecnico_ids:
             self.solicitar_tecnicos_service.executar(servico.id, tecnico_ids, cliente)
 
-        return Servico.buscar_por_id(servico.id)
+        # A contagem sobe junto com o chamado porque zero é um resultado
+        # possível e silencioso: cliente sem lat/long, ou nenhum técnico
+        # geolocalizado na base. Antes a API respondia 200 "ok" nos dois
+        # casos, e o cliente ficava esperando um orçamento que não viria.
+        return Servico.buscar_por_id(servico.id), len(tecnico_ids)
 
     def _validar_dados(self, dados, cliente):
         tipo = (dados.get("tipo_equipamento") or "").strip().lower()

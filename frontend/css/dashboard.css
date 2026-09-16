@@ -1484,15 +1484,6 @@
     opacity: .7;
 }
 
-#statusFinalizarBtn {
-    width: 100%;
-}
-
-#statusFinalizarBtn:disabled {
-    opacity: .5;
-    cursor: default;
-}
-
 
 /* ===== Formulário de orçamento / avaliação dentro dos modais ===== */
 
@@ -1607,7 +1598,7 @@
 
 
 /* ==================================================
-   TOAST ("em breve" — funcionalidades ainda não implementadas)
+   TOAST (feedback curto de ação — ver mostrarToast em js/ui.js)
 ================================================== */
 
 .toast {
@@ -1640,6 +1631,416 @@
 
 .toast.hidden {
     display: none;
+}
+
+
+/* ==================================================
+   ESTADOS DE ERRO (renderizarEstadoErro / mostrarAvisoConexao em js/ui.js)
+
+   Visualmente parentes do .chamados-empty (borda tracejada), mas em vermelho:
+   a diferença entre "não há nada aqui" e "não conseguimos carregar" precisa
+   ser óbvia à primeira vista — antes as duas situações mostravam a mesma tela.
+================================================== */
+
+.bloco-erro {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+
+    padding: 20px 16px;
+    border: 1px dashed #ef4444;
+    border-radius: var(--radius-card);
+    background: rgba(239, 68, 68, .06);
+    text-align: center;
+}
+
+.bloco-erro-texto {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.bloco-erro-btn {
+    width: auto;
+    padding: 8px 18px;
+    font-size: 13px;
+}
+
+.aviso-conexao {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 70;
+
+    padding: 8px 16px;
+
+    background: var(--warning);
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+}
+
+
+/* ==================================================
+   AVATAR (foto de perfil — renderizarAvatarHTML em js/ui.js)
+================================================== */
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 700;
+
+    overflow: hidden;
+}
+
+.avatar-foto img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+}
+
+.avatar-lg {
+    width: 96px;
+    height: 96px;
+    font-size: 34px;
+}
+
+
+/* ==================================================
+   CHAT DO CHAMADO (js/chat-ui.js)
+================================================== */
+
+.chat-bloco {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-card);
+}
+
+.chat-mensagens {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 12px;
+    margin-bottom: 12px;
+
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card);
+    background: var(--bg-input);
+}
+
+.chat-msg {
+    max-width: 82%;
+    padding: 8px 12px;
+    border-radius: 14px;
+
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    align-self: flex-start;
+}
+
+/* As próprias mensagens vão pra direita e ganham a cor primária — o
+   remetente precisa ser legível de relance, sem ler o nome de cada balão. */
+.chat-msg.is-minha {
+    align-self: flex-end;
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.chat-msg-autor {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.chat-msg.is-minha .chat-msg-autor,
+.chat-msg.is-minha .chat-msg-hora {
+    color: rgba(255, 255, 255, .8);
+}
+
+.chat-msg-texto {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.chat-msg.is-minha .chat-msg-texto {
+    color: var(--text-white);
+}
+
+.chat-msg-hora {
+    display: block;
+    margin-top: 4px;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+.chat-form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.chat-form textarea {
+    flex: 1;
+    resize: vertical;
+}
+
+.chat-form .primary-btn {
+    width: auto;
+    padding: 10px 20px;
+}
+
+.chat-vazio,
+.chat-indisponivel {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Badge de mensagens não lidas, na lista de chamados e na tabela do técnico. */
+.chat-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+
+    background: var(--primary);
+    color: var(--text-white);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+
+/* ==================================================
+   BUSCA SEM RESPOSTA (painel "Ampliar busca" / turbinar valor)
+================================================== */
+
+.busca-vazia {
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid var(--warning);
+    border-radius: var(--radius-card);
+    background: rgba(245, 158, 11, .08);
+}
+
+.busca-vazia-titulo {
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.busca-vazia-texto {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.busca-vazia-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.busca-vazia-acoes .primary-btn,
+.busca-vazia-acoes .secondary-btn {
+    width: auto;
+    padding: 10px 18px;
+    font-size: 13px;
+}
+
+.busca-vazia-turbinar {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    flex: 1;
+    min-width: 240px;
+}
+
+.busca-vazia-turbinar .input-group {
+    flex: 1;
+    margin: 0;
+}
+
+
+/* ==================================================
+   GORJETA (opcional, pós-conclusão)
+================================================== */
+
+.gorjeta-bloco {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-card);
+}
+
+.gorjeta-sugestoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.gorjeta-opcao {
+    padding: 8px 16px;
+    border: 1px solid var(--border-input);
+    border-radius: 999px;
+
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+
+    transition: border-color .2s ease, background .2s ease;
+}
+
+.gorjeta-opcao:hover {
+    border-color: var(--primary);
+}
+
+.gorjeta-opcao.is-selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--text-white);
+}
+
+.gorjeta-registrada {
+    margin: 0;
+    padding: 10px 14px;
+    border-radius: var(--radius-input);
+    background: rgba(34, 197, 94, .1);
+    border: 1px solid var(--success);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+
+/* ==================================================
+   PERFIL (js/perfil.js)
+================================================== */
+
+.perfil-card {
+    padding: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-card);
+}
+
+.perfil-foto-linha {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 22px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--border-card);
+}
+
+.perfil-foto-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+/* O <input type="file"> fica escondido e o <label> vira o botao — o
+   controle nativo nao aceita estilo e destoaria do resto da tela. */
+.perfil-foto-btn {
+    width: auto;
+    margin: 0;
+    padding: 9px 18px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.perfil-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.perfil-form .input-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 16px;
+}
+
+.perfil-salvar {
+    width: auto;
+    align-self: flex-start;
+    margin-top: 12px;
+    padding: 12px 26px;
+}
+
+.perfil-ajuda {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.perfil-localizacao {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+
+    margin-top: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-input);
+    background: var(--bg-input);
+}
+
+.perfil-localizacao .secondary-btn {
+    width: auto;
+    margin: 0;
+    padding: 9px 18px;
+    font-size: 13px;
+}
+
+.perfil-diplomas {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.perfil-diplomas a {
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: 600;
 }
 
 
@@ -1763,8 +2164,27 @@
     }
 
     .stats-grid,
-    .services-grid {
+    .services-grid,
+    .perfil-form .input-grid {
         grid-template-columns: 1fr;
+    }
+
+    .perfil-salvar,
+    .chat-form .primary-btn {
+        width: 100%;
+    }
+
+    .chat-form {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .chat-msg {
+        max-width: 100%;
+    }
+
+    .busca-vazia-turbinar {
+        min-width: 100%;
     }
 
     .chamado-row {

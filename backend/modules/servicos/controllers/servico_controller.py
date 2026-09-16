@@ -6,7 +6,9 @@ from exceptions import DominioError
 from modules.atendimentos.services.avaliar_service import AvaliarService
 from modules.atendimentos.services.listar_avaliacoes_service import ListarAvaliacoesService
 from modules.atendimentos.services.listar_orcamentos_service import ListarOrcamentosService
+from modules.servicos.services.ampliar_busca_tecnicos_service import AmpliarBuscaTecnicosService
 from modules.servicos.services.atribuir_tecnico_service import AtribuirTecnicoService
+from modules.servicos.services.aumentar_teto_servico_service import AumentarTetoServicoService
 from modules.servicos.services.atualizar_status_servico_service import AtualizarStatusServicoService
 from modules.servicos.services.cancelar_servico_service import CancelarServicoService, ExcluirServicoService
 from modules.servicos.services.criar_servico_service import CriarServicoService
@@ -16,10 +18,12 @@ from modules.servicos.services.listar_aprovacoes_service import ListarAprovacoes
 from modules.servicos.services.listar_meus_servicos_service import ListarMeusServicosService
 from modules.servicos.services.obter_detalhes_servico_service import ObterDetalhesServicoService
 from modules.servicos.services.obter_historico_servico_service import ObterHistoricoServicoService
+from modules.servicos.services.registrar_gorjeta_service import RegistrarGorjetaService
 from modules.servicos.services.registrar_laudo_service import RegistrarLaudoService
 from modules.servicos.services.responder_aprovacao_service import ResponderAprovacaoService
 from modules.servicos.services.solicitar_aprovacao_service import SolicitarAprovacaoService
 from modules.servicos.services.solicitar_tecnicos_service import SolicitarTecnicosService
+from utils import corpo_json
 
 
 class ServicoController:
@@ -36,6 +40,9 @@ class ServicoController:
         self.acionar_garantia_service = AcionarGarantiaService()
         self.listar_acionamentos_garantia_service = ListarAcionamentosGarantiaService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
+        self.ampliar_busca_tecnicos_service = AmpliarBuscaTecnicosService()
+        self.aumentar_teto_servico_service = AumentarTetoServicoService()
+        self.registrar_gorjeta_service = RegistrarGorjetaService()
         self.atribuir_tecnico_service = AtribuirTecnicoService()
         self.cancelar_servico_service = CancelarServicoService()
         self.excluir_servico_service = ExcluirServicoService()
@@ -75,15 +82,19 @@ class ServicoController:
             }
             fotos = [f for f in request.files.getlist("fotos") if f and f.filename]
         else:
-            dados = request.get_json(silent=True) or {}
+            dados = corpo_json()
             fotos = []
 
         try:
-            servico = self.criar_servico_service.executar(dados, current_user, fotos)
+            servico, tecnicos_notificados = self.criar_servico_service.executar(dados, current_user, fotos)
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
-        return jsonify({"ok": True, "servico": servico.to_dict()})
+        return jsonify({
+            "ok": True,
+            "servico": servico.to_dict(),
+            "tecnicos_notificados": tecnicos_notificados,
+        })
 
     @login_required
     def detalhes(self, servico_id):
@@ -98,7 +109,7 @@ class ServicoController:
 
     @login_required
     def atualizar_status(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         status = dados.get("status")
         if not status:
             return jsonify({"ok": False, "erro": "Status é obrigatório."}), 400
@@ -115,20 +126,20 @@ class ServicoController:
     def registrar_laudo(self, servico_id):
         # Sem try/except: DominioError sobe e o errorhandler global de app.py
         # devolve a mensagem com o status certo.
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         servico = self.registrar_laudo_service.executar(servico_id, current_user, dados)
         return jsonify({"ok": True, "servico": servico.to_dict()})
 
     @login_required
     @apenas_tecnico
     def solicitar_aprovacao(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         aprovacao = self.solicitar_aprovacao_service.executar(servico_id, current_user, dados)
         return jsonify({"ok": True, "aprovacao": aprovacao.to_dict()}), 201
 
     @login_required
     def responder_aprovacao(self, aprovacao_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         aprovacao = self.responder_aprovacao_service.executar(aprovacao_id, current_user, dados)
         return jsonify({"ok": True, "aprovacao": aprovacao.to_dict()})
 
@@ -138,8 +149,27 @@ class ServicoController:
         return jsonify(aprovacoes)
 
     @login_required
+    def ampliar_busca(self, servico_id):
+        resultado = self.ampliar_busca_tecnicos_service.executar(servico_id, current_user)
+        return jsonify({"ok": True, **resultado})
+
+    @login_required
+    def aumentar_teto(self, servico_id):
+        dados = corpo_json()
+        servico = self.aumentar_teto_servico_service.executar(
+            servico_id, dados.get("valor_maximo_aprovado"), current_user
+        )
+        return jsonify({"ok": True, "servico": servico.to_dict()})
+
+    @login_required
+    def registrar_gorjeta(self, servico_id):
+        dados = corpo_json()
+        servico = self.registrar_gorjeta_service.executar(servico_id, current_user, dados)
+        return jsonify({"ok": True, "servico": servico.to_dict()})
+
+    @login_required
     def acionar_garantia(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         acionamento = self.acionar_garantia_service.executar(servico_id, current_user, dados)
         return jsonify({"ok": True, "acionamento": acionamento.to_dict()}), 201
 
@@ -186,7 +216,7 @@ class ServicoController:
 
     @login_required
     def avaliar(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         try:
             avaliacao = self.avaliar_service.executar(servico_id, current_user, dados)
         except DominioError as erro:
@@ -201,11 +231,12 @@ class ServicoController:
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
-        return jsonify([avaliacao.to_dict() for avaliacao in avaliacoes])
+        # Já vem como lista de dicts da procedure (ver AvaliacaoRepository).
+        return jsonify(avaliacoes)
 
     @login_required
     def solicitar(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         tecnico_ids = dados.get("tecnico_ids") or []
         # Dono do chamado pode solicitar técnicos (mesmo sendo técnico em outra conta).
         if not tecnico_ids:

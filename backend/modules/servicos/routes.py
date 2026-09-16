@@ -129,6 +129,24 @@ def api_avaliacoes_servico(servico_id):
     return ServicoController().avaliacoes(servico_id)
 
 
+@servicos_bp.route("/api/servicos/<int:servico_id>/ampliar-busca", methods=["POST"])
+@login_required
+def api_ampliar_busca(servico_id):
+    return ServicoController().ampliar_busca(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/teto", methods=["PATCH"])
+@login_required
+def api_aumentar_teto(servico_id):
+    return ServicoController().aumentar_teto(servico_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/gorjeta", methods=["POST"])
+@login_required
+def api_registrar_gorjeta(servico_id):
+    return ServicoController().registrar_gorjeta(servico_id)
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>/solicitar-tecnicos", methods=["POST"])
 @login_required
 def api_solicitar_tecnicos(servico_id):

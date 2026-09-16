@@ -160,6 +160,14 @@ document.querySelectorAll(".estado").forEach(estadoSelect => {
    estado como sigla (dados.uf, ex: "SP"), que já é o mesmo formato usado
    nos <option value> carregados pelo IBGE — por isso dá pra usar
    estadoSelect.value = dados.uf direto, sem precisar converter nada. */
+/* Cada seção do cadastro (cliente / técnico) tem sua própria faixa de
+   mensagem — é nela que os erros aparecem, no lugar dos alert() nativos
+   que existiam aqui e interrompiam o preenchimento. */
+function mensagemDaSecao(form) {
+    const secao = form.closest("section");
+    return secao ? secao.querySelector(".mensagem") : null;
+}
+
 document.querySelectorAll(".cep").forEach(input => {
 
     input.addEventListener("input", async () => {
@@ -184,9 +192,11 @@ document.querySelectorAll(".cep").forEach(input => {
             const dados = await resposta.json();
 
             if (dados.erro) {
-                alert("CEP não encontrado.");
+                mostrarErro("CEP não encontrado. Confira o número digitado.", mensagemDaSecao(form));
                 return;
             }
+
+            limparMensagem(mensagemDaSecao(form));
 
             paisSelect.value = "Brasil";
 
@@ -210,8 +220,9 @@ document.querySelectorAll(".cep").forEach(input => {
             bairroInput.value = dados.bairro || "";
             ruaInput.value = dados.logradouro || "";
 
-        } catch {
-            alert("Não foi possível buscar o CEP.");
+        } catch (erro) {
+            console.error("[cadastro] falha ao consultar o ViaCEP", erro);
+            mostrarErro("Não foi possível buscar o CEP agora. Preencha o endereço manualmente.", mensagemDaSecao(form));
         }
 
     });
@@ -244,7 +255,7 @@ function validarDataNascimento(form) {
     hoje.setHours(0, 0, 0, 0);
 
     if (!input.value || isNaN(dataSelecionada) || dataSelecionada < dataMinima || dataSelecionada > hoje) {
-        alert("A data de nascimento deve estar entre 01/01/1900 e hoje.");
+        mostrarErro("A data de nascimento deve estar entre 01/01/1900 e hoje.", mensagemDaSecao(form));
         input.focus();
         return false;
     }
@@ -256,11 +267,6 @@ function validarDataNascimento(form) {
 /* ==================================================
    ENVIO DOS FORMULÁRIOS (fetch -> API JSON do backend)
 ================================================== */
-
-function mostrarErro(elementoMensagem, texto) {
-    elementoMensagem.textContent = texto;
-    elementoMensagem.className = "mensagem mensagem-erro";
-}
 
 // Caso especial do form de técnico: o email já é de uma conta cliente. Não
 // é duplicidade de verdade, é alguém que quer converter a conta existente —
@@ -281,22 +287,32 @@ async function enviarCadastro(form, url, elementoMensagem) {
     // página, então geralmente já está resolvida aqui — não trava o envio.
     anexarCoordenadas(formData, await coordenadasPromise);
 
-    const resposta = await fetch(url, {
-        method: "POST",
-        body: formData,
-    });
-    const dados = await resposta.json();
+    const botao = form.querySelector("button[type=submit]");
+    const textoOriginal = botao ? botao.textContent : "";
+    if (botao) {
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+    }
+    limparMensagem(elementoMensagem);
 
-    if (!dados.ok) {
-        if (dados.conta_existente === "cliente") {
+    const resultado = await enviarFormulario(url, formData);
+
+    if (botao) {
+        botao.disabled = false;
+        botao.textContent = textoOriginal;
+    }
+
+    if (!resultado.ok) {
+        // conta_existente vem no corpo do 409 (ContaClienteExistenteError).
+        if (resultado.dados && resultado.dados.conta_existente === "cliente") {
             mostrarContaExistente(elementoMensagem);
         } else {
-            mostrarErro(elementoMensagem, dados.erro);
+            mostrarErro(resultado.erro, elementoMensagem);
         }
         return;
     }
 
-    window.location.href = dados.redirect;
+    window.location.href = resultado.dados.redirect;
 }
 
 document.getElementById("clienteForm").addEventListener("submit", (evento) => {

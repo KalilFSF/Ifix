@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iFix | Meu perfil</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="/js/theme.js"></script>
+</head>
+<body>
+
+    <div class="dash-shell">
+
+        <!-- ================= SIDEBAR ================= -->
+        <aside class="sidebar" id="sidebar">
+
+            <div class="sidebar-top">
+                <button type="button" class="sidebar-close" id="sidebarClose" aria-label="Fechar menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div class="sidebar-logo">
+                    <span>iFix</span>
+                    <p>Assistência técnica</p>
+                </div>
+
+                <div class="role-indicator" role="note" aria-label="Perfil da conta: Cliente">
+                    <span class="role-chip role-chip-active">Cliente</span>
+                    <button type="button" class="role-chip role-chip-link" id="chipTornarTecnico" title="Tornar-se técnico e atender chamados.">Técnico</button>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/cliente/home" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                    <span>Início</span>
+                </a>
+
+                <a href="/cliente/abrir-chamado" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                    <span>Abrir chamado</span>
+                </a>
+
+                <a href="/cliente/chamados" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>Meus chamados</span>
+                </a>
+                <a href="/perfil" class="nav-item is-active">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Meu perfil</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <label class="theme-switch sidebar-theme-switch">
+                    <input type="checkbox" class="themeToggle">
+                    <span class="slider">
+                        <svg class="icon sun" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="1.5" x2="12" y2="4"></line>
+                            <line x1="12" y1="20" x2="12" y2="22.5"></line>
+                            <line x1="1.5" y1="12" x2="4" y2="12"></line>
+                            <line x1="20" y1="12" x2="22.5" y2="12"></line>
+                            <line x1="4.2" y1="4.2" x2="6" y2="6"></line>
+                            <line x1="18" y1="18" x2="19.8" y2="19.8"></line>
+                            <line x1="18" y1="6" x2="19.8" y2="4.2"></line>
+                            <line x1="4.2" y1="19.8" x2="6" y2="18"></line>
+                        </svg>
+                        <svg class="icon moon" viewBox="0 0 24 24">
+                            <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 9 9 0 1 0 20 14.5z"></path>
+                        </svg>
+                    </span>
+                    <small class="theme-text">Tema</small>
+                </label>
+
+                <a href="/logout" class="nav-item nav-item-logout">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    <span>Sair</span>
+                </a>
+            </div>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- ================= CONTEÚDO PRINCIPAL ================= -->
+        <div class="dash-main">
+
+            <header class="mobile-topbar">
+                <button type="button" class="sidebar-open" id="sidebarOpen" aria-label="Abrir menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <span class="mobile-topbar-title">iFix</span>
+            </header>
+            <main class="dash-content">
+
+                <div id="toast" class="toast hidden"></div>
+
+                <section class="panel-header">
+                    <div>
+                        <h1>Meu perfil</h1>
+                        <p class="hero-subtitle">Seus dados, sua localização e o horário em que você aceita ser acionado.</p>
+                    </div>
+                </section>
+
+                <!-- ===== Foto + dados pessoais ===== -->
+                <section class="section-block perfil-card">
+                    <div class="section-header"><h2>Dados pessoais</h2></div>
+
+                    <div class="perfil-foto-linha">
+                        <div id="perfilAvatar"></div>
+                        <div class="perfil-foto-acoes">
+                            <label class="secondary-btn perfil-foto-btn" for="perfilFoto">Trocar foto</label>
+                            <input type="file" id="perfilFoto" accept="image/*" class="hidden">
+                            <p class="perfil-ajuda">PNG, JPG ou WEBP, até 5 MB.</p>
+                        </div>
+                    </div>
+
+                    <form id="formDados" class="perfil-form">
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="perfilNome">Nome completo</label>
+                                <input type="text" id="perfilNome" name="nome" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="perfilTelefone">Telefone</label>
+                                <input type="text" id="perfilTelefone" name="telefone" required>
+                            </div>
+                        </div>
+
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="perfilEmail">E-mail</label>
+                                <input type="email" id="perfilEmail" readonly>
+                                <small class="perfil-ajuda">O e-mail identifica sua conta no login e não pode ser alterado aqui.</small>
+                            </div>
+                            <div class="input-group">
+                                <label for="perfilCpf">CPF</label>
+                                <input type="text" id="perfilCpf" readonly>
+                            </div>
+                        </div>
+
+                        <p class="mensagem hidden" id="mensagemDados"></p>
+                        <button type="submit" class="primary-btn perfil-salvar">Salvar dados pessoais</button>
+                    </form>
+                </section>
+
+                <!-- ===== Endereço e localização ===== -->
+                <section class="section-block perfil-card">
+                    <div class="section-header">
+                        <h2>Endereço e localização</h2>
+                        <p class="section-subtitle">A localização é o que aproxima você dos chamados — sem ela, técnicos ficam fora do ranking e chamados de cliente não encontram ninguém.</p>
+                    </div>
+
+                    <form id="formEndereco" class="perfil-form">
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="perfilCep">CEP</label>
+                                <input type="text" id="perfilCep" class="cep" maxlength="9" placeholder="00000-000">
+                            </div>
+                            <div class="input-group">
+                                <label for="perfilEstado">Estado</label>
+                                <select id="perfilEstado" class="estado"></select>
+                            </div>
+                        </div>
+
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="perfilCidade">Cidade</label>
+                                <select id="perfilCidade" class="cidade"></select>
+                            </div>
+                            <div class="input-group">
+                                <label for="perfilBairro">Bairro</label>
+                                <input type="text" id="perfilBairro">
+                            </div>
+                        </div>
+
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="perfilEndereco">Endereço</label>
+                                <input type="text" id="perfilEndereco">
+                            </div>
+                            <div class="input-group">
+                                <label for="perfilNumero">Número</label>
+                                <input type="text" id="perfilNumero">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="perfilComplemento">Complemento</label>
+                            <input type="text" id="perfilComplemento">
+                        </div>
+
+                        <div class="perfil-localizacao">
+                            <p id="perfilLocalizacaoStatus" class="perfil-ajuda"></p>
+                            <button type="button" class="secondary-btn" id="btnAtualizarLocalizacao">Atualizar minha localização</button>
+                        </div>
+
+                        <p class="mensagem hidden" id="mensagemEndereco"></p>
+                        <button type="submit" class="primary-btn perfil-salvar">Salvar endereço</button>
+                    </form>
+                </section>
+
+                <!-- ===== Horário de atendimento ===== -->
+                <section class="section-block perfil-card">
+                    <div class="section-header">
+                        <h2>Horário de atendimento</h2>
+                        <p class="section-subtitle">Fora dessa faixa você não recebe aviso por e-mail de novas solicitações.</p>
+                    </div>
+
+                    <div class="horario-form">
+                        <div class="input-group">
+                            <label for="horarioInicio">Início</label>
+                            <input type="time" id="horarioInicio">
+                        </div>
+                        <div class="input-group">
+                            <label for="horarioFim">Término</label>
+                            <input type="time" id="horarioFim">
+                        </div>
+                        <button type="button" class="primary-btn" id="horarioSalvarBtn">Salvar horário</button>
+                    </div>
+                </section>
+
+                <!-- ===== Dados profissionais (só técnico) ===== -->
+                <section class="section-block perfil-card hidden" id="secaoTecnico">
+                    <div class="section-header">
+                        <h2>Dados profissionais</h2>
+                        <p class="section-subtitle" id="perfilNotaMedia"></p>
+                    </div>
+
+                    <form id="formTecnico" class="perfil-form">
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="tecEspecialidade">Especialidade</label>
+                                <input type="text" id="tecEspecialidade" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="tecEscolaridade">Escolaridade</label>
+                                <select id="tecEscolaridade" required>
+                                    <option value="Ensino médio">Ensino médio</option>
+                                    <option value="Técnico">Técnico</option>
+                                    <option value="Superior cursando">Superior cursando</option>
+                                    <option value="Superior completo">Superior completo</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="tecCursoSuperior">Curso superior</label>
+                                <input type="text" id="tecCursoSuperior">
+                            </div>
+                            <div class="input-group">
+                                <label for="tecValorMedio">Valor médio de serviço (R$)</label>
+                                <input type="number" id="tecValorMedio" min="0" step="0.01">
+                                <small class="perfil-ajuda">Entra no ranking automático. Em branco = neutro, nem ajuda nem atrapalha.</small>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="tecRegiao">Região de atendimento</label>
+                            <input type="text" id="tecRegiao" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="tecCursos">Cursos e experiências</label>
+                            <textarea id="tecCursos" rows="3"></textarea>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="tecEspecializacoes">Especializações</label>
+                            <textarea id="tecEspecializacoes" rows="3"></textarea>
+                        </div>
+
+                        <div id="perfilDiplomas"></div>
+
+                        <p class="mensagem hidden" id="mensagemTecnico"></p>
+                        <button type="submit" class="primary-btn perfil-salvar">Salvar dados profissionais</button>
+                    </form>
+                </section>
+
+                <!-- ===== Virar técnico (só cliente) ===== -->
+                <section class="section-block perfil-card hidden" id="secaoVirarTecnico">
+                    <div class="section-header"><h2>Quer atender chamados?</h2></div>
+                    <p class="perfil-ajuda">
+                        Sua conta pode ser cliente e técnico ao mesmo tempo: você continua abrindo
+                        chamados normalmente e passa a receber solicitações também.
+                    </p>
+                    <a href="/cliente/tornar-tecnico" class="primary-btn perfil-salvar">Quero ser técnico</a>
+                </section>
+
+                <!-- ===== Segurança ===== -->
+                <section class="section-block perfil-card">
+                    <div class="section-header"><h2>Segurança</h2></div>
+
+                    <form id="formSenha" class="perfil-form">
+                        <div class="input-group">
+                            <label for="senhaAtual">Senha atual</label>
+                            <input type="password" id="senhaAtual" required>
+                        </div>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <label for="senhaNova">Nova senha</label>
+                                <input type="password" id="senhaNova" required minlength="6">
+                            </div>
+                            <div class="input-group">
+                                <label for="senhaConfirmar">Confirmar nova senha</label>
+                                <input type="password" id="senhaConfirmar" required minlength="6">
+                            </div>
+                        </div>
+
+                        <p class="mensagem hidden" id="mensagemSenha"></p>
+                        <button type="submit" class="primary-btn perfil-salvar">Alterar senha</button>
+                    </form>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===== MODAL "TORNAR-SE TÉCNICO" ===== -->
+    <div class="modal-overlay hidden" id="tornarTecnicoOverlay">
+        <div class="modal-card tornar-tecnico-card">
+            <button type="button" class="modal-close" id="tornarTecnicoClose" aria-label="Fechar">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+
+            <span class="modal-icon-badge">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            </span>
+
+            <h2>Deseja ter sua conta de técnico?</h2>
+            <p>Cadastre-se como técnico e comece a receber solicitações de clientes.</p>
+
+            <a href="/cliente/tornar-tecnico" class="primary-btn">Quero me tornar técnico</a>
+        </div>
+    </div>
+
+    <script src="/js/html-utils.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/role-chips.js"></script>
+    <script src="/js/estadosCidades.js"></script>
+    <script src="/js/geolocalizacao.js"></script>
+    <script src="/js/perfil.js"></script>
+</body>
+</html>

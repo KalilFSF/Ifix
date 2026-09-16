@@ -1,3 +1,4 @@
+from constants import STATUS_AGUARDANDO
 from exceptions import RecursoNaoEncontradoError
 from modules.servicos.models.servico import Servico
 
@@ -13,4 +14,8 @@ class AtribuirTecnicoService:
         servico = Servico.buscar_por_id(servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
-        return servico.atribuir_tecnico(tecnico_id, "em_andamento")
+        # STATUS_AGUARDANDO, e não a string "em_andamento" que estava aqui:
+        # aquele valor não existe em constants.py nem nos rótulos do front,
+        # então o chamado ficava com badge de texto cru e o stepper inteiro
+        # em "etapa futura", sem nenhuma etapa marcada como atual.
+        return servico.atribuir_tecnico(tecnico_id, STATUS_AGUARDANDO)

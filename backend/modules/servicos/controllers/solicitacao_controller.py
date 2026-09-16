@@ -7,6 +7,7 @@ from modules.atendimentos.services.enviar_orcamento_service import EnviarOrcamen
 from modules.servicos.services.aceitar_solicitacao_service import AceitarSolicitacaoService
 from modules.servicos.services.listar_solicitacoes_pendentes_service import ListarSolicitacoesPendentesService
 from modules.servicos.services.recusar_solicitacao_service import RecusarSolicitacaoService
+from utils import corpo_json
 
 
 class SolicitacaoController:
@@ -35,7 +36,7 @@ class SolicitacaoController:
     @login_required
     @apenas_tecnico
     def enviar_orcamento(self, solicitacao_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         try:
             atendimento = self.enviar_orcamento_service.executar(solicitacao_id, current_user.id, dados)
         except DominioError as erro:

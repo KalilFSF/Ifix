@@ -66,6 +66,18 @@ class SolicitacaoTecnico(db.Model):
         return cls.query.filter_by(tecnico_id=tecnico_id, status=SOLICITACAO_PENDENTE).order_by(cls.criado_em.desc()).all()
 
     @classmethod
+    def listar_ids_tecnicos_do_servico(cls, servico_id):
+        """Todo técnico que já foi acionado neste chamado, em qualquer status.
+        Usado pela ampliação de busca pra não reenviar a mesma solicitação —
+        inclusive pra quem já recusou, que seria incômodo e inútil."""
+        linhas = cls.query.with_entities(cls.tecnico_id).filter_by(servico_id=servico_id).all()
+        return [linha[0] for linha in linhas]
+
+    @classmethod
+    def contar_por_servico(cls, servico_id):
+        return cls.query.filter_by(servico_id=servico_id).count()
+
+    @classmethod
     def listar_pendentes_por_servico(cls, servico_id, excluir_id=None):
         query = cls.query.filter(cls.servico_id == servico_id, cls.status == SOLICITACAO_PENDENTE)
         if excluir_id is not None:

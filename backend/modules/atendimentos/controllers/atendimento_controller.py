@@ -7,6 +7,7 @@ from modules.atendimentos.services.atualizar_status_atendimento_service import A
 from modules.atendimentos.services.criar_ou_atualizar_atendimento_service import CriarOuAtualizarAtendimentoService
 from modules.atendimentos.services.escolher_orcamento_service import EscolherOrcamentoService
 from modules.atendimentos.services.listar_atendimentos_service import ListarAtendimentosService
+from utils import corpo_json
 
 
 class AtendimentoController:
@@ -26,7 +27,7 @@ class AtendimentoController:
 
     @login_required
     def criar(self, servico_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         if current_user.role not in {"cliente", "tecnico"}:
             return jsonify({"ok": False, "erro": "Acesso negado."}), 403
 
@@ -48,7 +49,7 @@ class AtendimentoController:
     @login_required
     @apenas_tecnico
     def atualizar_status(self, atendimento_id):
-        dados = request.get_json(silent=True) or {}
+        dados = corpo_json()
         try:
             atendimento = self.atualizar_status_atendimento_service.executar(atendimento_id, dados, current_user.id)
         except DominioError as erro:

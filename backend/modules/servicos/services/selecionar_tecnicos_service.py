@@ -24,7 +24,11 @@ class SelecionarTecnicosService:
     def __init__(self):
         self.usuario_repository = UsuarioRepository()
 
-    def executar(self, servico):
+    def executar(self, servico, raio_inicial_km=None, ignorar_ids=()):
+        """`raio_inicial_km` sobrescreve o raio padrão — é como
+        AmpliarBuscaTecnicosService reaproveita esta seleção com um alcance
+        maior. `ignorar_ids` tira do lote quem já foi solicitado, pra a
+        ampliação devolver só gente nova."""
         if servico.latitude is None or servico.longitude is None:
             # Chamado sem localização (cliente ainda não tem lat/long
             # cadastrados) — não há como ranquear por proximidade, então a
@@ -33,10 +37,12 @@ class SelecionarTecnicosService:
             return []
 
         candidatos = self._calcular_distancias(servico)
+        if ignorar_ids:
+            candidatos = [c for c in candidatos if c["usuario_id"] not in set(ignorar_ids)]
         if not candidatos:
             return []
 
-        selecionados = self._filtrar_por_raio(candidatos)
+        selecionados = self._filtrar_por_raio(candidatos, raio_inicial_km)
         self._calcular_scores(selecionados)
         selecionados.sort(key=lambda candidato: candidato["score"], reverse=True)
 
@@ -54,9 +60,14 @@ class SelecionarTecnicosService:
             })
         return candidatos
 
-    def _filtrar_por_raio(self, candidatos):
-        raio = RAIO_SELECAO_TECNICOS_KM
+    def _filtrar_por_raio(self, candidatos, raio_inicial_km=None):
+        raio = raio_inicial_km or RAIO_SELECAO_TECNICOS_KM
         dentro_do_raio = [c for c in candidatos if c["distancia_km"] <= raio]
+
+        # Quando o raio veio de uma ampliação explícita do cliente, ele já é
+        # a decisão dele — não faz sentido dobrar por cima disso.
+        if raio_inicial_km:
+            return dentro_do_raio
 
         while len(dentro_do_raio) < TECNICOS_SELECIONADOS_MIN and raio < RAIO_SELECAO_TECNICOS_KM_MAXIMO:
             raio *= 2

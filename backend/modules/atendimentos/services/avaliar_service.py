@@ -1,4 +1,7 @@
+from sqlalchemy.exc import IntegrityError
+
 from constants import NOTA_COMPORTAMENTO_LIMITE, STATUS_FINALIZADO
+from database import db
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.atendimentos.models.avaliacao import Avaliacao
 from modules.servicos.models.servico import Servico
@@ -38,12 +41,17 @@ class AvaliarService:
 
         comentario = (dados.get("comentario") or "").strip()
 
-        if autor_e_tecnico:
-            avaliacao = self._avaliar_cliente(servico_id, autor.id, avaliado_id, dados, comentario)
-        else:
-            avaliacao = self._avaliar_tecnico(servico_id, autor.id, avaliado_id, dados, comentario)
-
-        return avaliacao
+        # A checagem acima é um read-then-write: entre ela e o INSERT cabe um
+        # segundo envio (duplo clique, duas abas), e aí quem barra é a
+        # constraint uq_avaliacao_servico_autor. Sem este except isso virava
+        # 500 com a sessão suja, em vez da mesma mensagem de negócio.
+        try:
+            if autor_e_tecnico:
+                return self._avaliar_cliente(servico_id, autor.id, avaliado_id, dados, comentario)
+            return self._avaliar_tecnico(servico_id, autor.id, avaliado_id, dados, comentario)
+        except IntegrityError:
+            db.session.rollback()
+            raise ValidacaoError("Você já avaliou este chamado.")
 
     def _avaliar_tecnico(self, servico_id, autor_id, tecnico_id, dados, comentario):
         nota_tempo = self._parse_nota(dados.get("nota_tempo"), "tempo de atendimento")
@@ -59,6 +67,13 @@ class AvaliarService:
         perfil = PerfilTecnico.buscar_por_usuario_id(tecnico_id)
         if perfil:
             perfil.registrar_avaliacao(nota_geral)
+        else:
+            # Usuario.eh_tecnico aceita role="tecnico" SEM perfis_tecnicos, e
+            # nesse caso a nota não tem onde ser acumulada. A avaliação fica
+            # gravada, mas o técnico não entra no ranking (a procedure
+            # fn_listar_tecnicos_para_ranking faz JOIN com perfis_tecnicos) —
+            # o que é um problema de cadastro, não de avaliação.
+            print(f"[avaliacao] técnico {tecnico_id} não tem perfil técnico; nota_media não atualizada.")
 
         return avaliacao
 
@@ -84,7 +99,7 @@ class AvaliarService:
         try:
             nota = int(valor)
         except (TypeError, ValueError):
-            raise ValidacaoError(f"Informe uma nota válida para {nome_criterio} (1 a 5).")
+            raise ValidacaoError(f"Informe uma nota válida para {nome_criterio} (1 a 5).") from None
         if nota < 1 or nota > 5:
             raise ValidacaoError(f"A nota de {nome_criterio} deve ser entre 1 e 5.")
         return nota

@@ -75,6 +75,7 @@ def create_app():
     # entre os módulos e app.py.
     from page_routes import pages_bp
     from modules.atendimentos.routes import atendimentos_bp
+    from modules.chat.routes import chat_bp
     from modules.servicos.routes import servicos_bp
     from modules.usuarios.routes import usuarios_bp
 
@@ -82,6 +83,7 @@ def create_app():
     app.register_blueprint(usuarios_bp)
     app.register_blueprint(servicos_bp)
     app.register_blueprint(atendimentos_bp)
+    app.register_blueprint(chat_bp)
 
     # Garante que as pastas usadas pelo app existam antes de qualquer upload/uso,
     # já que elas não são versionadas no git (uploads de usuário).
@@ -123,6 +125,8 @@ def _garantir_colunas_novas():
             ("laudo_tecnico", "ALTER TABLE servicos ADD COLUMN laudo_tecnico TEXT"),
             ("solucao_aplicada", "ALTER TABLE servicos ADD COLUMN solucao_aplicada TEXT"),
             ("finalizado_em", "ALTER TABLE servicos ADD COLUMN finalizado_em TIMESTAMP"),
+            ("raio_busca_km", "ALTER TABLE servicos ADD COLUMN raio_busca_km INTEGER"),
+            ("gorjeta", "ALTER TABLE servicos ADD COLUMN gorjeta NUMERIC(10, 2)"),
         ],
         "usuarios": [
             ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
@@ -131,6 +135,7 @@ def _garantir_colunas_novas():
             ("suspenso", "ALTER TABLE usuarios ADD COLUMN suspenso BOOLEAN NOT NULL DEFAULT FALSE"),
             ("horario_inicio_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_inicio_atendimento VARCHAR(5) NOT NULL DEFAULT '08:00'"),
             ("horario_fim_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_fim_atendimento VARCHAR(5) NOT NULL DEFAULT '18:00'"),
+            ("foto_perfil", "ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255)"),
         ],
         "perfis_tecnicos": [
             ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),
@@ -196,6 +201,15 @@ def _garantir_cascade_exclusao():
         ("acionamentos_garantia", "servico_id", "servicos", "CASCADE"),
         ("acionamentos_garantia", "cliente_id", "usuarios", "CASCADE"),
         ("acionamentos_garantia", "servico_novo_id", "servicos", "SET NULL"),
+        # As três FKs de avaliacoes declaram ondelete="CASCADE" na Model, o
+        # que só vale no CREATE TABLE: em banco criado antes disso elas
+        # ficaram sem cascade, e apagar um usuário ou chamado esbarrava em
+        # ForeignKeyViolation — exatamente o que esta função existe pra evitar.
+        ("avaliacoes", "servico_id", "servicos", "CASCADE"),
+        ("avaliacoes", "autor_id", "usuarios", "CASCADE"),
+        ("avaliacoes", "avaliado_id", "usuarios", "CASCADE"),
+        ("mensagens_chamado", "servico_id", "servicos", "CASCADE"),
+        ("mensagens_chamado", "autor_id", "usuarios", "CASCADE"),
     ]
 
     with db.engine.begin() as conn:

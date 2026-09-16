@@ -48,6 +48,18 @@ def api_horario_atendimento():
     return UsuarioController().definir_horario_atendimento()
 
 
+@usuarios_bp.route("/api/me/foto", methods=["PUT"])
+@login_required
+def api_definir_foto_perfil():
+    return UsuarioController().definir_foto_perfil()
+
+
+@usuarios_bp.route("/api/me/senha", methods=["POST"])
+@login_required
+def api_alterar_senha():
+    return UsuarioController().alterar_senha()
+
+
 @usuarios_bp.route("/api/tecnicos", methods=["GET"])
 @login_required
 def api_tecnicos():
