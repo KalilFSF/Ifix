@@ -62,6 +62,16 @@ def cliente_abrir_chamado():
     return current_app.send_static_file("pages/cliente-abrir-chamado.html")
 
 
+@pages_bp.route("/perfil")
+@login_required
+def perfil():
+    # Sem checagem de papel de propósito: o perfil é da CONTA, e cliente e
+    # técnico editam exatamente os mesmos dados pessoais. O bloco de dados
+    # profissionais é só uma seção a mais, decidida no front pelo eh_tecnico
+    # que vem de GET /api/me.
+    return current_app.send_static_file("pages/perfil.html")
+
+
 @pages_bp.route("/cliente/tornar-tecnico")
 @login_required
 def cliente_tornar_tecnico():

@@ -3,27 +3,28 @@
    (ex: "Email ou senha inválidos") direto na tela, sem depender do Flask
    re-renderizar nada. */
 
-const form = document.getElementById("loginForm");
-const mensagem = document.getElementById("mensagem");
+const formLogin = document.getElementById("loginForm");
 
-function mostrarErro(texto) {
-    mensagem.textContent = texto;
-    mensagem.className = "mensagem mensagem-erro";
-}
-
-form.addEventListener("submit", async (evento) => {
+formLogin.addEventListener("submit", async (evento) => {
     evento.preventDefault();
 
-    const resposta = await fetch("/api/login", {
-        method: "POST",
-        body: new FormData(form),
-    });
-    const dados = await resposta.json();
+    const botao = formLogin.querySelector("button[type=submit]");
+    const textoOriginal = botao.textContent;
+    botao.disabled = true;
+    botao.textContent = "Entrando...";
+    limparMensagem();
 
-    if (!dados.ok) {
-        mostrarErro(dados.erro);
+    // requisitar() não lança: uma API fora do ar volta como {ok:false} com
+    // mensagem pronta, em vez de deixar o botão travado em "Entrando...".
+    const resultado = await enviarFormulario("/api/login", new FormData(formLogin));
+
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+
+    if (!resultado.ok) {
+        mostrarErro(resultado.erro);
         return;
     }
 
-    window.location.href = dados.redirect;
+    window.location.href = resultado.dados.redirect;
 });

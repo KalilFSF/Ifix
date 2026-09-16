@@ -25,6 +25,13 @@ const STATUS_BADGE_CLASS = {
    concluídas/qual é a atual/quais ainda são futuras. */
 const STATUS_ORDEM = ["aguardando", "em_analise", "em_reparo", "finalizado"];
 
+/* O que o TÉCNICO pode definir. "finalizado" continua no stepper (é uma
+   etapa do serviço e precisa aparecer no progresso), mas saiu dos botões:
+   quem confirma a conclusão é o cliente, que é quem recebe o aparelho de
+   volta e sabe se o problema foi resolvido. Espelha STATUS_TECNICO_CHOICES
+   em backend/constants.py — lá a regra é aplicada de verdade. */
+const STATUS_ACOES_TECNICO = ["aguardando", "em_analise", "em_reparo"];
+
 const STATUS_ICONES = {
     aguardando: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
     em_analise: '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
@@ -54,6 +61,7 @@ let termoBusca = "";
 let modalServicoId = null;
 let modalSolicitacaoId = null;
 let meuUsuarioId = null;
+let chatAtual = null;
 
 const elResumo = document.getElementById("resumoPainel");
 const elSolicitacoesSection = document.getElementById("solicitacoesSection");
@@ -63,24 +71,10 @@ const elBusca = document.getElementById("buscaInput");
 const elPainelVazio = document.getElementById("painelVazio");
 const elTableWrap = document.getElementById("painelTableWrap");
 const elTableBody = document.getElementById("painelTableBody");
-const elToast = document.getElementById("toast");
-
 const elOverlay = document.getElementById("detalheOverlay");
 const elModalBody = document.getElementById("detalheBody");
 const elModalClose = document.getElementById("detalheClose");
 
-
-function mostrarToast(mensagem) {
-    if (!elToast) return;
-    elToast.textContent = mensagem;
-    elToast.classList.remove("hidden");
-    requestAnimationFrame(() => elToast.classList.add("is-visible"));
-    clearTimeout(elToast._timeoutId);
-    elToast._timeoutId = setTimeout(() => {
-        elToast.classList.remove("is-visible");
-        setTimeout(() => elToast.classList.add("hidden"), 250);
-    }, 2200);
-}
 
 function formatarMoeda(valor) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
@@ -107,9 +101,15 @@ function iconeSvg(pathInterno) {
 ================================================== */
 
 async function carregarSolicitacoes() {
-    const resposta = await fetch("/api/tecnico/solicitacoes");
-    if (!resposta.ok) return;
-    solicitacoes = await resposta.json();
+    const resultado = await obterLista("/api/tecnico/solicitacoes");
+    if (!resultado.ok) {
+        // Roda em polling de 7s: um toast por ciclo seria pior que o
+        // problema, então o aviso é a faixa fixa no topo da tela.
+        mostrarAvisoConexao(true, resultado.falhaDeRede ? undefined : resultado.erro);
+        return;
+    }
+    mostrarAvisoConexao(false);
+    solicitacoes = resultado.lista;
     renderizarSolicitacoes();
 
     // Se a solicitação aberta no modal sumiu da lista (cliente escolheu
@@ -134,9 +134,9 @@ function renderizarSolicitacoes() {
         return `
             <article class="solicitacao-card">
                 <div>
-                    <p class="solicitacao-titulo">${servico.titulo || "Chamado"}</p>
-                    <p class="solicitacao-meta">${cliente.nome || "Cliente"} • ${servico.categoria || ""}</p>
-                    ${servico.equipamento ? `<p class="solicitacao-meta">${servico.equipamento}</p>` : ""}
+                    <p class="solicitacao-titulo">${escaparHtml(servico.titulo || "Chamado")}</p>
+                    <p class="solicitacao-meta">${escaparHtml(cliente.nome || "Cliente")} • ${escaparHtml(servico.categoria || "")}</p>
+                    ${servico.equipamento ? `<p class="solicitacao-meta">${escaparHtml(servico.equipamento)}</p>` : ""}
                 </div>
                 <div class="solicitacao-actions">
                     <button type="button" class="primary-btn solicitacao-detalhes" data-id="${solicitacao.id}">Ver detalhes</button>
@@ -225,16 +225,19 @@ function renderizarTabela() {
         const badgeLabel = STATUS_LABELS[servico.status] || servico.status;
         return `
             <tr class="painel-row" data-id="${servico.id}">
-                <td class="painel-codigo">${servico.codigo}</td>
+                <td class="painel-codigo">${escaparHtml(servico.codigo)}</td>
                 <td>
-                    <p class="painel-problema">${servico.titulo}</p>
-                    ${servico.equipamento ? `<p class="painel-equipamento">${servico.equipamento}</p>` : ""}
+                    <p class="painel-problema">${escaparHtml(servico.titulo)}</p>
+                    ${servico.equipamento ? `<p class="painel-equipamento">${escaparHtml(servico.equipamento)}</p>` : ""}
                 </td>
                 <td>
-                    <p>${cliente.nome || "-"}</p>
-                    <p class="painel-equipamento">${cliente.telefone || ""}</p>
+                    <p>${escaparHtml(cliente.nome || "-")}</p>
+                    <p class="painel-equipamento">${escaparHtml(cliente.telefone || "")}</p>
                 </td>
-                <td><span class="status-badge ${badgeClasse}">${badgeLabel}</span></td>
+                <td>
+                    <span class="status-badge ${badgeClasse}">${badgeLabel}</span>
+                    ${servico.mensagens_nao_lidas ? `<span class="chat-badge" title="Mensagens não lidas">${servico.mensagens_nao_lidas}</span>` : ""}
+                </td>
                 <td>${formatarMoeda(servico.preco_estimado)}</td>
                 <td class="painel-abrir">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
@@ -280,8 +283,8 @@ async function abrirDetalhe(servicoId) {
 }
 
 async function buscarHistorico(servicoId) {
-    const resposta = await fetch(`/api/servicos/${servicoId}/historico`);
-    return resposta.ok ? await resposta.json() : [];
+    const resultado = await obterLista(`/api/servicos/${servicoId}/historico`);
+    return resultado.lista;
 }
 
 
@@ -380,16 +383,13 @@ async function enviarOrcamento(evento) {
     btn.disabled = true;
     btn.textContent = "Enviando...";
 
-    const resposta = await fetch(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/orcamento`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            valor_orcamento: valor,
-            prazo_estimado_dias: prazo || null,
-            observacoes,
-        }),
+    // Antes o fetch era cru: falha de rede virava rejection silenciosa e o
+    // botão ficava travado em "Enviando..." para sempre.
+    const resultado = await enviarJson(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/orcamento`, {
+        valor_orcamento: valor,
+        prazo_estimado_dias: prazo || null,
+        observacoes,
     });
-    const resultado = await resposta.json().catch(() => ({ ok: false }));
 
     if (!resultado.ok) {
         mostrarToast(resultado.erro || "Não foi possível enviar o orçamento.");
@@ -404,8 +404,7 @@ async function enviarOrcamento(evento) {
 }
 
 async function recusarSolicitacaoModal() {
-    const resposta = await fetch(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/recusar`, { method: "POST" });
-    const resultado = await resposta.json().catch(() => ({ ok: false }));
+    const resultado = await requisitar(`/api/tecnico/solicitacoes/${modalSolicitacaoId}/recusar`, { method: "POST" });
 
     if (!resultado.ok) {
         mostrarToast(resultado.erro || "Não foi possível recusar.");
@@ -435,13 +434,19 @@ function renderizarChamado(servico, historico) {
 
     if (precisaMontar || acabouDeFinalizar || laudoPassouAAparecer) {
         montarEstruturaModal(servico);
-        estadoModal = { servicoId: servico.id, status: servico.status, historicoIds: new Set() };
+        estadoModal = {
+            servicoId: servico.id,
+            status: servico.status,
+            historicoIds: new Set(),
+            avaliacoesTotal: servico.avaliacoes_total,
+        };
+        montarChat(servico);
         sincronizarHistorico(historico, { animar: false });
         if (podeRegistrarLaudo(servico.status)) {
             carregarAprovacoes(servico.id);
         }
         if (servico.status === "finalizado") {
-            carregarAvaliacaoTecnico(servico);
+            montarAvaliacaoTecnico(servico);
         }
         return;
     }
@@ -451,7 +456,47 @@ function renderizarChamado(servico, historico) {
         aplicarEstadoServico(servico, { animar: true });
     }
 
+    // A avaliação que o cliente enviou não muda nada na linha de `servicos`,
+    // então o caminho rápido nunca a trazia: ela só aparecia se o técnico
+    // fechasse e reabrisse o modal. avaliacoes_total vem da listagem e
+    // resolve isso sem remontar o modal inteiro.
+    if (servico.status === "finalizado" && servico.avaliacoes_total !== estadoModal.avaliacoesTotal) {
+        estadoModal.avaliacoesTotal = servico.avaliacoes_total;
+        montarAvaliacaoTecnico(servico);
+    }
+
+    if (chatAtual) chatAtual.sincronizar();
+
     sincronizarHistorico(historico, { animar: true });
+}
+
+/* O chat se atualiza de forma incremental (ver js/chat-ui.js), então fica
+   fora do ciclo de remontagem do modal — o que estiver sendo digitado não
+   pode sumir a cada 7 segundos. */
+function montarChat(servico) {
+    const card = document.getElementById("chatCard");
+    if (!card) return;
+
+    chatAtual = criarChat({
+        servicoId: servico.id,
+        meuUsuarioId,
+        podeConversar: Boolean(servico.tecnico_id),
+    });
+    card.innerHTML = chatAtual.montarHTML();
+    chatAtual.ligar(card);
+}
+
+function montarAvaliacaoTecnico(servico) {
+    montarBlocoAvaliacao({
+        container: document.getElementById("avaliacaoContainer"),
+        servicoId: servico.id,
+        meuUsuarioId,
+        criteriosQueEnvio: CRITERIOS_AVALIACAO_CLIENTE,
+        criteriosQueRecebo: CRITERIOS_AVALIACAO_TECNICO,
+        rotuloRecebido: "O cliente avaliou você",
+        rotuloEnviado: "Você avaliou o cliente",
+        rotuloBotao: "Avaliar cliente",
+    });
 }
 
 function montarEstruturaModal(servico) {
@@ -500,7 +545,7 @@ function montarEstruturaModal(servico) {
                 <div class="detalhe-card">
                     <h3>Cliente</h3>
                     <div class="detalhe-cliente">
-                        <span class="detalhe-avatar">${escaparHtml((cliente.nome || "?").charAt(0).toUpperCase())}</span>
+                        ${renderizarAvatarHTML(cliente.nome, cliente.foto_perfil)}
                         <p class="detalhe-cliente-nome">${escaparHtml(cliente.nome || "-")}</p>
                     </div>
                     <ul class="detalhe-info-list">
@@ -516,15 +561,17 @@ function montarEstruturaModal(servico) {
                     <h3>Atualizar status</h3>
                     <p class="historico-item-texto" style="margin-bottom:6px;">Disponível para o técnico</p>
                     <div class="status-choices" id="statusChoices">
-                        ${STATUS_ORDEM.map(status => `
+                        ${STATUS_ACOES_TECNICO.map(status => `
                             <button type="button" class="status-choice ${status === servico.status ? "is-selected" : ""}" data-status="${status}">
                                 ${STATUS_LABELS[status]}
                             </button>
                         `).join("")}
                     </div>
-                    <button type="button" class="primary-btn" id="statusFinalizarBtn" ${servico.status === "finalizado" ? "disabled" : ""}>
-                        Marcar como finalizado
-                    </button>
+                    <p class="historico-item-texto">
+                        ${servico.status === "finalizado"
+                            ? "O cliente confirmou a conclusão deste chamado."
+                            : "A conclusão é confirmada pelo cliente. Deixe o chamado em reparo e envie o relatório técnico — ele será avisado."}
+                    </p>
                 </div>
 
                 ${podeRegistrarLaudo(servico.status) ? renderizarCardAutorizacaoHTML(servico) : ""}
@@ -537,6 +584,8 @@ function montarEstruturaModal(servico) {
                         <div id="avaliacaoContainer"><p class="historico-item-texto">Carregando...</p></div>
                     </div>
                 ` : ""}
+
+                <div class="detalhe-card" id="chatCard"></div>
             </div>
         </div>
     `;
@@ -603,8 +652,14 @@ async function carregarAprovacoes(servicoId) {
     const container = document.getElementById("aprovacoesList");
     if (!container) return;
 
-    const resposta = await fetch(`/api/servicos/${servicoId}/aprovacoes`);
-    const aprovacoes = resposta.ok ? await resposta.json() : [];
+    const resultado = await obterLista(`/api/servicos/${servicoId}/aprovacoes`);
+    if (!resultado.ok) {
+        // Antes virava lista vazia e a tela dizia "Nenhuma autorização
+        // solicitada" — igualzinho a não haver nenhuma mesmo.
+        renderizarEstadoErro(container, resultado.erro, () => carregarAprovacoes(servicoId));
+        return;
+    }
+    const aprovacoes = resultado.lista;
     container.innerHTML = aprovacoes.length
         ? aprovacoes.map(renderizarAprovacaoHTML).join("")
         : `<p class="historico-item-texto">Nenhuma autorização solicitada.</p>`;
@@ -629,13 +684,11 @@ async function solicitarAutorizacao(servicoId) {
 
     elBotao.disabled = true;
     try {
-        const resposta = await fetch(`/api/servicos/${servicoId}/aprovacoes`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ descricao, valor_adicional: valor }),
+        const resultado = await enviarJson(`/api/servicos/${servicoId}/aprovacoes`, {
+            descricao,
+            valor_adicional: valor,
         });
-        const resultado = await resposta.json();
-        if (!resposta.ok || !resultado.ok) {
+        if (!resultado.ok) {
             mostrarToast(resultado.erro || "Não foi possível solicitar a autorização.");
             return;
         }
@@ -731,17 +784,12 @@ async function salvarLaudo(servicoId) {
 
     elBotao.disabled = true;
     try {
-        const resposta = await fetch(`/api/servicos/${servicoId}/laudo`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                causa_defeito: causa,
-                laudo_tecnico: laudo,
-                solucao_aplicada: elSolucao ? elSolucao.value.trim() : "",
-            }),
-        });
-        const resultado = await resposta.json();
-        if (!resposta.ok || !resultado.ok) {
+        const resultado = await enviarJson(`/api/servicos/${servicoId}/laudo`, {
+            causa_defeito: causa,
+            laudo_tecnico: laudo,
+            solucao_aplicada: elSolucao ? elSolucao.value.trim() : "",
+        }, "PUT");
+        if (!resultado.ok) {
             mostrarToast(resultado.erro || "Não foi possível salvar o relatório.");
             return;
         }
@@ -753,120 +801,6 @@ async function salvarLaudo(servicoId) {
     } finally {
         elBotao.disabled = false;
     }
-}
-
-/* Critérios diferentes por direção — não faz sentido pedir "preço justo"
-   do técnico avaliando o cliente. O cliente avalia o SERVIÇO do técnico;
-   o técnico avalia o COMPORTAMENTO do cliente (funcionalidade 4). A nota
-   geral (média dos critérios de cada conjunto) é calculada no backend. */
-const CRITERIOS_AVALIACAO_TECNICO = [
-    { chave: "tempo", rotulo: "Tempo de atendimento" },
-    { chave: "honestidade", rotulo: "Honestidade" },
-    { chave: "preco_justo", rotulo: "Preço justo" },
-];
-const CRITERIOS_AVALIACAO_CLIENTE = [
-    { chave: "comportamento", rotulo: "Comportamento durante o atendimento" },
-    { chave: "colaboracao", rotulo: "Colaboração / não interferência no reparo" },
-];
-
-function renderizarEstrelas(nota) {
-    if (!nota) return "—";
-    return "★".repeat(nota) + "☆".repeat(5 - nota);
-}
-
-function renderizarResumoAvaliacaoHTML(avaliacao, criterios) {
-    return criterios.map(criterio => `${criterio.rotulo}: ${renderizarEstrelas(avaliacao[`nota_${criterio.chave}`])}`).join(" · ");
-}
-
-function renderizarFormAvaliacaoHTML(criterios) {
-    return criterios.map(criterio => `
-        <div class="input-group">
-            <label>${criterio.rotulo}</label>
-            <div class="nota-choices" data-criterio="${criterio.chave}">
-                ${[1, 2, 3, 4, 5].map(nota => `<button type="button" class="nota-choice" data-nota="${nota}">${nota}</button>`).join("")}
-            </div>
-        </div>
-    `).join("");
-}
-
-/* Busca as avaliações do chamado e mostra: o que o cliente avaliou sobre o
-   técnico (se já avaliou, com os critérios de serviço) e um formulário pra
-   o técnico avaliar o COMPORTAMENTO do cliente (se ainda não avaliou) —
-   só aparece com o chamado finalizado. */
-async function carregarAvaliacaoTecnico(servico) {
-    const container = document.getElementById("avaliacaoContainer");
-    if (!container) return;
-
-    const resposta = await fetch(`/api/servicos/${servico.id}/avaliacoes`);
-    const avaliacoes = resposta.ok ? await resposta.json() : [];
-    const minhaAvaliacao = avaliacoes.find(item => item.autor_id === meuUsuarioId);
-    const avaliacaoRecebida = avaliacoes.find(item => item.avaliado_id === meuUsuarioId);
-
-    let html = "";
-    if (avaliacaoRecebida) {
-        html += `<div class="avaliacao-existente">O cliente avaliou você — ${renderizarResumoAvaliacaoHTML(avaliacaoRecebida, CRITERIOS_AVALIACAO_TECNICO)}${avaliacaoRecebida.comentario ? ` — "${avaliacaoRecebida.comentario}"` : ""}</div>`;
-    }
-
-    if (minhaAvaliacao) {
-        html += `<div class="avaliacao-existente" style="margin-top:10px;">Você avaliou o cliente — ${renderizarResumoAvaliacaoHTML(minhaAvaliacao, CRITERIOS_AVALIACAO_CLIENTE)}</div>`;
-        container.innerHTML = html;
-        return;
-    }
-
-    html += `
-        <form id="formAvaliacao" style="margin-top:10px;">
-            ${renderizarFormAvaliacaoHTML(CRITERIOS_AVALIACAO_CLIENTE)}
-            <div class="input-group">
-                <label for="avaliacaoComentario">Comentário (opcional)</label>
-                <textarea id="avaliacaoComentario" rows="2" placeholder="Como foi atender esse cliente?"></textarea>
-            </div>
-            <button type="submit" class="primary-btn" id="btnEnviarAvaliacao">Avaliar cliente</button>
-        </form>
-    `;
-    container.innerHTML = html;
-
-    const notasSelecionadas = {};
-    document.querySelectorAll("#formAvaliacao .nota-choices").forEach(grupo => {
-        const criterio = grupo.dataset.criterio;
-        grupo.addEventListener("click", (evento) => {
-            const botao = evento.target.closest(".nota-choice");
-            if (!botao) return;
-            notasSelecionadas[criterio] = Number(botao.dataset.nota);
-            grupo.querySelectorAll(".nota-choice").forEach(item => item.classList.toggle("is-selected", item === botao));
-        });
-    });
-
-    document.getElementById("formAvaliacao").addEventListener("submit", async (evento) => {
-        evento.preventDefault();
-        const faltando = CRITERIOS_AVALIACAO_CLIENTE.filter(criterio => !notasSelecionadas[criterio.chave]);
-        if (faltando.length) {
-            mostrarToast(`Avalie: ${faltando.map(criterio => criterio.rotulo).join(", ")}.`);
-            return;
-        }
-        const comentario = document.getElementById("avaliacaoComentario").value.trim();
-        const btn = document.getElementById("btnEnviarAvaliacao");
-        btn.disabled = true;
-
-        const resp = await fetch(`/api/servicos/${servico.id}/avaliar`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                nota_comportamento: notasSelecionadas.comportamento,
-                nota_colaboracao: notasSelecionadas.colaboracao,
-                comentario,
-            }),
-        });
-        const resultado = await resp.json().catch(() => ({ ok: false }));
-
-        if (!resultado.ok) {
-            mostrarToast(resultado.erro || "Não foi possível enviar a avaliação.");
-            btn.disabled = false;
-            return;
-        }
-
-        mostrarToast("Avaliação enviada!");
-        await carregarAvaliacaoTecnico(servico);
-    });
 }
 
 /* A última etapa (Finalizado), quando alcançada, conta como "concluída"
@@ -943,10 +877,6 @@ function aplicarEstadoServico(servico, opcoes = {}) {
         botao.classList.toggle("is-selected", botao.dataset.status === servico.status);
     });
 
-    const finalizarBtn = document.getElementById("statusFinalizarBtn");
-    if (finalizarBtn && !finalizarBtn.dataset.travado) {
-        finalizarBtn.disabled = servico.status === "finalizado";
-    }
 }
 
 /* Insere só as entradas de histórico que ainda não estavam na tela (com
@@ -994,12 +924,12 @@ function renderizarItemHistoricoHTML(item, animar) {
 }
 
 function travarBotoesStatus(travado) {
-    elModalBody.querySelectorAll(".status-choice").forEach(botao => { botao.disabled = travado; });
-    const finalizarBtn = document.getElementById("statusFinalizarBtn");
-    if (finalizarBtn) {
-        finalizarBtn.dataset.travado = travado ? "1" : "";
-        finalizarBtn.disabled = travado || (estadoModal && estadoModal.status === "finalizado");
-    }
+    // Chamado já concluído pelo cliente não volta atrás (STATUS_TERMINAIS no
+    // backend), então os botões ficam travados de vez.
+    const encerrado = estadoModal && estadoModal.status === "finalizado";
+    elModalBody.querySelectorAll(".status-choice").forEach(botao => {
+        botao.disabled = travado || encerrado;
+    });
 }
 
 /* Clique num status: feedback visual imediato (otimista) + confirmação
@@ -1016,11 +946,10 @@ elModalBody.addEventListener("click", async (evento) => {
         return;
     }
 
-    const botaoFinalizar = evento.target.closest("#statusFinalizarBtn");
     const botaoEscolha = evento.target.closest(".status-choice");
-    if ((!botaoFinalizar && !botaoEscolha) || !estadoModal) return;
+    if (!botaoEscolha || !estadoModal) return;
 
-    const novoStatus = botaoFinalizar ? "finalizado" : botaoEscolha.dataset.status;
+    const novoStatus = botaoEscolha.dataset.status;
     if (novoStatus === estadoModal.status) return;
 
     await atualizarStatusDoChamado(novoStatus);
@@ -1035,23 +964,13 @@ async function atualizarStatusDoChamado(novoStatus) {
     aplicarEstadoServico({ status: novoStatus, preco_estimado: servicoConhecido.preco_estimado }, { animar: true });
     travarBotoesStatus(true);
 
-    let resultado;
-    try {
-        const resposta = await fetch(`/api/servicos/${servicoId}/status`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: novoStatus }),
-        });
-        resultado = await resposta.json();
-    } catch {
-        resultado = { ok: false };
-    }
+    const resultado = await enviarJson(`/api/servicos/${servicoId}/status`, { status: novoStatus }, "PATCH");
 
     if (!resultado.ok) {
         estadoModal.status = statusAnterior;
         aplicarEstadoServico({ status: statusAnterior, preco_estimado: servicoConhecido.preco_estimado }, { animar: false });
         travarBotoesStatus(false);
-        mostrarToast(resultado.erro || "Não foi possível atualizar o status. Tente novamente.");
+        mostrarToast(resultado.erro);
         return;
     }
 
@@ -1064,6 +983,8 @@ function fecharDetalhe() {
     modalServicoId = null;
     modalSolicitacaoId = null;
     estadoModal = null;
+    chatAtual = null;
+    limparRascunhoAvaliacao();
     elOverlay.classList.add("hidden");
     elModalBody.innerHTML = "";
 }
@@ -1079,9 +1000,14 @@ elOverlay.addEventListener("click", (evento) => {
 ================================================== */
 
 async function carregarServicos() {
-    const resposta = await fetch("/api/servicos/meus?como=tecnico");
-    if (!resposta.ok) return;
-    servicos = await resposta.json();
+    const resultado = await obterLista("/api/servicos/meus?como=tecnico");
+    if (!resultado.ok) {
+        mostrarAvisoConexao(true, resultado.falhaDeRede ? undefined : resultado.erro);
+        if (!servicos.length) renderizarEstadoErro(elTableBody, resultado.erro, carregarServicos);
+        return;
+    }
+    mostrarAvisoConexao(false);
+    servicos = resultado.lista;
 
     const ativos = servicos.filter(servico => servico.status !== "finalizado").length;
     elResumo.textContent = ativos
@@ -1103,83 +1029,27 @@ async function carregarServicos() {
 }
 
 async function carregarSaudacao() {
-    const resposta = await fetch("/api/me");
-    if (!resposta.ok) {
-        window.location.href = "/";
+    // Só 401 é sessão expirada. Antes, qualquer oscilação de rede jogava o
+    // técnico no login sem explicação nenhuma.
+    const resultado = await obterJson("/api/me");
+    if (!resultado.ok) {
+        if (resultado.naoAutenticado) window.location.href = "/";
+        else mostrarToast(resultado.erro);
         return;
     }
-    const dados = await resposta.json();
+    const dados = resultado.dados;
     meuUsuarioId = dados.id;
     elResumo.textContent = `Olá, ${dados.nome.split(" ")[0]}! Carregando seus chamados...`;
     return dados;
 }
 
-/* Restrição de horário (funcionalidade 9) — mesma faixa do cliente, aqui no
-   sentido "quando aceito ser acionado por uma solicitação nova". */
-function iniciarRestricaoHorario(dados) {
-    const elInicio = document.getElementById("horarioInicio");
-    const elFim = document.getElementById("horarioFim");
-    const elBotao = document.getElementById("horarioSalvarBtn");
-    if (!elInicio || !elFim || !elBotao || !dados) return;
-
-    elInicio.value = dados.horario_inicio_atendimento || "08:00";
-    elFim.value = dados.horario_fim_atendimento || "18:00";
-
-    elBotao.addEventListener("click", async () => {
-        if (!elInicio.value || !elFim.value) {
-            mostrarToast("Preencha os dois horários.");
-            return;
-        }
-        if (elInicio.value === elFim.value) {
-            mostrarToast("O horário de início e o de término não podem ser iguais.");
-            return;
-        }
-
-        elBotao.disabled = true;
-        try {
-            const resposta = await fetch("/api/me/horario-atendimento", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    horario_inicio_atendimento: elInicio.value,
-                    horario_fim_atendimento: elFim.value,
-                }),
-            });
-            const resultado = await resposta.json();
-            if (!resposta.ok || !resultado.ok) {
-                mostrarToast(resultado.erro || "Não foi possível salvar o horário.");
-                return;
-            }
-            mostrarToast("Horário de atendimento atualizado.");
-        } catch (erro) {
-            mostrarToast("Falha de conexão ao salvar o horário.");
-        } finally {
-            elBotao.disabled = false;
-        }
-    });
-}
-
-function iniciarSidebarMobile() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    const btnAbrir = document.getElementById("sidebarOpen");
-    const btnFechar = document.getElementById("sidebarClose");
-    if (!sidebar || !overlay || !btnAbrir || !btnFechar) return;
-
-    const abrir = () => { sidebar.classList.add("is-open"); overlay.classList.add("is-visible"); };
-    const fechar = () => { sidebar.classList.remove("is-open"); overlay.classList.remove("is-visible"); };
-
-    btnAbrir.addEventListener("click", abrir);
-    btnFechar.addEventListener("click", fechar);
-    overlay.addEventListener("click", fechar);
-    document.addEventListener("keydown", (evento) => { if (evento.key === "Escape") fechar(); });
-}
-
 (async function iniciar() {
     iniciarSidebarMobile();
     renderizarTabs();
+    // carregarSaudacao redireciona pro login se a sessao nao valer mais;
+    // sem usuario nao ha o que carregar.
     const dadosUsuario = await carregarSaudacao();
-    iniciarRestricaoHorario(dadosUsuario);
+    if (!dadosUsuario) return;
     await Promise.all([carregarSolicitacoes(), carregarServicos()]);
 
     setInterval(() => {

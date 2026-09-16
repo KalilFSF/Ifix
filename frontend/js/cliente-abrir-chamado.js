@@ -11,30 +11,17 @@ const formErro = document.getElementById("formErro");
 const inputFotos = document.getElementById("fotos");
 const fotosLabel = document.getElementById("fotosLabel");
 const fotosPreview = document.getElementById("fotosPreview");
-const elToast = document.getElementById("toast");
 
 let arquivosSelecionados = [];
 
-function mostrarToast(mensagem) {
-    if (!elToast) return;
-    elToast.textContent = mensagem;
-    elToast.classList.remove("hidden");
-    requestAnimationFrame(() => elToast.classList.add("is-visible"));
-    clearTimeout(elToast._timeoutId);
-    elToast._timeoutId = setTimeout(() => {
-        elToast.classList.remove("is-visible");
-        setTimeout(() => elToast.classList.add("hidden"), 250);
-    }, 2200);
-}
-
-function mostrarErro(texto) {
-    formErro.textContent = texto;
-    formErro.classList.remove("hidden");
+// mostrarErro/limparMensagem vêm de js/ui.js; aqui o alvo é sempre a faixa
+// .form-erro do rodapé do formulário, e não o #mensagem padrão.
+function mostrarErroDoForm(texto) {
+    mostrarErro(texto, formErro);
 }
 
 function limparErro() {
-    formErro.textContent = "";
-    formErro.classList.add("hidden");
+    limparMensagem(formErro);
 }
 
 function iniciarChoiceCards() {
@@ -77,19 +64,19 @@ function iniciarUpload() {
         const novos = Array.from(inputFotos.files || []);
         for (const arquivo of novos) {
             if (!extensaoOk(arquivo.name)) {
-                mostrarErro("As fotos devem ser png, jpg, jpeg ou webp.");
+                mostrarErroDoForm("As fotos devem ser png, jpg, jpeg ou webp.");
                 inputFotos.value = "";
                 return;
             }
             if (arquivo.size > MAX_BYTES) {
-                mostrarErro("Cada foto deve ter no máximo 5 MB.");
+                mostrarErroDoForm("Cada foto deve ter no máximo 5 MB.");
                 inputFotos.value = "";
                 return;
             }
         }
         const juntos = arquivosSelecionados.concat(novos);
         if (juntos.length > MAX_FOTOS) {
-            mostrarErro(`Envie no máximo ${MAX_FOTOS} fotos.`);
+            mostrarErroDoForm(`Envie no máximo ${MAX_FOTOS} fotos.`);
             inputFotos.value = "";
             return;
         }
@@ -150,30 +137,13 @@ function validarFormulario() {
     return null;
 }
 
-function iniciarSidebarMobile() {
-    const sidebar = document.getElementById("sidebar");
-    const overlay = document.getElementById("sidebarOverlay");
-    const btnAbrir = document.getElementById("sidebarOpen");
-    const btnFechar = document.getElementById("sidebarClose");
-    if (!sidebar || !overlay || !btnAbrir || !btnFechar) return;
-
-    const abrir = () => { sidebar.classList.add("is-open"); overlay.classList.add("is-visible"); };
-    const fechar = () => { sidebar.classList.remove("is-open"); overlay.classList.remove("is-visible"); };
-
-    btnAbrir.addEventListener("click", abrir);
-    btnFechar.addEventListener("click", fechar);
-    overlay.addEventListener("click", fechar);
-    document.addEventListener("keydown", (evento) => { if (evento.key === "Escape") fechar(); });
-    sidebar.querySelectorAll(".nav-item").forEach(item => item.addEventListener("click", fechar));
-}
-
 form.addEventListener("submit", async (evento) => {
     evento.preventDefault();
     limparErro();
 
     const erro = validarFormulario();
     if (erro) {
-        mostrarErro(erro);
+        mostrarErroDoForm(erro);
         return;
     }
 
@@ -202,26 +172,29 @@ form.addEventListener("submit", async (evento) => {
     btnEnviar.disabled = true;
     btnEnviar.textContent = "Enviando...";
 
-    try {
-        const resposta = await fetch("/api/servicos", { method: "POST", body });
-        const dados = await resposta.json();
+    const resultado = await enviarFormulario("/api/servicos", body);
 
-        if (!dados.ok) {
-            mostrarErro(dados.erro || "Não foi possível abrir o chamado.");
-            btnEnviar.disabled = false;
-            btnEnviar.textContent = "Enviar chamado";
-            return;
-        }
-
-        mostrarToast(`Chamado ${dados.servico.codigo} aberto com sucesso.`);
-        setTimeout(() => {
-            window.location.href = "/cliente/chamados";
-        }, 700);
-    } catch (_) {
-        mostrarErro("Falha de conexão. Tente novamente.");
+    if (!resultado.ok) {
+        mostrarErroDoForm(resultado.erro);
         btnEnviar.disabled = false;
         btnEnviar.textContent = "Enviar chamado";
+        return;
     }
+
+    // O chamado pode ser criado sem que ninguém tenha sido notificado (cliente
+    // sem localização, ou nenhum técnico com coordenada cadastrada). Antes isso
+    // era silencioso: o cliente esperava por um orçamento que nunca viria.
+    const dados = resultado.dados;
+    const notificados = dados.tecnicos_notificados;
+    mostrarToast(
+        notificados === 0
+            ? `Chamado ${dados.servico.codigo} aberto, mas nenhum técnico foi encontrado perto de você. Amplie a busca em Meus chamados.`
+            : `Chamado ${dados.servico.codigo} aberto com sucesso.`,
+    );
+
+    setTimeout(() => {
+        window.location.href = "/cliente/chamados";
+    }, notificados === 0 ? 2600 : 700);
 });
 
 (async function iniciar() {

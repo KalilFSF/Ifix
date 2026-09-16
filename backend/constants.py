@@ -12,15 +12,33 @@ STATUS_EM_REPARO = "em_reparo"
 STATUS_FINALIZADO = "finalizado"
 STATUS_CANCELADO = "cancelado"
 
-# Os únicos status que um técnico pode definir manualmente via
-# PATCH /api/servicos/<id>/status, depois de aceitar o chamado
-# ("aberto" é o estado inicial, antes de qualquer técnico aceitar).
+# Quem pode definir o quê em PATCH /api/servicos/<id>/status.
+#
+# O técnico conduz o reparo, mas NÃO declara o serviço concluído: quem
+# recebe o aparelho de volta é o cliente, e só ele sabe se o problema foi
+# de fato resolvido. O técnico avança até "em reparo" e registra o laudo;
+# o chamado só fecha quando o cliente confirma. Isso também dá ao cliente a
+# chance de acionar a garantia antes que o prazo comece a correr — ele
+# começa em servicos.finalizado_em.
+#
+# "aberto" fica de fora dos dois: é o estado inicial, antes de qualquer
+# técnico aceitar, e não se volta pra ele.
 STATUS_TECNICO_CHOICES = (
     STATUS_AGUARDANDO,
     STATUS_EM_ANALISE,
     STATUS_EM_REPARO,
-    STATUS_FINALIZADO,
 )
+
+STATUS_CLIENTE_CHOICES = (STATUS_FINALIZADO,)
+
+# O cliente só confirma a conclusão a partir daqui: finalizar um chamado que
+# nem chegou a entrar em reparo não descreve nada que aconteceu.
+STATUS_MINIMO_PARA_FINALIZAR = STATUS_EM_REPARO
+
+# Estados de onde não se sai. Sem essa trava, "finalizado" -> "em_reparo"
+# era aceito e o chamado voltava a andar com finalizado_em já gravado — ou
+# seja, com a garantia correndo em paralelo.
+STATUS_TERMINAIS = (STATUS_FINALIZADO, STATUS_CANCELADO)
 
 # Rótulos em pt-BR pro corpo do e-mail de notificação de status (ver
 # AtualizarStatusServicoService) — mesmos textos usados nos badges do
@@ -76,8 +94,23 @@ GARANTIA_DIAS = 10
 # candidatos ou estourar o raio máximo — a partir daí usa todos os técnicos
 # cadastrados (com lat/long), mesmo fora do raio, pra nunca deixar um
 # chamado sem nenhum técnico notificado se houver algum no sistema.
-RAIO_SELECAO_TECNICOS_KM = 15
-RAIO_SELECAO_TECNICOS_KM_MAXIMO = 240
+#
+# Os valores subiram (15 -> 40 km inicial, 240 -> 600 km de teto) porque a
+# expansão automática só dispara com MENOS de TECNICOS_SELECIONADOS_MIN
+# candidatos: com dois técnicos a 10 km o raio nunca crescia, e um terceiro
+# a 16 km — possivelmente melhor avaliado e mais barato — ficava de fora.
+# Um raio inicial maior é o que dá ao score de fato o que comparar.
+RAIO_SELECAO_TECNICOS_KM = 40
+RAIO_SELECAO_TECNICOS_KM_MAXIMO = 600
+
+# Teto do botão "Ampliar busca" (AmpliarBuscaTecnicosService), que o cliente
+# aciona quando ninguém respondeu. Vai além do teto automático de propósito:
+# é uma escolha explícita dele de aceitar um técnico mais distante.
+RAIO_AMPLIACAO_MAXIMO_KM = 1200
+
+# Depois deste tempo sem nenhum orçamento, o painel do cliente passa a
+# sugerir ativamente ampliar a busca (o front compara com criado_em).
+MINUTOS_PARA_SUGERIR_AMPLIAR_BUSCA = 15
 TECNICOS_SELECIONADOS_MIN = 2
 TECNICOS_SELECIONADOS_MAX = 3
 

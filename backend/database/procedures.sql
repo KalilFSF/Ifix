@@ -178,6 +178,29 @@ RETURNS TABLE(dado json) AS $$
         'equipamento', s.equipamento,
         'preco_estimado', COALESCE(s.preco_estimado, 0),
         'valor_maximo_aprovado', s.valor_maximo_aprovado,
+        'gorjeta', s.gorjeta,
+        'raio_busca_km', s.raio_busca_km,
+        -- Quantos técnicos já foram acionados neste chamado. Zero significa
+        -- que ninguém foi notificado (cliente sem coordenada, ou nenhum
+        -- técnico geolocalizado por perto) — o painel do cliente usa isso
+        -- pra oferecer "Ampliar busca" em vez de deixá-lo esperando.
+        'solicitacoes_enviadas', (
+            SELECT COUNT(*) FROM solicitacoes_tecnicos st WHERE st.servico_id = s.id
+        ),
+        'orcamentos_recebidos', (
+            SELECT COUNT(*) FROM atendimentos a
+            WHERE a.servico_id = s.id AND a.valor_orcamento IS NOT NULL
+        ),
+        -- Contagem de avaliacoes: o painel usa isso pra saber que a avaliacao
+        -- do outro lado chegou. Sem ela, avaliar nao muda nada na linha de
+        -- `servicos`, e a tela so mostraria a nota depois de recarregar.
+        'avaliacoes_total', (
+            SELECT COUNT(*) FROM avaliacoes av WHERE av.servico_id = s.id
+        ),
+        'mensagens_nao_lidas', (
+            SELECT COUNT(*) FROM mensagens_chamado m
+            WHERE m.servico_id = s.id AND m.autor_id <> p_usuario_id AND m.lida_em IS NULL
+        ),
         'aprovacoes_pendentes', (
             SELECT COUNT(*) FROM solicitacoes_aprovacao ap
             WHERE ap.servico_id = s.id AND ap.status = 'pendente'
@@ -220,11 +243,13 @@ RETURNS TABLE(dado json) AS $$
         ), '[]'::json),
         'cliente', CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object(
             'id', c.id, 'nome', c.nome, 'telefone', c.telefone,
+            'foto_perfil', c.foto_perfil,
             'horario_inicio_atendimento', c.horario_inicio_atendimento,
             'horario_fim_atendimento', c.horario_fim_atendimento
         ) END,
         'tecnico', CASE WHEN t.id IS NULL THEN NULL ELSE json_build_object(
-            'id', t.id, 'nome', t.nome, 'telefone', t.telefone
+            'id', t.id, 'nome', t.nome, 'telefone', t.telefone,
+            'foto_perfil', t.foto_perfil
         ) END
     )
     FROM servicos s
@@ -281,7 +306,8 @@ RETURNS TABLE(dado json) AS $$
             ), '[]'::json)
         ),
         'cliente', CASE WHEN c.id IS NULL THEN NULL ELSE json_build_object(
-            'id', c.id, 'nome', c.nome, 'telefone', c.telefone
+            'id', c.id, 'nome', c.nome, 'telefone', c.telefone,
+            'foto_perfil', c.foto_perfil
         ) END
     )
     FROM solicitacoes_tecnicos st
@@ -290,4 +316,79 @@ RETURNS TABLE(dado json) AS $$
     WHERE st.tecnico_id = p_tecnico_id
       AND st.status = 'pendente'
     ORDER BY st.criado_em DESC;
+$$ LANGUAGE sql STABLE;
+
+
+-- MensagemRepository.listar_por_servico(servico_id, desde_id)
+-- Usada por ListarMensagensService -> GET /api/servicos/<id>/mensagens.
+-- p_desde_id nulo devolve a conversa inteira (abertura do chat); com valor,
+-- devolve só o que chegou depois — é como o polling de 7s do front pede
+-- apenas o incremento, em vez de rebaixar tudo e reconstruir a lista.
+CREATE OR REPLACE FUNCTION fn_listar_mensagens_chamado(
+    p_servico_id integer,
+    p_desde_id integer DEFAULT NULL
+)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', m.id,
+        'servico_id', m.servico_id,
+        'autor_id', m.autor_id,
+        'autor_nome', u.nome,
+        'autor_foto', u.foto_perfil,
+        'conteudo', m.conteudo,
+        'lida_em', CASE WHEN m.lida_em IS NULL THEN NULL
+            ELSE to_char(m.lida_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END,
+        'criado_em', to_char(m.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00'
+    )
+    FROM mensagens_chamado m
+    JOIN usuarios u ON u.id = m.autor_id
+    WHERE m.servico_id = p_servico_id
+      AND (p_desde_id IS NULL OR m.id > p_desde_id)
+    ORDER BY m.id;
+$$ LANGUAGE sql STABLE;
+
+
+-- MensagemRepository.contar_nao_lidas_por_servico(usuario_id)
+-- Usada por ContarMensagensNaoLidasService -> GET /api/mensagens/nao-lidas.
+-- Devolve colunas cruas (e não json) porque o consumidor é o badge dos
+-- painéis, montado em Python como {servico_id: quantidade}.
+CREATE OR REPLACE FUNCTION fn_contar_mensagens_nao_lidas(p_usuario_id integer)
+RETURNS TABLE(servico_id integer, nao_lidas bigint) AS $$
+    SELECT m.servico_id, COUNT(*) AS nao_lidas
+    FROM mensagens_chamado m
+    JOIN servicos s ON s.id = m.servico_id
+    WHERE m.autor_id <> p_usuario_id
+      AND m.lida_em IS NULL
+      AND (s.cliente_id = p_usuario_id OR s.tecnico_id = p_usuario_id)
+    GROUP BY m.servico_id;
+$$ LANGUAGE sql STABLE;
+
+
+-- AvaliacaoRepository.listar_por_servico(servico_id)
+-- Usada por ListarAvaliacoesService -> GET /api/servicos/<id>/avaliacoes.
+-- Substitui o acesso direto por ORM que existia neste caminho (e que fazia
+-- um lazy load do nome de autor e avaliado por linha).
+CREATE OR REPLACE FUNCTION fn_listar_avaliacoes_por_servico(p_servico_id integer)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', av.id,
+        'servico_id', av.servico_id,
+        'autor_id', av.autor_id,
+        'autor_nome', autor.nome,
+        'avaliado_id', av.avaliado_id,
+        'avaliado_nome', avaliado.nome,
+        'nota', av.nota,
+        'nota_tempo', av.nota_tempo,
+        'nota_honestidade', av.nota_honestidade,
+        'nota_preco_justo', av.nota_preco_justo,
+        'nota_comportamento', av.nota_comportamento,
+        'nota_colaboracao', av.nota_colaboracao,
+        'comentario', av.comentario,
+        'criado_em', to_char(av.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00'
+    )
+    FROM avaliacoes av
+    JOIN usuarios autor ON autor.id = av.autor_id
+    JOIN usuarios avaliado ON avaliado.id = av.avaliado_id
+    WHERE av.servico_id = p_servico_id
+    ORDER BY av.criado_em;
 $$ LANGUAGE sql STABLE;

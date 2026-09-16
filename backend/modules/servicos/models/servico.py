@@ -22,8 +22,20 @@ class Servico(db.Model):
     # não serve de limite. Nulo = cliente não definiu teto.
     valor_maximo_aprovado = db.Column(db.Numeric(10, 2))
 
+    # Gorjeta opcional (valor que o cliente decide somar depois de concluído).
+    # Fica separada do preço: não é parte do orçamento, não entra no teto e
+    # não é cobrada pelo sistema — a cobrança entra junto com o meio de
+    # pagamento, no ponto de extensão marcado em constants.py.
+    gorjeta = db.Column(db.Numeric(10, 2))
+
     garantia = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(30), nullable=False, default="aberto")
+
+    # Raio (km) efetivamente usado na última busca por técnicos. Nulo = só a
+    # busca automática da abertura rodou, com RAIO_SELECAO_TECNICOS_KM. É
+    # gravado quando o cliente aciona "Ampliar busca", pra cada ampliação
+    # partir da anterior em vez de recomeçar do raio padrão.
+    raio_busca_km = db.Column(db.Integer)
 
     # Relatório técnico (funcionalidade 8): preenchido pelo técnico durante o
     # atendimento e exigido antes de finalizar o chamado (ver
@@ -156,6 +168,18 @@ class Servico(db.Model):
         self.status = novo_status
         return self.salvar()
 
+    def ampliar_raio_busca(self, novo_raio_km):
+        self.raio_busca_km = novo_raio_km
+        return self.salvar()
+
+    def registrar_gorjeta(self, valor):
+        self.gorjeta = valor
+        return self.salvar()
+
+    @property
+    def tem_gorjeta(self):
+        return self.gorjeta is not None
+
     def registrar_laudo(self, causa_defeito, laudo_tecnico, solucao_aplicada=None):
         self.causa_defeito = causa_defeito
         self.laudo_tecnico = laudo_tecnico
@@ -228,6 +252,8 @@ class Servico(db.Model):
             "equipamento": self.equipamento,
             "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
             "valor_maximo_aprovado": float(self.valor_maximo_aprovado) if self.valor_maximo_aprovado is not None else None,
+            "gorjeta": float(self.gorjeta) if self.gorjeta is not None else None,
+            "raio_busca_km": self.raio_busca_km,
             "garantia": bool(self.garantia),
             "garantia_ativa": self.garantia_ativa,
             "garantia_expira_em": isoformat_utc(self.garantia_expira_em),

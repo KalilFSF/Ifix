@@ -6,19 +6,20 @@ async function iniciarRoleChips(modoAtivo) {
     const indicador = document.querySelector(".role-indicator");
     if (!indicador) return null;
 
-    let dados = null;
-    try {
-        const resposta = await fetch("/api/me");
-        if (!resposta.ok) {
+    // Só 401 significa "não está logado". Antes, QUALQUER falha (inclusive
+    // uma oscilação de rede) mandava o usuário pro login sem mensagem, como
+    // se a sessão tivesse expirado — e ele perdia o que estava fazendo.
+    const resultado = await obterJson("/api/me");
+    if (!resultado.ok) {
+        if (resultado.naoAutenticado) {
             window.location.href = "/";
             return null;
         }
-        dados = await resposta.json();
-    } catch (_) {
-        window.location.href = "/";
+        mostrarToast(resultado.erro);
         return null;
     }
 
+    const dados = resultado.dados;
     const ehTecnico = Boolean(dados.eh_tecnico);
 
     if (modoAtivo === "cliente") {

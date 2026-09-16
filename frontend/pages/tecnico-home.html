@@ -38,6 +38,10 @@
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                     <span>Painel técnico</span>
                 </a>
+                <a href="/perfil" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    <span>Meu perfil</span>
+                </a>
             </nav>
 
             <div class="sidebar-bottom">
@@ -93,27 +97,13 @@
                     </div>
                 </section>
 
-                <!-- ===== RESTRIÇÃO DE HORÁRIO ===== -->
+                <!-- ===== RESTRIÇÃO DE HORÁRIO (agora em /perfil) ===== -->
                 <section class="section-block">
                     <div class="section-header">
-                        <h2>Meu horário de atendimento</h2>
+                        <h2>Horário de atendimento</h2>
+                        <a href="/perfil" class="section-link">Ajustar no perfil</a>
                     </div>
-                    <p class="section-subtitle">
-                        Fora dessa faixa você não recebe aviso de novas solicitações — elas continuam
-                        aparecendo no painel.
-                    </p>
-
-                    <div class="horario-form">
-                        <div class="input-group">
-                            <label for="horarioInicio">A partir de</label>
-                            <input type="time" id="horarioInicio" required>
-                        </div>
-                        <div class="input-group">
-                            <label for="horarioFim">Até</label>
-                            <input type="time" id="horarioFim" required>
-                        </div>
-                        <button type="button" class="primary-btn" id="horarioSalvarBtn">Salvar horário</button>
-                    </div>
+                    <p class="section-subtitle">Ajuste no seu perfil a faixa em que você aceita ser acionado. Fora dela o aviso de novas solicitações não é enviado — elas continuam aparecendo no painel.</p>
                 </section>
 
                 <!-- ===== SOLICITAÇÕES PENDENTES ===== -->
@@ -171,6 +161,10 @@
     </div>
 
     <script src="/js/html-utils.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/ui.js"></script>
+    <script src="/js/avaliacao-ui.js"></script>
+    <script src="/js/chat-ui.js"></script>
     <script src="/js/tecnico-home.js"></script>
 </body>
 </html>

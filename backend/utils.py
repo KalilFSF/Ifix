@@ -17,10 +17,23 @@ cloudinary.config(
     api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
 )
 
+from flask import request
 from werkzeug.utils import secure_filename
 
 IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 DOCUMENT_EXTENSIONS = IMAGE_EXTENSIONS | {"pdf"}
+
+
+def corpo_json():
+    """Corpo JSON da requisição, garantidamente um dict.
+
+    `request.get_json(silent=True) or {}` (o padrão antigo nos Controllers)
+    aceita array e string: um POST com `[1,2]` passava reto e estourava
+    AttributeError no primeiro `dados.get(...)` do Service — 500 em vez do
+    400 que a entrada merecia.
+    """
+    dados = request.get_json(silent=True)
+    return dados if isinstance(dados, dict) else {}
 
 
 def somente_digitos(valor):

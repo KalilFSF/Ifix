@@ -24,6 +24,13 @@ class Usuario(UserMixin, db.Model):
     senha_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False)
 
+    # Foto de perfil (URL do Cloudinary). Fica em Usuario, e não só em
+    # PerfilTecnico, porque ter rosto na conta não é atributo de técnico:
+    # o cliente também aparece pro técnico no painel dele. Para técnicos
+    # antigos o valor pode estar nulo aqui e preenchido em
+    # PerfilTecnico.foto_perfil — to_dict() resolve com fallback.
+    foto_perfil = db.Column(db.String(255))
+
     pais = db.Column(db.String(50), nullable=False, default="Brasil")
     cep = db.Column(db.String(9))
     estado = db.Column(db.String(2))
@@ -99,10 +106,23 @@ class Usuario(UserMixin, db.Model):
         db.session.commit()
         return self
 
+    # cep/bairro/numero/complemento entraram na lista: eles existem como
+    # coluna desde sempre, mas PATCH /api/me os descartava em silêncio —
+    # quem mandasse um CEP novo recebia 200 e nada mudava.
+    CAMPOS_EDITAVEIS = (
+        "nome", "telefone", "cep", "estado", "cidade", "bairro",
+        "endereco", "numero", "complemento", "foto_perfil",
+        "latitude", "longitude",
+    )
+
     def atualizar(self, dados):
-        for campo in ("nome", "telefone", "cidade", "estado", "endereco", "latitude", "longitude"):
+        for campo in self.CAMPOS_EDITAVEIS:
             if campo in dados:
                 setattr(self, campo, dados[campo])
+        return self.salvar()
+
+    def definir_foto_perfil(self, url):
+        self.foto_perfil = url
         return self.salvar()
 
     def remover(self):
@@ -195,8 +215,20 @@ class Usuario(UserMixin, db.Model):
             "telefone": self.telefone,
             "cpf": self.cpf,
             "role": self.role,
+            "eh_tecnico": self.eh_tecnico,
+            # Fallback pra foto do perfil técnico: quem virou técnico antes
+            # desta coluna existir tem a foto só lá, e ela continua valendo.
+            "foto_perfil": self.foto_perfil or (
+                self.perfil_tecnico.foto_perfil if self.perfil_tecnico else None
+            ),
+            "data_nascimento": self.data_nascimento.isoformat() if self.data_nascimento else None,
+            "cep": self.cep,
             "cidade": self.cidade,
             "estado": self.estado,
+            "bairro": self.bairro,
+            "endereco": self.endereco,
+            "numero": self.numero,
+            "complemento": self.complemento,
             "pais": self.pais,
             "latitude": self.latitude,
             "longitude": self.longitude,

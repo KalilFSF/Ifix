@@ -4,39 +4,36 @@
    POST /api/conta/tornar-tecnico — que anexa o perfil técnico e troca o
    role da MESMA conta, sem criar uma conta nova. */
 
-const form = document.getElementById("tornarTecnicoForm");
-const mensagem = document.getElementById("mensagem");
+const formTornarTecnico = document.getElementById("tornarTecnicoForm");
 
-function mostrarErro(texto) {
-    mensagem.textContent = texto;
-    mensagem.className = "mensagem mensagem-erro";
-}
-
-form.addEventListener("submit", async (evento) => {
+formTornarTecnico.addEventListener("submit", async (evento) => {
     evento.preventDefault();
 
-    const botao = form.querySelector("button[type=submit]");
+    const botao = formTornarTecnico.querySelector("button[type=submit]");
+    const textoOriginal = botao.textContent;
     botao.disabled = true;
+    botao.textContent = "Enviando...";
+    limparMensagem();
 
-    const formData = new FormData(form);
+    const formData = new FormData(formTornarTecnico);
     // A conta pode já existir de antes desse recurso (sem lat/long
     // capturados no cadastro de cliente) — captura de novo aqui, já que a
     // localização do técnico é o que move o ranking automático.
     anexarCoordenadas(formData, await coordenadasPromise);
 
-    const resposta = await fetch("/api/conta/tornar-tecnico", {
-        method: "POST",
-        body: formData,
-    });
-    const dados = await resposta.json();
+    const resultado = await enviarFormulario("/api/conta/tornar-tecnico", formData);
 
-    if (!dados.ok) {
-        mostrarErro(dados.erro);
-        botao.disabled = false;
+    // Reabilitar SEMPRE: antes, qualquer falha deixava o botão desabilitado
+    // para sempre e o usuário sem saber o que tinha acontecido.
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+
+    if (!resultado.ok) {
+        mostrarErro(resultado.erro);
         return;
     }
 
-    window.location.href = dados.redirect;
+    window.location.href = resultado.dados.redirect;
 });
 
 avisarSeSemLocalizacao("avisoLocalizacao");
