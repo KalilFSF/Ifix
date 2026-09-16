@@ -18,12 +18,11 @@ class AtualizarStatusServicoService:
     dependendo de QUEM está pedindo (ver STATUS_TECNICO_CHOICES e
     STATUS_CLIENTE_CHOICES em constants.py):
 
-    - técnico responsável: conduz o reparo até "em reparo";
-    - cliente dono: confirma a conclusão ("finalizado"), e só ele.
+    - técnico responsável: conduz o reparo e pode concluí-lo;
+    - cliente dono: pode confirmar a conclusão ("finalizado").
 
     As duas travas de finalização (autorização de custo pendente e laudo
-    ausente) continuam valendo, mas agora são lidas pelo cliente — por isso
-    as mensagens são escritas na voz dele."""
+    ausente) valem para os dois participantes."""
 
     def executar(self, servico_id, novo_status, usuario):
         servico = Servico.buscar_por_id(servico_id)
@@ -44,10 +43,10 @@ class AtualizarStatusServicoService:
             raise ValidacaoError("Este chamado já foi encerrado e não pode mudar de status.")
 
         if novo_status not in permitidos:
-            raise ValidacaoError(self._motivo_status_negado(novo_status, eh_tecnico_do_chamado))
+            raise ValidacaoError(self._motivo_status_negado(novo_status))
 
         if novo_status == STATUS_FINALIZADO:
-            self._validar_conclusao(servico)
+            self._validar_conclusao(servico, eh_tecnico_do_chamado)
 
         status_anterior = servico.status
         servico.atualizar_status(novo_status)
@@ -56,41 +55,38 @@ class AtualizarStatusServicoService:
         return servico
 
     @staticmethod
-    def _motivo_status_negado(novo_status, eh_tecnico):
-        if novo_status == STATUS_FINALIZADO and eh_tecnico:
-            return (
-                "A conclusão do chamado é confirmada pelo cliente. "
-                "Deixe o chamado em reparo e registre o laudo técnico."
-            )
+    def _motivo_status_negado(novo_status):
         return f"Status inválido: {novo_status}"
 
     @staticmethod
-    def _validar_conclusao(servico):
+    def _validar_conclusao(servico, eh_tecnico):
         if servico.status != STATUS_MINIMO_PARA_FINALIZAR:
             raise ValidacaoError(
                 "O chamado só pode ser concluído depois que o técnico colocá-lo em reparo."
             )
-        # A autorização pendente vem primeiro de propósito: ela depende de uma
-        # ação do próprio cliente, então é o que ele resolve agora. O laudo
-        # depende do técnico, e ele não tem o que fazer além de esperar.
         # Funcionalidades 6 e 7: concluir com pedido pendente daria por
         # encerrado um serviço com custo que ninguém autorizou.
         if SolicitacaoAprovacao.buscar_pendente_do_servico(servico.id):
-            raise ValidacaoError(
-                "Responda à autorização de custo pendente antes de concluir o chamado."
+            mensagem = (
+                "Aguarde o cliente responder à autorização de custo pendente antes de concluir o chamado."
+                if eh_tecnico
+                else "Responda à autorização de custo pendente antes de concluir o chamado."
             )
+            raise ValidacaoError(mensagem)
         # Sem isso o cliente ficaria sem explicação nenhuma do que houve com o
         # aparelho, e a reincidência por modelo (funcionalidade 10) não teria
         # dado nenhum pra agregar.
         if not servico.tem_laudo:
-            raise ValidacaoError(
-                "O técnico ainda não enviou o relatório técnico. Aguarde a conclusão do reparo."
+            mensagem = (
+                "Registre o relatório técnico antes de concluir o chamado."
+                if eh_tecnico
+                else "O técnico ainda não enviou o relatório técnico. Aguarde a conclusão do reparo."
             )
+            raise ValidacaoError(mensagem)
 
     @staticmethod
     def _notificar_outro_participante(servico, novo_status, autor):
-        """Quem recebe o aviso é sempre o outro lado — se o cliente finaliza,
-        mandar o e-mail pra ele mesmo não informaria ninguém."""
+        """Quem recebe o aviso é sempre o outro lado do chamado."""
         destinatario = servico.tecnico if autor.id == servico.cliente_id else servico.cliente
         if not destinatario or not destinatario.email:
             return

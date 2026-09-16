@@ -25,12 +25,11 @@ const STATUS_BADGE_CLASS = {
    concluídas/qual é a atual/quais ainda são futuras. */
 const STATUS_ORDEM = ["aguardando", "em_analise", "em_reparo", "finalizado"];
 
-/* O que o TÉCNICO pode definir. "finalizado" continua no stepper (é uma
-   etapa do serviço e precisa aparecer no progresso), mas saiu dos botões:
-   quem confirma a conclusão é o cliente, que é quem recebe o aparelho de
-   volta e sabe se o problema foi resolvido. Espelha STATUS_TECNICO_CHOICES
-   em backend/constants.py — lá a regra é aplicada de verdade. */
-const STATUS_ACOES_TECNICO = ["aguardando", "em_analise", "em_reparo"];
+/* O que o TÉCNICO pode definir. A conclusão só é aceita pelo backend depois
+   que o chamado chegou a "em reparo", o laudo foi registrado e não há
+   autorização de custo pendente. Espelha STATUS_TECNICO_CHOICES em
+   backend/constants.py — lá a regra é aplicada de verdade. */
+const STATUS_ACOES_TECNICO = ["aguardando", "em_analise", "em_reparo", "finalizado"];
 
 const STATUS_ICONES = {
     aguardando: '<circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>',
@@ -78,6 +77,13 @@ const elModalClose = document.getElementById("detalheClose");
 
 function formatarMoeda(valor) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
+}
+
+function valorOrcadoCliente(servico) {
+    if (servico.valor_maximo_aprovado !== null && servico.valor_maximo_aprovado !== undefined) {
+        return servico.valor_maximo_aprovado;
+    }
+    return servico.preco_estimado;
 }
 
 function formatarData(isoString) {
@@ -238,7 +244,7 @@ function renderizarTabela() {
                     <span class="status-badge ${badgeClasse}">${badgeLabel}</span>
                     ${servico.mensagens_nao_lidas ? `<span class="chat-badge" title="Mensagens não lidas">${servico.mensagens_nao_lidas}</span>` : ""}
                 </td>
-                <td>${formatarMoeda(servico.preco_estimado)}</td>
+                <td>${formatarMoeda(valorOrcadoCliente(servico))}</td>
                 <td class="painel-abrir">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                 </td>
@@ -318,7 +324,7 @@ function montarEstruturaModalSolicitacao(solicitacao) {
 
         <div class="modal-info-grid">
             <div><span>Tipo</span><p>${tipo}</p></div>
-            <div><span>Valor de referência do cliente</span><p>${formatarMoeda(servico.preco_estimado)}</p></div>
+            <div><span>Valor de referência do cliente</span><p>${formatarMoeda(valorOrcadoCliente(servico))}</p></div>
             <div><span>Cliente</span><p>${cliente.nome || "-"}</p></div>
             <div><span>Telefone</span><p>${cliente.telefone || "-"}</p></div>
         </div>
@@ -518,8 +524,8 @@ function montarEstruturaModal(servico) {
                 <p class="painel-equipamento">${escaparHtml(servico.equipamento || servico.categoria)}</p>
             </div>
             <div class="detalhe-valor-card">
-                <span>Valor estimado</span>
-                <strong id="detalheValor">${formatarMoeda(servico.preco_estimado)}</strong>
+                <span>Valor orçado pelo cliente</span>
+                <strong id="detalheValor">${formatarMoeda(valorOrcadoCliente(servico))}</strong>
                 ${servico.garantia ? `<small class="detalhe-garantia">Garantia iFix (+7% · 10 dias)</small>` : ""}
             </div>
         </div>
@@ -569,8 +575,8 @@ function montarEstruturaModal(servico) {
                     </div>
                     <p class="historico-item-texto">
                         ${servico.status === "finalizado"
-                            ? "O cliente confirmou a conclusão deste chamado."
-                            : "A conclusão é confirmada pelo cliente. Deixe o chamado em reparo e envie o relatório técnico — ele será avisado."}
+                            ? "Este chamado foi concluído."
+                            : "Para finalizar, deixe o chamado em reparo, envie o relatório técnico e aguarde a resposta de autorizações pendentes."}
                     </p>
                 </div>
 
@@ -846,8 +852,8 @@ function aplicarEstadoServico(servico, opcoes = {}) {
     }
 
     const valorEl = document.getElementById("detalheValor");
-    if (valorEl && servico.preco_estimado !== undefined) {
-        valorEl.textContent = formatarMoeda(servico.preco_estimado);
+    if (valorEl && (servico.valor_maximo_aprovado !== undefined || servico.preco_estimado !== undefined)) {
+        valorEl.textContent = formatarMoeda(valorOrcadoCliente(servico));
     }
 
     const indiceAtual = STATUS_ORDEM.indexOf(servico.status);
@@ -961,14 +967,14 @@ async function atualizarStatusDoChamado(novoStatus) {
     const servicoConhecido = servicos.find(item => item.id === servicoId) || {};
 
     estadoModal.status = novoStatus;
-    aplicarEstadoServico({ status: novoStatus, preco_estimado: servicoConhecido.preco_estimado }, { animar: true });
+    aplicarEstadoServico({ ...servicoConhecido, status: novoStatus }, { animar: true });
     travarBotoesStatus(true);
 
     const resultado = await enviarJson(`/api/servicos/${servicoId}/status`, { status: novoStatus }, "PATCH");
 
     if (!resultado.ok) {
         estadoModal.status = statusAnterior;
-        aplicarEstadoServico({ status: statusAnterior, preco_estimado: servicoConhecido.preco_estimado }, { animar: false });
+        aplicarEstadoServico({ ...servicoConhecido, status: statusAnterior }, { animar: false });
         travarBotoesStatus(false);
         mostrarToast(resultado.erro);
         return;

@@ -2,7 +2,6 @@ from flask import current_app
 
 from constants import (
     CATEGORIAS_PROBLEMA,
-    GARANTIA_PERCENTUAL,
     MAX_BYTES_FOTO_CHAMADO,
     MAX_FOTOS_CHAMADO,
     STATUS_ABERTO,
@@ -85,15 +84,11 @@ class CriarServicoService:
         if preco < 0:
             raise ValidacaoError("O valor estimado não pode ser negativo.")
 
-        # O teto de gasto (funcionalidade 6) é o valor que o cliente digitou,
-        # capturado ANTES do acréscimo da garantia: o limite é sobre o que ele
-        # aceita gastar em reparo, não sobre a taxa opcional de garantia.
+        # O teto de gasto (funcionalidade 6) e o valor de referência são o
+        # valor que o cliente digitou. A taxa opcional da garantia não compõe
+        # o orçamento do reparo e, portanto, não é enviada ao técnico.
         # Zero/vazio = não quis definir teto (fica None, sem limite).
         valor_maximo = preco if preco > 0 else None
-
-        # Se já houver valor e a garantia estiver marcada, aplica +7%.
-        if garantia and preco > 0:
-            preco = round(preco * (1 + GARANTIA_PERCENTUAL), 2)
 
         # Localização do chamado: por padrão herda do endereço cadastrado do
         # cliente. Aceita latitude/longitude explícitos no payload (ex: um

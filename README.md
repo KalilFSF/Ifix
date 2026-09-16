@@ -147,14 +147,14 @@ http://127.0.0.1:5000
   `?desde=<id>` pra trazer só o incremento.
 - **Painel do técnico**: solicitações pendentes com detalhe completo antes
   de decidir, lista dos próprios chamados com filtro por status e busca,
-  barra de progresso animada, atualização de status e histórico. O técnico
-  conduz o reparo até **Em reparo**; ele **não** declara o serviço
-  concluído — quem confirma é o cliente.
-- **Confirmação de conclusão** (cliente): com o chamado em reparo, o laudo
-  enviado e nenhuma autorização de custo pendente, o cliente clica em
-  **Confirmar conclusão** em Meus chamados. Só então o status vira
-  `finalizado` e o prazo da garantia começa a correr
-  (`servicos.finalizado_em`).
+  barra de progresso animada, atualização de status e histórico. Depois de
+  deixar o chamado **Em reparo**, registrar o laudo e resolver autorizações
+  pendentes, o técnico pode marcá-lo como **Finalizado**.
+- **Confirmação de conclusão**: com o chamado em reparo, o laudo enviado e
+  nenhuma autorização de custo pendente, tanto o técnico quanto o cliente
+  podem finalizar. No painel do cliente, a ação aparece como **Confirmar
+  conclusão** em Meus chamados. O prazo da garantia começa quando o status
+  vira `finalizado` (`servicos.finalizado_em`).
 - **Notificação por e-mail** (via Brevo): quem recebe o aviso é sempre o
   outro lado — o cliente, quando o técnico muda o status; o técnico,
   quando o cliente confirma a conclusão, deixa gorjeta ou autoriza custo.
@@ -177,7 +177,8 @@ http://127.0.0.1:5000
   título, descrição, limite máximo de gasto e até 5 fotos (5 MB cada).
 - **Limite de gasto + autorização remota**: o valor informado na abertura é
   um teto de verdade (`servicos.valor_maximo_aprovado`), guardado separado
-  do `preco_estimado` porque este último recebe o acréscimo da garantia.
+  do `preco_estimado` porque o teto pode ser elevado depois por autorizações.
+  A taxa da garantia não compõe o valor de referência enviado ao técnico.
   Achou um problema novo no meio do reparo, o técnico não executa por conta
   própria: abre um pedido com descrição e valor, e o cliente autoriza ou
   recusa de onde estiver. Aprovar soma o valor ao teto, então o limite
@@ -251,7 +252,7 @@ As que entraram (ou passaram a ter tela) nesta etapa:
 | POST | `/api/servicos/<id>/ampliar-busca` | dobra o raio e avisa técnicos novos |
 | PATCH | `/api/servicos/<id>/teto` | eleva o valor máximo (chamado ainda aberto) |
 | POST | `/api/servicos/<id>/gorjeta` | registra gorjeta após a conclusão |
-| PATCH | `/api/servicos/<id>/status` | técnico: até `em_reparo`; cliente: só `finalizado` |
+| PATCH | `/api/servicos/<id>/status` | técnico: conduz e finaliza; cliente: confirma `finalizado` |
 
 ## Como testar o fluxo pelo navegador
 
@@ -285,8 +286,8 @@ O roteiro abaixo é o caminho feliz, de ponta a ponta. Precisa de
      bloqueado.
    - **Relatório técnico**: escolha a causa do defeito e explique o que
      houve. Sem isso o cliente não consegue confirmar.
-   Com os dois resolvidos, volte como cliente e clique em
-   **Confirmar conclusão**.
+   Com os dois resolvidos, finalize no painel do técnico ou volte como
+   cliente e clique em **Confirmar conclusão**.
 7. Com o chamado finalizado, cliente e técnico já podem se avaliar
    mutuamente pelos respectivos painéis. O cliente também pode deixar uma
    **gorjeta**. Se o chamado foi aberto com garantia, o cliente vê o bloco

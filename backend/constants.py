@@ -7,19 +7,17 @@ STATUS_EM_ANALISE = "em_analise"
 STATUS_EM_REPARO = "em_reparo"
 # PAGAMENTO: entraria aqui — antes de permitir a transição pra
 # STATUS_FINALIZADO (ver AtualizarStatusServicoService), exigindo
-# confirmação de pagamento. Não implementado nesta etapa: por ora o
-# técnico finaliza o chamado diretamente.
+# confirmação de pagamento. Não implementado nesta etapa: técnico e cliente
+# podem concluir o chamado depois que os requisitos do reparo forem atendidos.
 STATUS_FINALIZADO = "finalizado"
 STATUS_CANCELADO = "cancelado"
 
 # Quem pode definir o quê em PATCH /api/servicos/<id>/status.
 #
-# O técnico conduz o reparo, mas NÃO declara o serviço concluído: quem
-# recebe o aparelho de volta é o cliente, e só ele sabe se o problema foi
-# de fato resolvido. O técnico avança até "em reparo" e registra o laudo;
-# o chamado só fecha quando o cliente confirma. Isso também dá ao cliente a
-# chance de acionar a garantia antes que o prazo comece a correr — ele
-# começa em servicos.finalizado_em.
+# O técnico conduz o reparo e pode concluí-lo depois de registrar o laudo e
+# resolver as autorizações pendentes. O cliente também pode confirmar a
+# conclusão. Nos dois casos, o prazo da garantia começa em
+# servicos.finalizado_em.
 #
 # "aberto" fica de fora dos dois: é o estado inicial, antes de qualquer
 # técnico aceitar, e não se volta pra ele.
@@ -27,6 +25,7 @@ STATUS_TECNICO_CHOICES = (
     STATUS_AGUARDANDO,
     STATUS_EM_ANALISE,
     STATUS_EM_REPARO,
+    STATUS_FINALIZADO,
 )
 
 STATUS_CLIENTE_CHOICES = (STATUS_FINALIZADO,)
