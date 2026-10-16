@@ -76,6 +76,7 @@ def create_app():
     from page_routes import pages_bp
     from modules.atendimentos.routes import atendimentos_bp
     from modules.chat.routes import chat_bp
+    from modules.notificacoes.routes import notificacoes_bp
     from modules.servicos.routes import servicos_bp
     from modules.usuarios.routes import usuarios_bp
 
@@ -84,6 +85,7 @@ def create_app():
     app.register_blueprint(servicos_bp)
     app.register_blueprint(atendimentos_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(notificacoes_bp)
 
     # Garante que as pastas usadas pelo app existam antes de qualquer upload/uso,
     # já que elas não são versionadas no git (uploads de usuário).
@@ -127,6 +129,9 @@ def _garantir_colunas_novas():
             ("finalizado_em", "ALTER TABLE servicos ADD COLUMN finalizado_em TIMESTAMP"),
             ("raio_busca_km", "ALTER TABLE servicos ADD COLUMN raio_busca_km INTEGER"),
             ("gorjeta", "ALTER TABLE servicos ADD COLUMN gorjeta NUMERIC(10, 2)"),
+            ("urgente", "ALTER TABLE servicos ADD COLUMN urgente BOOLEAN NOT NULL DEFAULT FALSE"),
+            ("urgencia_prazo_em", "ALTER TABLE servicos ADD COLUMN urgencia_prazo_em TIMESTAMP"),
+            ("modalidade", "ALTER TABLE servicos ADD COLUMN modalidade VARCHAR(20) NOT NULL DEFAULT 'loja'"),
         ],
         "usuarios": [
             ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
@@ -141,6 +146,8 @@ def _garantir_colunas_novas():
             ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),
             ("nota_media", "ALTER TABLE perfis_tecnicos ADD COLUMN nota_media NUMERIC(3, 2)"),
             ("total_avaliacoes", "ALTER TABLE perfis_tecnicos ADD COLUMN total_avaliacoes INTEGER NOT NULL DEFAULT 0"),
+            ("modalidades", "ALTER TABLE perfis_tecnicos ADD COLUMN modalidades VARCHAR(60)"),
+            ("disponivel_ate", "ALTER TABLE perfis_tecnicos ADD COLUMN disponivel_ate TIMESTAMP"),
         ],
         "atendimentos": [
             ("prazo_estimado_dias", "ALTER TABLE atendimentos ADD COLUMN prazo_estimado_dias INTEGER"),
@@ -210,6 +217,9 @@ def _garantir_cascade_exclusao():
         ("avaliacoes", "avaliado_id", "usuarios", "CASCADE"),
         ("mensagens_chamado", "servico_id", "servicos", "CASCADE"),
         ("mensagens_chamado", "autor_id", "usuarios", "CASCADE"),
+        ("janelas_disponibilidade", "tecnico_id", "usuarios", "CASCADE"),
+        ("notificacoes", "usuario_id", "usuarios", "CASCADE"),
+        ("notificacoes", "servico_id", "servicos", "CASCADE"),
     ]
 
     with db.engine.begin() as conn:

@@ -1,6 +1,12 @@
-from constants import ORCAMENTO_PENDENTE, SOLICITACAO_PENDENTE
+from constants import (
+    MAX_ORCAMENTOS_POR_CHAMADO,
+    NOTIFICACAO_ORCAMENTO_RECEBIDO,
+    ORCAMENTO_PENDENTE,
+    SOLICITACAO_PENDENTE,
+)
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, SolicitacaoJaRespondidaError, ValidacaoError
 from modules.atendimentos.models.atendimento import Atendimento
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.solicitacao import SolicitacaoTecnico
 
 
@@ -26,6 +32,16 @@ class EnviarOrcamentoService:
         observacoes = (dados.get("observacoes") or "").strip()
 
         servico = solicitacao.servico
+        atendimento_existente = Atendimento.buscar_por_servico_e_tecnico(servico.id, tecnico_id)
+
+        # Comparativo de propostas (funcionalidade 8): o cliente compara no
+        # máximo MAX_ORCAMENTOS_POR_CHAMADO. O limite só barra um técnico
+        # novo — quem já tem orçamento no chamado não é contado de novo.
+        if atendimento_existente is None and Atendimento.contar_orcamentos_do_servico(servico.id) >= MAX_ORCAMENTOS_POR_CHAMADO:
+            raise ValidacaoError(
+                f"Este chamado já recebeu o máximo de {MAX_ORCAMENTOS_POR_CHAMADO} orçamentos."
+            )
+
         # Teto de gasto (funcionalidade 6): orçamento acima do limite do
         # cliente é permitido, mas fica marcado — bloquear aqui deixaria um
         # chamado de teto baixo sem nenhum orçamento, e quem decide se o
@@ -41,13 +57,20 @@ class EnviarOrcamentoService:
             "cliente_id": servico.cliente_id,
         }
 
-        atendimento_existente = Atendimento.buscar_por_servico_e_tecnico(servico.id, tecnico_id)
         if atendimento_existente:
             atendimento = atendimento_existente.atualizar(dados_atendimento)
         else:
             atendimento = Atendimento.criar(dados_atendimento, servico.id, tecnico_id, "tecnico")
 
         solicitacao.marcar_orcamento_enviado()
+        RegistrarNotificacaoService.executar(
+            servico.cliente_id,
+            "cliente",
+            NOTIFICACAO_ORCAMENTO_RECEBIDO,
+            "Novo orçamento",
+            f"Você recebeu um orçamento para o chamado {servico.codigo} ({servico.titulo}).",
+            servico.id,
+        )
         return atendimento
 
     @staticmethod

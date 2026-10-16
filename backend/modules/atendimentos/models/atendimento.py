@@ -85,6 +85,12 @@ class Atendimento(db.Model):
         return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).first()
 
     @classmethod
+    def contar_orcamentos_do_servico(cls, servico_id):
+        """Orçamentos já enviados (com valor) pro chamado — usado pelo limite
+        de MAX_ORCAMENTOS_POR_CHAMADO em EnviarOrcamentoService."""
+        return cls.query.filter(cls.servico_id == servico_id, cls.valor_orcamento.isnot(None)).count()
+
+    @classmethod
     def listar_por_servico(cls, servico_id):
         return cls.query.filter_by(servico_id=servico_id).order_by(cls.criado_em).all()
 

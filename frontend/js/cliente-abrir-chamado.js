@@ -108,6 +108,7 @@ function parseValorMaximo(valor) {
 function validarFormulario() {
     const tipo = document.getElementById("tipo_equipamento").value;
     const categoria = document.getElementById("categoria").value;
+    const modalidade = document.getElementById("modalidade").value;
     const equipamento = document.getElementById("equipamento").value.trim();
     const titulo = document.getElementById("titulo").value.trim();
     const descricao = document.getElementById("descricao").value.trim();
@@ -118,6 +119,9 @@ function validarFormulario() {
     }
     if (!["hardware", "software"].includes(categoria)) {
         return "Selecione a categoria do problema.";
+    }
+    if (!["loja", "domicilio", "remoto"].includes(modalidade)) {
+        return "Selecione a modalidade de atendimento.";
     }
     if (equipamento.length < 2) {
         return "Informe o modelo do equipamento.";
@@ -153,6 +157,7 @@ form.addEventListener("submit", async (evento) => {
 
     body.append("tipo_equipamento", document.getElementById("tipo_equipamento").value);
     body.append("categoria", document.getElementById("categoria").value);
+    body.append("modalidade", document.getElementById("modalidade").value);
     body.append("equipamento", document.getElementById("equipamento").value.trim());
     body.append("titulo", document.getElementById("titulo").value.trim());
     body.append("descricao", document.getElementById("descricao").value.trim());
@@ -161,6 +166,9 @@ form.addEventListener("submit", async (evento) => {
     }
     if (document.getElementById("garantia").checked) {
         body.append("garantia", "1");
+    }
+    if (document.getElementById("urgente").checked) {
+        body.append("urgente", "1");
     }
     arquivosSelecionados.forEach(arquivo => body.append("fotos", arquivo));
 
@@ -188,7 +196,7 @@ form.addEventListener("submit", async (evento) => {
     const notificados = dados.tecnicos_notificados;
     mostrarToast(
         notificados === 0
-            ? `Chamado ${dados.servico.codigo} aberto, mas nenhum técnico foi encontrado perto de você. Amplie a busca em Meus chamados.`
+            ? `Chamado ${dados.servico.codigo} aberto, mas nenhum técnico que atenda esta modalidade foi encontrado perto de você. Amplie a busca em Meus chamados.`
             : `Chamado ${dados.servico.codigo} aberto com sucesso.`,
     );
 
@@ -201,6 +209,7 @@ form.addEventListener("submit", async (evento) => {
     iniciarSidebarMobile();
     iniciarChoiceCards();
     iniciarUpload();
+    iniciarHistoricoAparelho("equipamento", "historicoAparelho");
     avisarSeSemLocalizacao("avisoLocalizacao");
 
     const dados = await iniciarRoleChips("cliente");

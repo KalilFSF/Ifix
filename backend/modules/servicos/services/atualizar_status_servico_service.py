@@ -1,4 +1,5 @@
 from constants import (
+    NOTIFICACAO_STATUS,
     STATUS_CLIENTE_CHOICES,
     STATUS_FINALIZADO,
     STATUS_LABELS_EMAIL,
@@ -7,6 +8,7 @@ from constants import (
     STATUS_TERMINAIS,
 )
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.aprovacao import SolicitacaoAprovacao
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import Servico
@@ -87,11 +89,23 @@ class AtualizarStatusServicoService:
     @staticmethod
     def _notificar_outro_participante(servico, novo_status, autor):
         """Quem recebe o aviso é sempre o outro lado do chamado."""
-        destinatario = servico.tecnico if autor.id == servico.cliente_id else servico.cliente
-        if not destinatario or not destinatario.email:
+        autor_eh_cliente = autor.id == servico.cliente_id
+        destinatario = servico.tecnico if autor_eh_cliente else servico.cliente
+        if not destinatario:
             return
 
         rotulo = STATUS_LABELS_EMAIL.get(novo_status, novo_status)
+        RegistrarNotificacaoService.executar(
+            destinatario.id,
+            "tecnico" if autor_eh_cliente else "cliente",
+            NOTIFICACAO_STATUS,
+            f"Chamado {rotulo.lower()}",
+            f"O chamado {servico.codigo} ({servico.titulo}) agora está: {rotulo}.",
+            servico.id,
+        )
+        if not destinatario.email:
+            return
+
         corpo_html = f"""
             <p>Olá, {destinatario.nome}!</p>
             <p>O status do chamado <strong>{servico.codigo}</strong> ({servico.titulo}) foi atualizado:</p>

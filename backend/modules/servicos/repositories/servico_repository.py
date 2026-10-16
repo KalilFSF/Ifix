@@ -20,3 +20,12 @@ class ServicoRepository:
             {"usuario_id": usuario_id, "como": como, "status": status},
         )
         return [linha[0] for linha in resultado]
+
+    def buscar_historico_aparelho(self, cliente_id, equipamento, excluir_servico_id=None):
+        """Chamados anteriores do mesmo cliente para o mesmo aparelho
+        (funcionalidade 10) — procedure fn_historico_aparelho."""
+        resultado = db.session.execute(
+            text("SELECT * FROM fn_historico_aparelho(:cliente_id, :equipamento, CAST(:excluir_id AS integer))"),
+            {"cliente_id": cliente_id, "equipamento": equipamento, "excluir_id": excluir_servico_id},
+        )
+        return [linha[0] for linha in resultado]

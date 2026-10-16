@@ -4,6 +4,7 @@ from constants import (
     CATEGORIAS_PROBLEMA,
     MAX_BYTES_FOTO_CHAMADO,
     MAX_FOTOS_CHAMADO,
+    MODALIDADES,
     STATUS_ABERTO,
     TIPOS_EQUIPAMENTO,
 )
@@ -64,11 +65,15 @@ class CriarServicoService:
         titulo = (dados.get("titulo") or "").strip()
         descricao = (dados.get("descricao") or "").strip()
         garantia = self._parse_bool(dados.get("garantia"))
+        urgente = self._parse_bool(dados.get("urgente"))
+        modalidade = (dados.get("modalidade") or "").strip().lower()
 
         if tipo not in TIPOS_EQUIPAMENTO:
             raise ValidacaoError("Selecione o tipo de computador (notebook ou desktop).")
         if categoria not in CATEGORIAS_PROBLEMA:
             raise ValidacaoError("Selecione a categoria do problema (hardware ou software).")
+        if modalidade not in MODALIDADES:
+            raise ValidacaoError("Selecione a modalidade de atendimento (loja, visita domiciliar ou remoto).")
         if not equipamento or len(equipamento) < 2:
             raise ValidacaoError("Informe o modelo do equipamento.")
         if not titulo or len(titulo) < 3:
@@ -109,6 +114,8 @@ class CriarServicoService:
             "preco_estimado": preco,
             "valor_maximo_aprovado": valor_maximo,
             "garantia": garantia,
+            "urgente": urgente,
+            "modalidade": modalidade,
             "latitude": latitude,
             "longitude": longitude,
         }

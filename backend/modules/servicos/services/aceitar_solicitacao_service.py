@@ -1,5 +1,6 @@
-from constants import STATUS_AGUARDANDO
+from constants import NOTIFICACAO_TECNICO_DEFINIDO, STATUS_AGUARDANDO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, SolicitacaoJaRespondidaError
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.solicitacao import SolicitacaoTecnico
 
@@ -23,5 +24,14 @@ class AceitarSolicitacaoService:
 
         for outra in SolicitacaoTecnico.listar_pendentes_por_servico(servico.id, excluir_id=solicitacao.id):
             outra.marcar_recusada()
+
+        RegistrarNotificacaoService.executar(
+            servico.cliente_id,
+            "cliente",
+            NOTIFICACAO_TECNICO_DEFINIDO,
+            "Técnico definido",
+            f"Um técnico assumiu o chamado {servico.codigo} ({servico.titulo}).",
+            servico.id,
+        )
 
         return solicitacao

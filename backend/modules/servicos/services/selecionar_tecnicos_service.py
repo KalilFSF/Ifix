@@ -1,4 +1,5 @@
 from constants import (
+    BONUS_DISPONIVEL_AGORA,
     PESO_AVALIACAO,
     PESO_DISTANCIA,
     PESO_PRECO,
@@ -37,6 +38,10 @@ class SelecionarTecnicosService:
             return []
 
         candidatos = self._calcular_distancias(servico)
+        # Modalidade (funcionalidade 2): só entra quem atende a que o cliente
+        # pediu. Sem fallback pra "todos" de propósito — mandar um chamado de
+        # visita domiciliar pra quem só atende na loja gastaria o tempo dele.
+        candidatos = [c for c in candidatos if self._atende_modalidade(c, servico.modalidade)]
         if ignorar_ids:
             candidatos = [c for c in candidatos if c["usuario_id"] not in set(ignorar_ids)]
         if not candidatos:
@@ -56,9 +61,19 @@ class SelecionarTecnicosService:
                 "usuario_id": linha["usuario_id"],
                 "valor_medio": linha["valor_medio"],
                 "nota_media": linha["nota_media"],
+                "modalidades": linha["modalidades"],
+                "disponivel_agora": linha["disponivel_agora"],
                 "distancia_km": distancia_km,
             })
         return candidatos
+
+    @staticmethod
+    def _atende_modalidade(candidato, modalidade):
+        """Técnico sem modalidade configurada (nulo/vazio) atende todas."""
+        configuradas = candidato["modalidades"]
+        if not configuradas:
+            return True
+        return modalidade in configuradas.split(",")
 
     def _filtrar_por_raio(self, candidatos, raio_inicial_km=None):
         raio = raio_inicial_km or RAIO_SELECAO_TECNICOS_KM
@@ -101,6 +116,8 @@ class SelecionarTecnicosService:
                 PESO_DISTANCIA * score_distancia
                 + PESO_AVALIACAO * score_avaliacao
                 + PESO_PRECO * score_preco
+                # "Disponível agora" (funcionalidade 6) desempata, não decide.
+                + (BONUS_DISPONIVEL_AGORA if candidato["disponivel_agora"] else 0)
             )
 
     @staticmethod

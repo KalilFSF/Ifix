@@ -1,5 +1,6 @@
-from constants import APROVACAO_APROVADA, APROVACAO_STATUS_RESPOSTA
+from constants import APROVACAO_APROVADA, APROVACAO_STATUS_RESPOSTA, NOTIFICACAO_AUTORIZACAO_RESPONDIDA
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.aprovacao import SolicitacaoAprovacao
 from services.email_service import EmailService
 from utils import formatar_moeda_brl
@@ -34,6 +35,14 @@ class ResponderAprovacaoService:
         else:
             aprovacao.recusar((dados.get("justificativa_recusa") or "").strip() or None)
 
+        RegistrarNotificacaoService.executar(
+            aprovacao.tecnico_id,
+            "tecnico",
+            NOTIFICACAO_AUTORIZACAO_RESPONDIDA,
+            "Custo adicional " + ("autorizado" if status == APROVACAO_APROVADA else "recusado"),
+            f"O cliente respondeu ao pedido de custo adicional do chamado {servico.codigo}.",
+            servico.id,
+        )
         self._notificar_tecnico(servico, aprovacao)
         return aprovacao
 

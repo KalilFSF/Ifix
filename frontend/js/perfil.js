@@ -284,11 +284,26 @@ function preencherPerfilTecnico(dados) {
     const selectEscolaridade = document.getElementById("tecEscolaridade");
     selectEscolaridade.value = ESCOLARIDADES.includes(perfil.escolaridade) ? perfil.escolaridade : "";
 
+    marcarModalidades(perfil.modalidades || []);
+
     document.getElementById("perfilNotaMedia").textContent = perfil.total_avaliacoes
         ? `Nota média ${Number(perfil.nota_media).toFixed(1)} em ${perfil.total_avaliacoes} avaliação(ões).`
         : "Você ainda não recebeu avaliações.";
 
     renderizarDiplomas(dados.diplomas || []);
+}
+
+/* Modalidades de atendimento (funcionalidade 2): o backend devolve a lista
+   efetiva (técnico que nunca configurou vem com as três). */
+function marcarModalidades(modalidades) {
+    document.querySelectorAll("#tecModalidades input[type=checkbox]").forEach(caixa => {
+        caixa.checked = modalidades.includes(caixa.value);
+    });
+}
+
+function lerModalidadesMarcadas() {
+    return Array.from(document.querySelectorAll("#tecModalidades input[type=checkbox]:checked"))
+        .map(caixa => caixa.value);
 }
 
 function renderizarDiplomas(diplomas) {
@@ -300,6 +315,7 @@ function renderizarDiplomas(diplomas) {
     container.innerHTML = `
         <div class="input-group">
             <label>Diplomas enviados</label>
+            <small class="perfil-ajuda">Aparecem como certificados no seu perfil público.</small>
             <ul class="perfil-diplomas">
                 ${diplomas.map((diploma, indice) => `
                     <li><a href="${escaparHtml(diploma.arquivo)}" target="_blank" rel="noopener">Diploma ${indice + 1}</a></li>
@@ -316,6 +332,12 @@ function iniciarPerfilTecnico() {
     formulario.addEventListener("submit", async (evento) => {
         evento.preventDefault();
         const botao = evento.target.querySelector("button[type=submit]");
+        const modalidades = lerModalidadesMarcadas();
+        if (!modalidades.length) {
+            mostrarErro("Selecione ao menos uma modalidade de atendimento.", "mensagemTecnico");
+            return;
+        }
+
         botao.disabled = true;
 
         const resultado = await enviarJson("/api/tecnico/perfil", {
@@ -326,6 +348,7 @@ function iniciarPerfilTecnico() {
             cursos_experiencias: document.getElementById("tecCursos").value.trim(),
             especializacoes: document.getElementById("tecEspecializacoes").value.trim(),
             valor_medio: document.getElementById("tecValorMedio").value.trim(),
+            modalidades,
         }, "PATCH");
 
         botao.disabled = false;
@@ -338,6 +361,118 @@ function iniciarPerfilTecnico() {
         limparMensagem("mensagemTecnico");
         mostrarToast("Dados profissionais atualizados.");
     });
+}
+
+
+/* ============== Disponibilidade e perfil público (só técnico) ==============
+
+   Janelas semanais (funcionalidade 3) e "disponível agora" (funcionalidade 6).
+   O editor lê o DOM na hora de salvar/adicionar/remover, pra não perder o que
+   a pessoa já digitou numa linha ao mexer em outra. */
+
+const DIAS_SEMANA = [
+    "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira",
+    "Sexta-feira", "Sábado", "Domingo",
+];
+
+let disponivelAgoraAtivo = false;
+
+function renderizarJanelas(janelas) {
+    const container = document.getElementById("janelasLista");
+    if (!janelas.length) {
+        container.innerHTML = `<p class="perfil-ajuda">Nenhuma janela cadastrada. Os clientes verão que você não informou horários fixos.</p>`;
+        return;
+    }
+    container.innerHTML = janelas.map(janela => `
+        <div class="janela-linha">
+            <select class="janela-dia" aria-label="Dia da semana">
+                ${DIAS_SEMANA.map((dia, indice) => `<option value="${indice}" ${indice === janela.dia_semana ? "selected" : ""}>${dia}</option>`).join("")}
+            </select>
+            <input type="time" class="janela-inicio" value="${escaparHtml(janela.inicio)}" aria-label="Início">
+            <input type="time" class="janela-fim" value="${escaparHtml(janela.fim)}" aria-label="Fim">
+            <button type="button" class="janela-remover" aria-label="Remover janela">×</button>
+        </div>
+    `).join("");
+}
+
+function coletarJanelas() {
+    return Array.from(document.querySelectorAll("#janelasLista .janela-linha")).map(linha => ({
+        dia_semana: Number(linha.querySelector(".janela-dia").value),
+        inicio: linha.querySelector(".janela-inicio").value,
+        fim: linha.querySelector(".janela-fim").value,
+    }));
+}
+
+function atualizarBotaoDisponivelAgora() {
+    const botao = document.getElementById("btnDisponivelAgora");
+    botao.textContent = disponivelAgoraAtivo ? "Disponível agora — desligar" : "Indisponível — ligar";
+    botao.classList.toggle("is-ativo", disponivelAgoraAtivo);
+    botao.setAttribute("aria-pressed", String(disponivelAgoraAtivo));
+}
+
+async function iniciarDisponibilidade(dados) {
+    if (!dados.eh_tecnico || !dados.perfil) return;
+
+    document.getElementById("secaoDisponibilidade").classList.remove("hidden");
+
+    const resultado = await obterJson("/api/tecnico/disponibilidade");
+    if (resultado.ok) {
+        renderizarJanelas(resultado.dados.janelas || []);
+        disponivelAgoraAtivo = Boolean(resultado.dados.disponivel_agora);
+    } else {
+        mostrarErro(resultado.erro, "mensagemJanelas");
+    }
+    atualizarBotaoDisponivelAgora();
+
+    document.getElementById("btnAdicionarJanela").addEventListener("click", () => {
+        renderizarJanelas([...coletarJanelas(), { dia_semana: 0, inicio: "09:00", fim: "18:00" }]);
+    });
+
+    document.getElementById("janelasLista").addEventListener("click", (evento) => {
+        const botao = evento.target.closest(".janela-remover");
+        if (!botao) return;
+        const linhas = Array.from(document.querySelectorAll("#janelasLista .janela-linha"));
+        const indice = linhas.indexOf(botao.closest(".janela-linha"));
+        renderizarJanelas(coletarJanelas().filter((_, posicao) => posicao !== indice));
+    });
+
+    document.getElementById("btnSalvarJanelas").addEventListener("click", async (evento) => {
+        const botao = evento.currentTarget;
+        const janelas = coletarJanelas();
+        if (janelas.some(janela => !janela.inicio || !janela.fim)) {
+            mostrarErro("Preencha o início e o fim de todas as janelas.", "mensagemJanelas");
+            return;
+        }
+
+        botao.disabled = true;
+        const resposta = await enviarJson("/api/tecnico/disponibilidade", { janelas }, "PUT");
+        botao.disabled = false;
+
+        if (!resposta.ok) {
+            mostrarErro(resposta.erro, "mensagemJanelas");
+            return;
+        }
+        limparMensagem("mensagemJanelas");
+        renderizarJanelas(resposta.dados.janelas || []);
+        mostrarToast("Disponibilidade atualizada.");
+    });
+
+    document.getElementById("btnDisponivelAgora").addEventListener("click", async (evento) => {
+        const botao = evento.currentTarget;
+        botao.disabled = true;
+        const resposta = await enviarJson("/api/tecnico/disponivel-agora", { disponivel: !disponivelAgoraAtivo }, "PUT");
+        botao.disabled = false;
+
+        if (!resposta.ok) {
+            mostrarToast(resposta.erro);
+            return;
+        }
+        disponivelAgoraAtivo = Boolean(resposta.dados.disponivel_agora);
+        atualizarBotaoDisponivelAgora();
+        mostrarToast(disponivelAgoraAtivo ? "Você está disponível agora por 4 horas." : "Você não está mais disponível agora.");
+    });
+
+    document.getElementById("btnVerPerfilPublico").addEventListener("click", () => abrirPerfilPublico(dados.id));
 }
 
 
@@ -390,6 +525,7 @@ function iniciarSenha() {
     await preencherEndereco(dados);
     iniciarHorario(dados);
     preencherPerfilTecnico(dados);
+    iniciarDisponibilidade(dados);
 
     iniciarDadosPessoais();
     iniciarFoto();

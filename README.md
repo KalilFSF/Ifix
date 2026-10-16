@@ -31,6 +31,7 @@ backend/
                        # SolicitacaoAprovacao (custo adicional), AcionamentoGarantia
     atendimentos/       # Atendimento (orçamento), Avaliacao (avaliação mútua)
     chat/               # MensagemChamado — conversa cliente/técnico por chamado
+    notificacoes/       # Notificacao — avisos dentro do app (o "sino")
 ```
 
 Erro de domínio levantado por um Service vira resposta HTTP pelo
@@ -209,6 +210,37 @@ http://127.0.0.1:5000
   passar de novo por seleção e orçamento). O chamado de garantia não tem
   garantia própria, senão ela se renovaria pra sempre.
 
+- **Atendimento de urgência**: o cliente marca na abertura; taxa de 20% sobre
+  o orçamento escolhido (só informada, fora do teto), prazo de 2 h contado da
+  escolha do técnico (`servicos.urgencia_prazo_em`). O técnico vê o selo
+  URGENTE, as urgentes sobem na fila e o e-mail de aviso ignora a restrição de
+  horário.
+- **Modalidade de atendimento** (loja, visita domiciliar ou remoto): escolhida
+  na abertura; o técnico marca em `/perfil` o que atende e a seleção
+  automática só aciona quem atende a modalidade (técnico que nunca configurou
+  atende todas).
+- **Disponibilidade do técnico**: janelas semanais (dia + faixa de horário) e
+  o status **Disponível agora**, que vale 4 h e desempata a seleção automática.
+  Sem agendamento: as janelas são só informativas.
+- **Diretório de técnicos** (`/cliente/tecnicos`): busca por nome/especialidade
+  e filtros de modalidade, "já atuou com" hardware/software, nota mínima e
+  disponível agora. Sem preço, experiência nem nota de fora do sistema.
+- **Perfil público do técnico**: foto, nota por critério, atendimentos
+  concluídos, taxa de sucesso, tempo médio de atendimento, preço médio,
+  modalidades, horários, certificados (os diplomas enviados) e últimas
+  avaliações. Nunca mostra e-mail, telefone, CPF ou coordenadas.
+- **Selo Especialista verificado**: automático — 5 ou mais atendimentos
+  concluídos, nota média 4,5 ou mais e pelo menos 1 certificado.
+- **Comparativo de propostas**: com 2 ou mais orçamentos, destaca menor preço,
+  menor prazo e melhor avaliado; mostra selo, disponibilidade e histórico de
+  cada técnico. Cada chamado recebe no máximo 3 orçamentos.
+- **Notificações no app**: sino com contador em todas as telas autenticadas
+  (polling de 7 s) para solicitação nova, orçamento recebido, técnico
+  escolhido, mudança de status e autorização de custo.
+- **Histórico do aparelho**: ao digitar o modelo na abertura, e dentro do
+  chamado, lista os chamados anteriores do mesmo cliente para o mesmo modelo,
+  com a causa do laudo, e avisa quando a mesma causa se repete.
+
 > **Pagamento**: ponto de extensão já marcado no código (comentário em
 > `constants.py`, antes de `STATUS_FINALIZADO`), mas a lógica de pagamento
 > em si não foi implementada. Gorjeta e reembolso de garantia ficam no
@@ -243,6 +275,20 @@ As que entraram (ou passaram a ter tela) nesta etapa:
 | POST | `/api/me/senha` | troca de senha (exige a atual) |
 | PUT | `/api/me/horario-atendimento` | faixa de horário (antes nas homes) |
 | GET / PATCH | `/api/tecnico/perfil` | dados profissionais do técnico |
+
+**Técnicos e notificações** (`modules/usuarios`, `modules/notificacoes`)
+
+| Método | Caminho | O que faz |
+|---|---|---|
+| GET | `/cliente/tecnicos` | página do diretório |
+| GET | `/api/tecnicos/diretorio` | lista com filtros (`busca`, `categoria`, `modalidade`, `nota_minima`, `disponivel`, `ordem`) |
+| GET | `/api/tecnicos/<id>/perfil-publico` | perfil público do técnico |
+| GET / PUT | `/api/tecnico/disponibilidade` | janelas semanais (PUT substitui o conjunto) |
+| PUT | `/api/tecnico/disponivel-agora` | liga/desliga o status (`{"disponivel": true}`) |
+| GET | `/api/notificacoes` | últimas notificações + total não lidas |
+| POST | `/api/notificacoes/lidas` | marca todas como lidas |
+| POST | `/api/notificacoes/<id>/lida` | marca uma como lida |
+| GET | `/api/servicos/historico-aparelho` | `?equipamento=...&excluir=<id>` |
 
 **Chamado** (`modules/servicos`)
 

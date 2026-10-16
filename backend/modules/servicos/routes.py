@@ -32,6 +32,14 @@ def api_criar_servico():
     return ServicoController().criar()
 
 
+@servicos_bp.route("/api/servicos/historico-aparelho", methods=["GET"])
+@login_required
+def api_historico_aparelho():
+    # Funcionalidade 10: chamados anteriores do próprio cliente para o mesmo
+    # modelo de aparelho (?equipamento=...&excluir=<servico_id>).
+    return ServicoController().historico_aparelho()
+
+
 @servicos_bp.route("/api/servicos/<int:servico_id>")
 @login_required
 def api_detalhes_servico(servico_id):

@@ -111,6 +111,7 @@ function renderizarLista() {
                     <p class="chamado-titulo">${escaparHtml(chamado.titulo)}</p>
                 </div>
                 <div class="chamado-right">
+                    ${chamado.urgente ? `<span class="badge-urgente" title="Atendimento de urgência">Urgente</span>` : ""}
                     ${chamado.mensagens_nao_lidas ? `<span class="chat-badge" title="Mensagens não lidas">${chamado.mensagens_nao_lidas}</span>` : ""}
                     <span class="status-badge ${badgeClasse}">${badgeLabel}</span>
                     ${iconeSeta()}
@@ -155,6 +156,7 @@ function calcularAssinatura(chamado) {
         chamado.avaliacoes_total,
         chamado.garantia_dias_restantes,
         chamado.gorjeta,
+        chamado.urgencia_prazo_em,
         chamado.laudo_tecnico ? 1 : 0,
     ].join("|");
 }
@@ -177,7 +179,7 @@ async function renderizarDetalhe(opcoes = {}) {
     const aguardandoOrcamentos = chamado.status === "aberto";
     const finalizado = chamado.status === "finalizado";
 
-    const [respHistorico, respOrcamentos, respAprovacoes, respGarantia] = await Promise.all([
+    const [respHistorico, respOrcamentos, respAprovacoes, respGarantia, historicoAparelho] = await Promise.all([
         obterLista(`/api/servicos/${chamado.id}/historico`),
         aguardandoOrcamentos ? obterLista(`/api/servicos/${chamado.id}/orcamentos`) : Promise.resolve({ ok: true, lista: [] }),
         // Autorizações de custo adicional (funcionalidades 6 e 7): só existem
@@ -186,6 +188,9 @@ async function renderizarDetalhe(opcoes = {}) {
         // Garantia (funcionalidade 2): só faz sentido buscar se foi contratada
         // e o chamado já foi finalizado — é daí que corre o prazo.
         (chamado.garantia && finalizado) ? obterLista(`/api/servicos/${chamado.id}/garantia`) : Promise.resolve({ ok: true, lista: [] }),
+        // Histórico do aparelho (funcionalidade 10): nunca falha — sem
+        // resposta, é só um bloco a menos.
+        carregarHistoricoAparelho(chamado.equipamento, chamado.id),
     ]);
 
     // Antes, qualquer falha aqui virava lista vazia e o modal mostrava
@@ -259,7 +264,13 @@ async function renderizarDetalhe(opcoes = {}) {
             <div><span>Status</span><p><span class="status-badge ${badgeClasse}">${badgeLabel}</span></p></div>
             <div><span>Tipo</span><p>${tipo}</p></div>
             <div><span>Categoria</span><p>${escaparHtml(chamado.categoria)}</p></div>
-            <div><span>Técnico responsável</span><p>${escaparHtml(tecnico.nome || "Aguardando definição")}</p></div>
+            <div><span>Técnico responsável</span><p>${escaparHtml(tecnico.nome || "Aguardando definição")}${chamado.tecnico_id ? ` <button type="button" class="btn-link-perfil btn-ver-perfil-tecnico" data-id="${chamado.tecnico_id}">Ver perfil</button>` : ""}</p></div>
+            <div><span>Modalidade</span><p>${escaparHtml(chamado.modalidade_label || "—")}</p></div>
+            ${chamado.urgente ? `
+                <div><span>Urgência</span><p><span class="badge-urgente">Urgente (+${chamado.urgencia_taxa_percentual}%)</span>
+                    ${chamado.urgencia_prazo_em ? `<br><small>O técnico deve atender até ${formatarData(chamado.urgencia_prazo_em)}.</small>` : `<br><small>O prazo de 2 horas começa quando você escolher o técnico.</small>`}
+                    <br><small>A taxa é combinada direto com o técnico — o iFix ainda não processa pagamentos.</small></p></div>
+            ` : ""}
             <div><span>Garantia</span><p>${chamado.garantia ? `Sim (+7% · ${GARANTIA_DIAS} dias)` : "Não"}</p></div>
             ${chamado.valor_maximo_aprovado !== null && chamado.valor_maximo_aprovado !== undefined ? `
                 <div><span>Teto de gasto</span><p>${formatarMoeda(chamado.valor_maximo_aprovado)}</p></div>
@@ -295,11 +306,7 @@ async function renderizarDetalhe(opcoes = {}) {
         ${aguardandoOrcamentos ? `
             <div class="modal-historico">
                 <h3>Orçamentos recebidos</h3>
-                ${orcamentos.length ? `
-                    <div class="orcamentos-list">
-                        ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento)).join("")}
-                    </div>
-                ` : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
+                ${orcamentos.length ? renderizarOrcamentosHTML(orcamentos, chamado) : `<p class="painel-equipamento">Nenhum orçamento recebido ainda — os técnicos selecionados foram notificados.</p>`}
             </div>
         ` : ""}
 
@@ -404,6 +411,13 @@ async function renderizarDetalhe(opcoes = {}) {
 
         ${chat.montarHTML()}
 
+        ${historicoAparelho.length ? `
+            <div class="modal-historico">
+                <h3>Histórico deste aparelho</h3>
+                ${renderizarHistoricoAparelhoHTML(historicoAparelho, "Outros chamados que você abriu para este modelo:")}
+            </div>
+        ` : ""}
+
         <div class="modal-historico">
             <h3>Histórico</h3>
             ${historico.length ? `
@@ -434,6 +448,10 @@ async function renderizarDetalhe(opcoes = {}) {
 
     ligarBuscaVazia(chamado);
     ligarGorjeta(chamado);
+
+    elModalBody.querySelectorAll(".btn-ver-perfil-tecnico").forEach(botao => {
+        botao.addEventListener("click", () => abrirPerfilPublico(Number(botao.dataset.id)));
+    });
 
     chatAtual = chat;
     chat.ligar(elModalBody);
@@ -508,7 +526,7 @@ function renderizarBuscaVaziaHTML(chamado) {
             </p>
             <p class="busca-vazia-texto">
                 ${ninguemNotificado
-                    ? `Não há técnicos cadastrados dentro de ${raioAtual} km. Ampliar a busca procura mais longe.`
+                    ? `Não há técnicos que atendam "${escaparHtml(chamado.modalidade_label || "esta modalidade")}" dentro de ${raioAtual} km. Ampliar a busca procura mais longe.`
                     : `${chamado.solicitacoes_enviadas} técnico(s) foram avisados num raio de ${raioAtual} km, mas ninguém orçou até agora.
                        Você pode procurar mais longe ou aumentar o valor máximo para tornar o chamado mais atraente.`}
             </p>
@@ -785,23 +803,92 @@ async function responderAprovacao(aprovacaoId, status) {
     await renderizarDetalhe({ forcar: true });
 }
 
-function renderizarOrcamentoHTML(orcamento) {
+/* Comparativo de propostas (funcionalidade 8): com 2 ou mais orçamentos,
+   marca o menor preço, o menor prazo e o melhor avaliado. Se todos empatam num
+   critério, ele não vira destaque — "melhor" entre iguais não diz nada. */
+const ORCAMENTO_DESTAQUES = {
+    preco: "Menor preço",
+    prazo: "Menor prazo",
+    nota: "Melhor avaliado",
+};
+
+function calcularDestaquesOrcamentos(orcamentos) {
+    const destaques = {};
+    if (orcamentos.length < 2) return destaques;
+
+    const marcar = (chave, valorDe, escolherMelhor) => {
+        const candidatos = orcamentos.filter(o => valorDe(o) !== null && valorDe(o) !== undefined);
+        if (candidatos.length < 2) return;
+        const melhor = escolherMelhor(candidatos.map(valorDe));
+        if (candidatos.every(o => valorDe(o) === melhor)) return;
+        candidatos
+            .filter(o => valorDe(o) === melhor)
+            .forEach(o => { (destaques[o.id] = destaques[o.id] || []).push(chave); });
+    };
+
+    marcar("preco", o => o.valor_orcamento, valores => Math.min(...valores));
+    marcar("prazo", o => o.prazo_estimado_dias, valores => Math.min(...valores));
+    marcar("nota", o => (o.tecnico || {}).nota_media, valores => Math.max(...valores));
+    return destaques;
+}
+
+function renderizarOrcamentosHTML(orcamentos, chamado) {
+    const destaques = calcularDestaquesOrcamentos(orcamentos);
+    return `
+        <div class="orcamentos-list">
+            ${orcamentos.map(orcamento => renderizarOrcamentoHTML(orcamento, chamado, destaques[orcamento.id])).join("")}
+        </div>
+    `;
+}
+
+function renderizarOrcamentoHTML(orcamento, chamado, destaques) {
     const tecnico = orcamento.tecnico || {};
     const nota = tecnico.nota_media !== null && tecnico.nota_media !== undefined
         ? `${renderizarEstrelas(Math.round(tecnico.nota_media))} (${tecnico.nota_media.toFixed(1)})`
         : "Sem avaliações ainda";
     const statusClasse = orcamento.status === "aceito" ? "is-aceito" : orcamento.status === "recusado" ? "is-recusado" : "";
 
+    const tags = (destaques || [])
+        .map(chave => `<span class="tag-destaque tag-destaque-${chave}">${ORCAMENTO_DESTAQUES[chave]}</span>`)
+        .join("");
+    const selo = tecnico.especialista_verificado
+        ? `<span class="selo-verificado selo-pequeno" title="5 ou mais atendimentos concluídos, nota 4,5 ou mais e certificado enviado">✔ Especialista verificado</span>`
+        : "";
+    const disponivel = tecnico.disponivel_agora ? `<span class="badge-disponivel">Disponível agora</span>` : "";
+
+    const concluidos = tecnico.atendimentos_concluidos || 0;
+    const experiencia = concluidos
+        ? `${concluidos} atendimento(s) concluído(s)${tecnico.taxa_sucesso !== null && tecnico.taxa_sucesso !== undefined ? ` · ${tecnico.taxa_sucesso}% de sucesso` : ""}`
+        : "Ainda sem atendimentos concluídos";
+
+    // Taxa de urgência (funcionalidade 1): só informada — o iFix não cobra.
+    let linhaUrgencia = "";
+    if (chamado && chamado.urgente && chamado.urgencia_taxa_percentual) {
+        const taxa = Number(orcamento.valor_orcamento || 0) * chamado.urgencia_taxa_percentual / 100;
+        linhaUrgencia = `
+            <span class="orcamento-urgencia">
+                + taxa de urgência (${chamado.urgencia_taxa_percentual}%): ${formatarMoeda(taxa)}
+                · total ${formatarMoeda(Number(orcamento.valor_orcamento || 0) + taxa)}
+            </span>`;
+    }
+
     return `
         <article class="orcamento-card ${statusClasse}">
             <div class="orcamento-info">
-                <strong>${escaparHtml(tecnico.nome || "Técnico")}</strong>
+                <strong>${escaparHtml(tecnico.nome || "Técnico")}
+                    ${tecnico.id ? `<button type="button" class="btn-link-perfil btn-ver-perfil-tecnico" data-id="${tecnico.id}">Ver perfil</button>` : ""}
+                </strong>
+                ${(tags || selo || disponivel) ? `<span class="orcamento-tags">${tags}${selo}${disponivel}</span>` : ""}
                 <span>${nota}</span>
+                <span>${escaparHtml(experiencia)}</span>
                 ${orcamento.prazo_estimado_dias ? `<span>Prazo estimado: ${orcamento.prazo_estimado_dias} dia(s)</span>` : ""}
                 ${orcamento.descricao ? `<span>${escaparHtml(orcamento.descricao)}</span>` : ""}
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
-                <span class="orcamento-valor">${formatarMoeda(orcamento.valor_orcamento)}</span>
+                <div class="orcamento-valor-bloco">
+                    <span class="orcamento-valor">${formatarMoeda(orcamento.valor_orcamento)}</span>
+                    ${linhaUrgencia}
+                </div>
                 ${orcamento.status === "pendente" ? `<button type="button" class="primary-btn btn-escolher-orcamento" data-id="${orcamento.id}" style="width:auto; margin:0;">Escolher</button>` : `<span class="status-badge">${orcamento.status === "aceito" ? "Escolhido" : "Não escolhido"}</span>`}
             </div>
         </article>
