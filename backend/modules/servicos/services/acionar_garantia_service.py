@@ -72,6 +72,7 @@ class AcionarGarantiaService:
             categoria=servico.categoria,
             tipo_equipamento=servico.tipo_equipamento,
             equipamento=servico.equipamento,
+            modalidade=servico.modalidade,
             preco_estimado=0,
             valor_maximo_aprovado=0,
             garantia=False,

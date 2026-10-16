@@ -2610,3 +2610,753 @@
         justify-content: center;
     }
 }
+
+
+/* ==================================================
+   ATENDIMENTO DE URGÊNCIA, MODALIDADE E SELOS
+   (funcionalidades 1, 2, 6 e 7)
+================================================== */
+
+.choice-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.badge-urgente {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent);
+    color: var(--danger);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.detalhe-urgencia {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.selo-verificado {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 50%, transparent);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.selo-pequeno {
+    padding: 2px 8px;
+    font-size: 11px;
+}
+
+.badge-disponivel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--success) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--success) 50%, transparent);
+    color: var(--success);
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.badge-disponivel::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.chip-modalidade {
+    display: inline-flex;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+
+/* ==================================================
+   COMPARATIVO DE PROPOSTAS (funcionalidade 8)
+================================================== */
+
+.orcamento-info .orcamento-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 4px 0;
+}
+
+.orcamento-info .orcamento-tags span {
+    display: inline-flex;
+    margin-top: 0;
+}
+
+.tag-destaque {
+    padding: 2px 9px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tag-destaque-preco {
+    background: color-mix(in srgb, var(--success) 16%, transparent);
+    border-color: color-mix(in srgb, var(--success) 50%, transparent);
+    color: var(--success);
+}
+
+.tag-destaque-prazo {
+    background: color-mix(in srgb, var(--warning) 16%, transparent);
+    border-color: color-mix(in srgb, var(--warning) 50%, transparent);
+    color: var(--warning);
+}
+
+.tag-destaque-nota {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+    color: var(--primary);
+}
+
+.orcamento-valor-bloco {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.orcamento-urgencia {
+    max-width: 230px;
+    text-align: right;
+    font-size: 11.5px;
+    color: var(--danger);
+}
+
+.btn-link-perfil {
+    margin-left: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--primary);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.btn-link-perfil:hover {
+    color: var(--primary-hover);
+}
+
+
+/* ==================================================
+   HISTÓRICO DO APARELHO (funcionalidade 10)
+================================================== */
+
+.historico-aparelho {
+    margin-top: 10px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.historico-aparelho.hidden {
+    display: none;
+}
+
+.historico-aparelho-titulo {
+    margin: 0 0 6px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.historico-aparelho-alerta {
+    margin: 0 0 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.historico-aparelho-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.historico-aparelho-lista li {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 13px;
+}
+
+.historico-aparelho-lista small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+
+/* ==================================================
+   NOTIFICAÇÕES NO APP (funcionalidade 9 — js/notificacoes-ui.js)
+================================================== */
+
+.notif-bell {
+    position: fixed;
+    top: 14px;
+    right: 20px;
+    z-index: 45;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color .2s ease, background .2s ease;
+}
+
+.notif-bell:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+}
+
+.notif-bell .icon-svg {
+    width: 20px;
+    height: 20px;
+}
+
+.notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 19px;
+    text-align: center;
+}
+
+.notif-badge.hidden {
+    display: none;
+}
+
+.notif-painel {
+    position: fixed;
+    top: 64px;
+    right: 20px;
+    z-index: 45;
+    width: min(360px, calc(100vw - 24px));
+    max-height: 70vh;
+    overflow-y: auto;
+    border-radius: 14px;
+    border: 1px solid var(--border-card);
+    background: var(--bg-card);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .35);
+}
+
+.notif-painel.hidden {
+    display: none;
+}
+
+.notif-painel-topo {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-card);
+    font-size: 14px;
+}
+
+.notif-lista {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.notif-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-card);
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.notif-item:hover {
+    background: var(--bg-hover);
+}
+
+.notif-item.is-nova {
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border-left: 3px solid var(--primary);
+}
+
+.notif-item strong {
+    font-size: 13.5px;
+}
+
+.notif-item span {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+.notif-item small {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+.notif-vazio {
+    padding: 22px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 992px) {
+    /* No mobile o sino fica na altura da barra superior, à direita do título. */
+    .notif-bell {
+        top: 9px;
+        right: 12px;
+        width: 38px;
+        height: 38px;
+    }
+
+    .notif-painel {
+        top: 56px;
+        right: 12px;
+    }
+}
+
+
+/* ==================================================
+   PERFIL PÚBLICO DO TÉCNICO (funcionalidades 5 e 7 — js/perfil-publico-ui.js)
+================================================== */
+
+.perfil-publico-card {
+    max-width: 680px;
+}
+
+.perfil-publico-topo {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.perfil-publico-topo h2 {
+    margin: 0 0 2px;
+    font-size: 22px;
+}
+
+.perfil-publico-topo p {
+    margin: 0;
+}
+
+.perfil-publico-especialidade {
+    font-size: 13.5px;
+    color: var(--text-secondary);
+}
+
+.perfil-publico-nota {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.perfil-publico-nota small {
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.perfil-publico-selos,
+.tecnico-card-selos,
+.perfil-publico-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.perfil-publico-selos {
+    margin-top: 8px;
+}
+
+.perfil-publico-metricas {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.perfil-publico-metricas > div {
+    padding: 12px 10px;
+    border-radius: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+    text-align: center;
+}
+
+.perfil-publico-metricas strong {
+    display: block;
+    font-size: 18px;
+    color: var(--primary);
+}
+
+.perfil-publico-metricas span {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+}
+
+.perfil-publico-secao {
+    margin-top: 18px;
+}
+
+.perfil-publico-secao h3 {
+    margin: 0 0 8px;
+    font-size: 14px;
+}
+
+.perfil-publico-experiencias {
+    margin-top: 10px;
+}
+
+.perfil-publico-vazio {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.perfil-publico-janelas,
+.perfil-publico-criterios,
+.perfil-publico-certificados,
+.perfil-publico-avaliacoes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.perfil-publico-janelas li,
+.perfil-publico-criterios li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border-card);
+    font-size: 13px;
+}
+
+.perfil-publico-janelas span,
+.perfil-publico-criterios span {
+    color: var(--text-secondary);
+}
+
+.perfil-publico-certificados li {
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.perfil-publico-certificados a {
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.perfil-publico-avaliacoes li {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-card);
+}
+
+.perfil-publico-avaliacoes li div {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.perfil-publico-avaliacoes li div span {
+    color: var(--warning);
+}
+
+.perfil-publico-avaliacoes p {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+    .perfil-publico-metricas {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .perfil-publico-topo {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .choice-grid-3 {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==================================================
+   DIRETÓRIO DE TÉCNICOS (funcionalidade 4 — pages/cliente-tecnicos.html)
+================================================== */
+
+.filtros-tecnicos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    align-items: end;
+    gap: 12px 14px;
+    margin-bottom: 14px;
+    padding: 16px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+}
+
+.filtros-tecnicos .input-group {
+    margin-bottom: 0;
+}
+
+.filtros-tecnicos .filtros-busca {
+    grid-column: 1 / -1;
+    max-width: none;
+}
+
+.filtros-tecnicos select,
+.janela-linha select {
+    width: 100%;
+    padding: 11px;
+    border-radius: 6px;
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.filtros-tecnicos select:focus,
+.janela-linha select:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+.filtro-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.filtro-check input {
+    width: auto;
+    accent-color: var(--primary);
+}
+
+.filtros-resumo {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.tecnicos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.tecnico-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 18px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+}
+
+.tecnico-card-topo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tecnico-card-topo h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.tecnico-card-topo p {
+    margin: 0;
+}
+
+.tecnico-card-especialidade {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.tecnico-card-local {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.tecnico-card-nota {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.tecnico-card-metricas {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+.tecnico-card .secondary-btn {
+    margin-top: auto;
+}
+
+
+/* ==================================================
+   PERFIL: MODALIDADES E DISPONIBILIDADE (funcionalidades 2, 3 e 6)
+================================================== */
+
+.modalidades-opcoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin-bottom: 4px;
+}
+
+.modalidade-opcao {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.modalidade-opcao input {
+    width: auto;
+    accent-color: var(--primary);
+}
+
+.disponivel-agora-bloco {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-input);
+}
+
+.disponivel-agora-bloco p {
+    margin: 2px 0 0;
+}
+
+.disponivel-agora-btn {
+    width: auto;
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+.disponivel-agora-btn.is-ativo {
+    border-color: var(--success);
+    color: var(--success);
+    background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.janelas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.janela-linha {
+    display: grid;
+    grid-template-columns: minmax(130px, 1.4fr) 1fr 1fr auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.janela-remover {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--border-input);
+    background: var(--bg-input);
+    color: var(--text-secondary);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.janela-remover:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.janela-adicionar {
+    width: auto;
+}
+
+.perfil-publico-aviso {
+    margin: 16px 0 8px;
+}
+
+@media (max-width: 640px) {
+    .janela-linha {
+        grid-template-columns: 1fr 1fr auto;
+    }
+
+    .janela-linha select {
+        grid-column: 1 / -1;
+    }
+
+    .disponivel-agora-bloco {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

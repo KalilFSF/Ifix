@@ -207,3 +207,67 @@ GARANTIA_STATUS_CONCLUIDO = "concluido"
 # Mesma razão do laudo e da aprovação: o técnico precisa entender o que
 # voltou a acontecer pra saber se é o mesmo defeito.
 MIN_CARACTERES_DESCRICAO_GARANTIA = 15
+
+# Atendimento de urgência (funcionalidade 1): o cliente marca na abertura e
+# paga uma taxa sobre o orçamento escolhido; o técnico tem URGENCIA_PRAZO_HORAS
+# a partir do momento em que é escolhido. Como a taxa da garantia, ela é só
+# informada e registrada — o iFix ainda não cobra — e não entra no teto de
+# gasto. Espelhada em fn_urgencia_taxa_percentual (procedures.sql).
+URGENCIA_TAXA_PERCENTUAL = 20
+URGENCIA_PRAZO_HORAS = 2
+
+# Modalidade de atendimento (funcionalidade 2): onde o reparo acontece. O
+# cliente escolhe na abertura; o técnico diz em /perfil quais ele atende.
+MODALIDADE_LOJA = "loja"
+MODALIDADE_DOMICILIO = "domicilio"
+MODALIDADE_REMOTO = "remoto"
+MODALIDADES = (MODALIDADE_LOJA, MODALIDADE_DOMICILIO, MODALIDADE_REMOTO)
+
+MODALIDADES_LABELS = {
+    MODALIDADE_LOJA: "Na loja do técnico",
+    MODALIDADE_DOMICILIO: "Visita domiciliar",
+    MODALIDADE_REMOTO: "Suporte remoto",
+}
+
+# Janelas de disponibilidade do técnico (funcionalidade 3): dia da semana no
+# padrão do Python (0 = segunda ... 6 = domingo), faixa em "HH:MM" pelo mesmo
+# motivo de HORARIO_ATENDIMENTO_PADRAO_*.
+DIAS_SEMANA_LABELS = (
+    "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira",
+    "Sexta-feira", "Sábado", "Domingo",
+)
+MAX_JANELAS_DISPONIBILIDADE = 14
+
+# "Disponível agora" (funcionalidade 6): o técnico liga o status e ele vale
+# por este tempo. Sem prazo, quem esquece de desligar continuaria aparecendo
+# como disponível horas depois de ter saído do ar.
+DISPONIVEL_AGORA_VALIDADE_HORAS = 4
+
+# Pontos somados ao score de seleção (SelecionarTecnicosService) de quem está
+# "disponível agora" — pesa pouco: desempata, não passa por cima de distância,
+# nota e preço.
+BONUS_DISPONIVEL_AGORA = 0.05
+
+# Selo "Especialista verificado" (funcionalidade 7): regra automática, sem
+# aprovação manual. Espelhada em fn_tecnico_eh_especialista (procedures.sql).
+SELO_MIN_ATENDIMENTOS = 5
+SELO_NOTA_MINIMA = 4.5
+SELO_MIN_CERTIFICADOS = 1
+
+# Comparativo de propostas (funcionalidade 8): quantos orçamentos um chamado
+# recebe. Passado disso o cliente teria o trabalho de comparar quem já não
+# vai ser escolhido.
+MAX_ORCAMENTOS_POR_CHAMADO = 3
+
+# Notificações no app (funcionalidade 9).
+NOTIFICACAO_NOVA_SOLICITACAO = "nova_solicitacao"
+NOTIFICACAO_ORCAMENTO_RECEBIDO = "orcamento_recebido"
+NOTIFICACAO_TECNICO_DEFINIDO = "tecnico_definido"
+NOTIFICACAO_STATUS = "status_atualizado"
+NOTIFICACAO_AUTORIZACAO_PEDIDA = "autorizacao_pedida"
+NOTIFICACAO_AUTORIZACAO_RESPONDIDA = "autorizacao_respondida"
+MAX_NOTIFICACOES_LISTADAS = 30
+
+# Histórico do aparelho (funcionalidade 10): tamanho mínimo do modelo pra
+# buscar chamados anteriores — "a" casaria com tudo.
+MIN_CARACTERES_MODELO_HISTORICO = 2

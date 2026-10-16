@@ -48,6 +48,10 @@
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                     <span>Meus chamados</span>
                 </a>
+                <a href="/cliente/tecnicos" class="nav-item">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Técnicos</span>
+                </a>
                 <a href="/perfil" class="nav-item is-active">
                     <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     <span>Meu perfil</span>
@@ -274,11 +278,52 @@
                             <textarea id="tecEspecializacoes" rows="3"></textarea>
                         </div>
 
+                        <div class="input-group">
+                            <label>Modalidades de atendimento</label>
+                            <div class="modalidades-opcoes" id="tecModalidades">
+                                <label class="modalidade-opcao"><input type="checkbox" value="loja"> Na loja</label>
+                                <label class="modalidade-opcao"><input type="checkbox" value="domicilio"> Visita domiciliar</label>
+                                <label class="modalidade-opcao"><input type="checkbox" value="remoto"> Suporte remoto</label>
+                            </div>
+                            <small class="perfil-ajuda">Você só recebe solicitações das modalidades marcadas.</small>
+                        </div>
+
                         <div id="perfilDiplomas"></div>
 
                         <p class="mensagem hidden" id="mensagemTecnico"></p>
                         <button type="submit" class="primary-btn perfil-salvar">Salvar dados profissionais</button>
                     </form>
+                </section>
+
+                <!-- ===== Disponibilidade (só técnico) ===== -->
+                <section class="section-block perfil-card hidden" id="secaoDisponibilidade">
+                    <div class="section-header">
+                        <h2>Disponibilidade e perfil público</h2>
+                        <p class="section-subtitle">Mostre aos clientes quando você costuma atender.</p>
+                    </div>
+
+                    <div class="disponivel-agora-bloco">
+                        <div>
+                            <strong>Disponível agora</strong>
+                            <p class="perfil-ajuda">Ligado, você aparece com destaque para os clientes e ganha prioridade na escolha de técnicos. Desliga sozinho depois de 4 horas.</p>
+                        </div>
+                        <button type="button" class="secondary-btn disponivel-agora-btn" id="btnDisponivelAgora" aria-pressed="false">Indisponível</button>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Janelas semanais</label>
+                        <div class="janelas-lista" id="janelasLista"></div>
+                        <button type="button" class="secondary-btn janela-adicionar" id="btnAdicionarJanela">+ Adicionar janela</button>
+                    </div>
+
+                    <p class="mensagem hidden" id="mensagemJanelas"></p>
+                    <button type="button" class="primary-btn perfil-salvar" id="btnSalvarJanelas">Salvar disponibilidade</button>
+
+                    <p class="perfil-ajuda perfil-publico-aviso">
+                        Seu perfil público mostra foto, nota, métricas, horários e os diplomas que você enviou
+                        (como certificados). E-mail, telefone e CPF nunca aparecem.
+                    </p>
+                    <button type="button" class="secondary-btn" id="btnVerPerfilPublico">Ver meu perfil público</button>
                 </section>
 
                 <!-- ===== Virar técnico (só cliente) ===== -->
@@ -342,6 +387,8 @@
     <script src="/js/api.js"></script>
     <script src="/js/ui.js"></script>
     <script src="/js/role-chips.js"></script>
+    <script src="/js/notificacoes-ui.js"></script>
+    <script src="/js/perfil-publico-ui.js"></script>
     <script src="/js/estadosCidades.js"></script>
     <script src="/js/geolocalizacao.js"></script>
     <script src="/js/perfil.js"></script>

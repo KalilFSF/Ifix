@@ -1,6 +1,14 @@
 from datetime import datetime, timedelta, timezone
 
-from constants import CAUSAS_DEFEITO_LABELS, GARANTIA_DIAS, STATUS_FINALIZADO
+from constants import (
+    CAUSAS_DEFEITO_LABELS,
+    GARANTIA_DIAS,
+    MODALIDADE_LOJA,
+    MODALIDADES_LABELS,
+    STATUS_FINALIZADO,
+    URGENCIA_PRAZO_HORAS,
+    URGENCIA_TAXA_PERCENTUAL,
+)
 from database import db
 from utils import isoformat_utc
 
@@ -29,6 +37,15 @@ class Servico(db.Model):
 
     garantia = db.Column(db.Boolean, nullable=False, default=False)
     status = db.Column(db.String(30), nullable=False, default="aberto")
+
+    # Atendimento de urgência (funcionalidade 1): marcado na abertura. O prazo
+    # de URGENCIA_PRAZO_HORAS só começa a correr quando um técnico é definido
+    # (atribuir_tecnico) — antes disso não há ninguém a quem cobrar.
+    urgente = db.Column(db.Boolean, nullable=False, default=False)
+    urgencia_prazo_em = db.Column(db.DateTime)
+
+    # Modalidade de atendimento (funcionalidade 2): constants.MODALIDADES.
+    modalidade = db.Column(db.String(20), nullable=False, default=MODALIDADE_LOJA)
 
     # Raio (km) efetivamente usado na última busca por técnicos. Nulo = só a
     # busca automática da abertura rodou, com RAIO_SELECAO_TECNICOS_KM. É
@@ -139,6 +156,8 @@ class Servico(db.Model):
             preco_estimado=dados.get("preco_estimado", 0),
             valor_maximo_aprovado=dados.get("valor_maximo_aprovado"),
             garantia=bool(dados.get("garantia", False)),
+            urgente=bool(dados.get("urgente", False)),
+            modalidade=dados.get("modalidade") or MODALIDADE_LOJA,
             latitude=dados.get("latitude"),
             longitude=dados.get("longitude"),
             cliente_id=cliente_id,
@@ -165,6 +184,8 @@ class Servico(db.Model):
     def atribuir_tecnico(self, tecnico_id, novo_status):
         self.tecnico_id = tecnico_id
         self.status = novo_status
+        if self.urgente:
+            self.urgencia_prazo_em = datetime.now(timezone.utc) + timedelta(hours=URGENCIA_PRAZO_HORAS)
         return self.salvar()
 
     def ampliar_raio_busca(self, novo_raio_km):
@@ -254,6 +275,11 @@ class Servico(db.Model):
             "gorjeta": float(self.gorjeta) if self.gorjeta is not None else None,
             "raio_busca_km": self.raio_busca_km,
             "garantia": bool(self.garantia),
+            "urgente": bool(self.urgente),
+            "urgencia_taxa_percentual": URGENCIA_TAXA_PERCENTUAL if self.urgente else None,
+            "urgencia_prazo_em": isoformat_utc(self.urgencia_prazo_em),
+            "modalidade": self.modalidade,
+            "modalidade_label": MODALIDADES_LABELS.get(self.modalidade),
             "garantia_ativa": self.garantia_ativa,
             "garantia_expira_em": isoformat_utc(self.garantia_expira_em),
             "garantia_dias_restantes": self.garantia_dias_restantes,

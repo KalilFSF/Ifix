@@ -16,6 +16,7 @@ from modules.servicos.services.acionar_garantia_service import AcionarGarantiaSe
 from modules.servicos.services.listar_acionamentos_garantia_service import ListarAcionamentosGarantiaService
 from modules.servicos.services.listar_aprovacoes_service import ListarAprovacoesService
 from modules.servicos.services.listar_meus_servicos_service import ListarMeusServicosService
+from modules.servicos.services.obter_historico_aparelho_service import ObterHistoricoAparelhoService
 from modules.servicos.services.obter_detalhes_servico_service import ObterDetalhesServicoService
 from modules.servicos.services.obter_historico_servico_service import ObterHistoricoServicoService
 from modules.servicos.services.registrar_gorjeta_service import RegistrarGorjetaService
@@ -30,6 +31,7 @@ class ServicoController:
     def __init__(self):
         self.criar_servico_service = CriarServicoService()
         self.listar_meus_servicos_service = ListarMeusServicosService()
+        self.obter_historico_aparelho_service = ObterHistoricoAparelhoService()
         self.obter_detalhes_servico_service = ObterDetalhesServicoService()
         self.atualizar_status_servico_service = AtualizarStatusServicoService()
         self.obter_historico_servico_service = ObterHistoricoServicoService()
@@ -65,6 +67,16 @@ class ServicoController:
         return jsonify(servicos)
 
     @login_required
+    def historico_aparelho(self):
+        # Sem try/except: DominioError sobe pro errorhandler global (app.py).
+        historico = self.obter_historico_aparelho_service.executar(
+            current_user,
+            request.args.get("equipamento"),
+            request.args.get("excluir", type=int),
+        )
+        return jsonify(historico)
+
+    @login_required
     def criar(self):
         # Aceita JSON ou multipart (com fotos). Qualquer usuário autenticado
         # pode abrir chamado — inclusive quem também é técnico.
@@ -77,6 +89,8 @@ class ServicoController:
                 "descricao": (request.form.get("descricao") or "").strip(),
                 "preco_estimado": request.form.get("preco_estimado") or 0,
                 "garantia": request.form.get("garantia"),
+                "urgente": request.form.get("urgente"),
+                "modalidade": (request.form.get("modalidade") or "").strip(),
                 "latitude": request.form.get("latitude"),
                 "longitude": request.form.get("longitude"),
             }

@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+from constants import DISPONIVEL_AGORA_VALIDADE_HORAS, MODALIDADES
 from database import db
 from utils import isoformat_utc
 
@@ -30,6 +31,16 @@ class PerfilTecnico(db.Model):
     nota_media = db.Column(db.Numeric(3, 2))
     total_avaliacoes = db.Column(db.Integer, nullable=False, default=0)
 
+    # Modalidades de atendimento que o técnico aceita (funcionalidade 2),
+    # guardadas como valores de constants.MODALIDADES separados por vírgula.
+    # Nulo = nunca configurou: atende qualquer uma, pra não tirar da seleção
+    # automática quem já era técnico antes desta coluna existir.
+    modalidades = db.Column(db.String(60))
+
+    # "Disponível agora" (funcionalidade 6): o técnico liga o status e ele
+    # vale até este momento (UTC). Nulo ou no passado = indisponível.
+    disponivel_ate = db.Column(db.DateTime)
+
     usuario = db.relationship("Usuario", back_populates="perfil_tecnico")
     diplomas = db.relationship(
         "Diploma",
@@ -56,10 +67,34 @@ class PerfilTecnico(db.Model):
         self.total_avaliacoes = total_atual + 1
         return self.salvar()
 
+    @property
+    def modalidades_lista(self):
+        """Modalidades efetivas: as configuradas, ou todas se nunca configurou."""
+        if not self.modalidades:
+            return list(MODALIDADES)
+        return [m for m in self.modalidades.split(",") if m in MODALIDADES]
+
+    def atende_modalidade(self, modalidade):
+        return modalidade in self.modalidades_lista
+
+    @property
+    def disponivel_agora(self):
+        if self.disponivel_ate is None:
+            return False
+        # O Postgres devolve datetime naive; disponivel_ate é gravado em UTC.
+        return datetime.utcnow() < self.disponivel_ate.replace(tzinfo=None)
+
+    def definir_disponivel_agora(self, disponivel):
+        self.disponivel_ate = (
+            datetime.now(timezone.utc) + timedelta(hours=DISPONIVEL_AGORA_VALIDADE_HORAS)
+            if disponivel else None
+        )
+        return self.salvar()
+
     def atualizar(self, dados):
         for campo in (
             "especialidade", "escolaridade", "curso_superior", "regiao_atendimento",
-            "cursos_experiencias", "especializacoes", "valor_medio",
+            "cursos_experiencias", "especializacoes", "valor_medio", "modalidades",
         ):
             if campo in dados:
                 setattr(self, campo, dados[campo])
@@ -111,6 +146,9 @@ class PerfilTecnico(db.Model):
             "valor_medio": float(self.valor_medio) if self.valor_medio is not None else None,
             "nota_media": float(self.nota_media) if self.nota_media is not None else None,
             "total_avaliacoes": self.total_avaliacoes,
+            "modalidades": self.modalidades_lista,
+            "disponivel_agora": self.disponivel_agora,
+            "disponivel_ate": isoformat_utc(self.disponivel_ate) if self.disponivel_agora else None,
         }
 
 

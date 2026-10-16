@@ -51,6 +51,98 @@ RETURNS varchar AS $$
 $$ LANGUAGE sql IMMUTABLE;
 
 
+-- Taxa da urgência, em % (funcionalidade 1). Espelha URGENCIA_TAXA_PERCENTUAL
+-- de constants.py, que é o que Servico.to_dict() usa.
+CREATE OR REPLACE FUNCTION fn_urgencia_taxa_percentual()
+RETURNS integer AS $$
+    SELECT 20;
+$$ LANGUAGE sql IMMUTABLE;
+
+
+-- Rótulo pt-BR da modalidade de atendimento (funcionalidade 2). Espelha
+-- constants.MODALIDADES_LABELS, que é o que Servico.to_dict() usa.
+CREATE OR REPLACE FUNCTION fn_rotulo_modalidade(p_modalidade varchar)
+RETURNS varchar AS $$
+    SELECT CASE p_modalidade
+        WHEN 'loja'      THEN 'Na loja do técnico'
+        WHEN 'domicilio' THEN 'Visita domiciliar'
+        WHEN 'remoto'    THEN 'Suporte remoto'
+        ELSE NULL
+    END;
+$$ LANGUAGE sql IMMUTABLE;
+
+
+-- Modalidades efetivas do técnico como array JSON. Coluna nula/vazia =
+-- nunca configurou = atende todas (mesma regra de PerfilTecnico.modalidades_lista).
+CREATE OR REPLACE FUNCTION fn_modalidades_json(p_modalidades varchar)
+RETURNS json AS $$
+    SELECT CASE
+        WHEN p_modalidades IS NULL OR p_modalidades = ''
+            THEN to_json(ARRAY['loja', 'domicilio', 'remoto'])
+        ELSE to_json(string_to_array(p_modalidades, ','))
+    END;
+$$ LANGUAGE sql IMMUTABLE;
+
+
+-- "Disponível agora" (funcionalidade 6): o status vale até disponivel_ate,
+-- gravado em UTC (mesma régua de garantia_ativa, acima).
+CREATE OR REPLACE FUNCTION fn_tecnico_disponivel_agora(p_disponivel_ate timestamp)
+RETURNS boolean AS $$
+    SELECT COALESCE(p_disponivel_ate > (NOW() AT TIME ZONE 'UTC'), FALSE);
+$$ LANGUAGE sql STABLE;
+
+
+-- Métricas do técnico (funcionalidades 5 e 7), calculadas sobre os chamados
+-- em que ele foi o responsável.
+CREATE OR REPLACE FUNCTION fn_tecnico_atendimentos_concluidos(p_usuario_id integer)
+RETURNS bigint AS $$
+    SELECT COUNT(*) FROM servicos s
+    WHERE s.tecnico_id = p_usuario_id AND s.status = 'finalizado';
+$$ LANGUAGE sql STABLE;
+
+
+-- Taxa de sucesso em %: finalizados / (finalizados + cancelados). Chamado
+-- ainda em andamento não conta pra nenhum dos lados. NULL sem histórico.
+CREATE OR REPLACE FUNCTION fn_tecnico_taxa_sucesso(p_usuario_id integer)
+RETURNS numeric AS $$
+    SELECT CASE WHEN COUNT(*) = 0 THEN NULL
+        ELSE ROUND(100.0 * COUNT(*) FILTER (WHERE s.status = 'finalizado') / COUNT(*), 0) END
+    FROM servicos s
+    WHERE s.tecnico_id = p_usuario_id AND s.status IN ('finalizado', 'cancelado');
+$$ LANGUAGE sql STABLE;
+
+
+-- Tempo médio de atendimento em horas: da escolha do técnico (primeira
+-- entrada em 'aguardando' no histórico) até a finalização. NULL sem histórico.
+CREATE OR REPLACE FUNCTION fn_tecnico_tempo_medio_horas(p_usuario_id integer)
+RETURNS numeric AS $$
+    SELECT ROUND(AVG(EXTRACT(EPOCH FROM (s.finalizado_em - h.inicio)) / 3600.0)::numeric, 1)
+    FROM servicos s
+    JOIN LATERAL (
+        SELECT MIN(hs.alterado_em) AS inicio
+        FROM historico_servicos hs
+        WHERE hs.servico_id = s.id AND hs.status_novo = 'aguardando'
+    ) h ON h.inicio IS NOT NULL
+    WHERE s.tecnico_id = p_usuario_id
+      AND s.status = 'finalizado'
+      AND s.finalizado_em IS NOT NULL
+      AND s.finalizado_em >= h.inicio;
+$$ LANGUAGE sql STABLE;
+
+
+-- Selo "Especialista verificado" (funcionalidade 7), regra automática.
+-- Espelha SELO_MIN_ATENDIMENTOS (5), SELO_NOTA_MINIMA (4.5) e
+-- SELO_MIN_CERTIFICADOS (1) de constants.py. Técnico sem perfil devolve NULL.
+CREATE OR REPLACE FUNCTION fn_tecnico_eh_especialista(p_usuario_id integer)
+RETURNS boolean AS $$
+    SELECT fn_tecnico_atendimentos_concluidos(p_usuario_id) >= 5
+       AND COALESCE(pt.nota_media, 0) >= 4.5
+       AND (SELECT COUNT(*) FROM diplomas d WHERE d.perfil_tecnico_id = pt.id) >= 1
+    FROM perfis_tecnicos pt
+    WHERE pt.usuario_id = p_usuario_id;
+$$ LANGUAGE sql STABLE;
+
+
 -- UsuarioRepository.buscar_tecnicos_com_perfil()
 -- Usada por ListarTecnicosService -> GET /api/usuarios/tecnicos.
 CREATE OR REPLACE FUNCTION fn_listar_tecnicos_com_perfil()
@@ -80,16 +172,23 @@ $$ LANGUAGE sql STABLE;
 -- UsuarioRepository.buscar_tecnicos_para_ranking()
 -- Usada por SelecionarTecnicosService (ranking Haversine + nota + preço) —
 -- retorna colunas cruas (não JSON) porque quem consome é cálculo em
--- Python, não uma resposta de API.
+-- Python, não uma resposta de API. modalidades (funcionalidade 2) e
+-- disponivel_agora (funcionalidade 6) entram pro filtro e pro desempate.
+-- DROP antes: o Postgres não deixa CREATE OR REPLACE mudar as colunas de
+-- retorno de uma função que já existe.
+DROP FUNCTION IF EXISTS fn_listar_tecnicos_para_ranking();
 CREATE OR REPLACE FUNCTION fn_listar_tecnicos_para_ranking()
 RETURNS TABLE(
     usuario_id integer,
     latitude double precision,
     longitude double precision,
     valor_medio numeric,
-    nota_media numeric
+    nota_media numeric,
+    modalidades varchar,
+    disponivel_agora boolean
 ) AS $$
-    SELECT u.id, u.latitude, u.longitude, pt.valor_medio, pt.nota_media
+    SELECT u.id, u.latitude, u.longitude, pt.valor_medio, pt.nota_media,
+           pt.modalidades, fn_tecnico_disponivel_agora(pt.disponivel_ate)
     FROM usuarios u
     JOIN perfis_tecnicos pt ON pt.usuario_id = u.id
     WHERE u.role = 'tecnico'
@@ -119,8 +218,15 @@ RETURNS TABLE(dado json) AS $$
             'id', t.id,
             'nome', t.nome,
             'telefone', t.telefone,
+            'foto_perfil', COALESCE(t.foto_perfil, pt.foto_perfil),
             'nota_media', pt.nota_media,
-            'total_avaliacoes', COALESCE(pt.total_avaliacoes, 0)
+            'total_avaliacoes', COALESCE(pt.total_avaliacoes, 0),
+            -- Comparativo de propostas (funcionalidades 7 e 8): o cliente
+            -- decide olhando também selo, disponibilidade e histórico.
+            'especialista_verificado', COALESCE(fn_tecnico_eh_especialista(t.id), FALSE),
+            'disponivel_agora', fn_tecnico_disponivel_agora(pt.disponivel_ate),
+            'atendimentos_concluidos', fn_tecnico_atendimentos_concluidos(t.id),
+            'taxa_sucesso', fn_tecnico_taxa_sucesso(t.id)
         ) END
     )
     FROM atendimentos a
@@ -206,6 +312,14 @@ RETURNS TABLE(dado json) AS $$
             WHERE ap.servico_id = s.id AND ap.status = 'pendente'
         ),
         'garantia', s.garantia,
+        -- Urgência (funcionalidade 1) e modalidade (funcionalidade 2): mesmos
+        -- campos de Servico.to_dict().
+        'urgente', s.urgente,
+        'urgencia_taxa_percentual', CASE WHEN s.urgente THEN fn_urgencia_taxa_percentual() ELSE NULL END,
+        'urgencia_prazo_em', CASE WHEN s.urgencia_prazo_em IS NULL THEN NULL
+            ELSE to_char(s.urgencia_prazo_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END,
+        'modalidade', s.modalidade,
+        'modalidade_label', fn_rotulo_modalidade(s.modalidade),
         -- Garantia (funcionalidade 2): os mesmos cálculos das properties de
         -- Servico, porque o front usa este payload pra decidir se mostra o
         -- botão "Acionar garantia" e quantos dias ainda restam.
@@ -289,6 +403,12 @@ RETURNS TABLE(dado json) AS $$
             'preco_estimado', COALESCE(s.preco_estimado, 0),
             'valor_maximo_aprovado', s.valor_maximo_aprovado,
             'garantia', s.garantia,
+            'urgente', s.urgente,
+            'urgencia_taxa_percentual', CASE WHEN s.urgente THEN fn_urgencia_taxa_percentual() ELSE NULL END,
+            'urgencia_prazo_em', CASE WHEN s.urgencia_prazo_em IS NULL THEN NULL
+                ELSE to_char(s.urgencia_prazo_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END,
+            'modalidade', s.modalidade,
+            'modalidade_label', fn_rotulo_modalidade(s.modalidade),
             'status', s.status,
             'latitude', s.latitude,
             'longitude', s.longitude,
@@ -316,7 +436,8 @@ RETURNS TABLE(dado json) AS $$
     LEFT JOIN usuarios c ON c.id = s.cliente_id
     WHERE st.tecnico_id = p_tecnico_id
       AND st.status = 'pendente'
-    ORDER BY st.criado_em DESC;
+    -- Urgentes primeiro (funcionalidade 1): o prazo de 2h é do cliente.
+    ORDER BY s.urgente DESC, st.criado_em DESC;
 $$ LANGUAGE sql STABLE;
 
 
@@ -392,4 +513,186 @@ RETURNS TABLE(dado json) AS $$
     JOIN usuarios avaliado ON avaliado.id = av.avaliado_id
     WHERE av.servico_id = p_servico_id
     ORDER BY av.criado_em;
+$$ LANGUAGE sql STABLE;
+
+
+-- UsuarioRepository.listar_diretorio_tecnicos(...)
+-- Usada por ListarDiretorioTecnicosService -> GET /api/tecnicos/diretorio
+-- (funcionalidade 4). Só campos públicos: sem e-mail, telefone, CPF nem
+-- coordenadas. Preço, experiência e nota de fora do sistema ficam de fora do
+-- diretório de propósito (decisão do grupo); o preço médio aparece só no
+-- perfil público.
+--   p_busca      nome, especialidade ou especializações (contém, sem caixa)
+--   p_categoria  'hardware'/'software': só quem já finalizou chamado da categoria
+--   p_modalidade técnico que atende a modalidade (sem configuração = atende todas)
+--   p_nota_minima, p_disponivel (apenas quem está "disponível agora")
+--   p_ordem      'nota' (padrão) ou 'atendimentos'
+CREATE OR REPLACE FUNCTION fn_listar_tecnicos_diretorio(
+    p_busca varchar DEFAULT NULL,
+    p_categoria varchar DEFAULT NULL,
+    p_modalidade varchar DEFAULT NULL,
+    p_nota_minima numeric DEFAULT NULL,
+    p_disponivel boolean DEFAULT NULL,
+    p_ordem varchar DEFAULT 'nota'
+)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', u.id,
+        'nome', u.nome,
+        'foto_perfil', COALESCE(u.foto_perfil, pt.foto_perfil),
+        'especialidade', pt.especialidade,
+        'cidade', u.cidade,
+        'estado', u.estado,
+        'nota_media', pt.nota_media,
+        'total_avaliacoes', COALESCE(pt.total_avaliacoes, 0),
+        'modalidades', fn_modalidades_json(pt.modalidades),
+        'disponivel_agora', fn_tecnico_disponivel_agora(pt.disponivel_ate),
+        'especialista_verificado', COALESCE(fn_tecnico_eh_especialista(u.id), FALSE),
+        'atendimentos_concluidos', fn_tecnico_atendimentos_concluidos(u.id),
+        'taxa_sucesso', fn_tecnico_taxa_sucesso(u.id)
+    )
+    FROM usuarios u
+    JOIN perfis_tecnicos pt ON pt.usuario_id = u.id
+    WHERE (
+        p_busca IS NULL
+        OR u.nome ILIKE '%' || p_busca || '%'
+        OR pt.especialidade ILIKE '%' || p_busca || '%'
+        OR COALESCE(pt.especializacoes, '') ILIKE '%' || p_busca || '%'
+    )
+    AND (
+        p_categoria IS NULL
+        OR EXISTS (
+            SELECT 1 FROM servicos s
+            WHERE s.tecnico_id = u.id AND s.categoria = p_categoria AND s.status = 'finalizado'
+        )
+    )
+    AND (
+        p_modalidade IS NULL
+        OR pt.modalidades IS NULL
+        OR pt.modalidades = ''
+        OR p_modalidade = ANY(string_to_array(pt.modalidades, ','))
+    )
+    AND (p_nota_minima IS NULL OR COALESCE(pt.nota_media, 0) >= p_nota_minima)
+    AND (p_disponivel IS NOT TRUE OR fn_tecnico_disponivel_agora(pt.disponivel_ate))
+    ORDER BY
+        CASE WHEN p_ordem = 'atendimentos' THEN fn_tecnico_atendimentos_concluidos(u.id) END DESC NULLS LAST,
+        pt.nota_media DESC NULLS LAST,
+        COALESCE(pt.total_avaliacoes, 0) DESC,
+        u.nome;
+$$ LANGUAGE sql STABLE;
+
+
+-- UsuarioRepository.obter_perfil_publico_tecnico(usuario_id)
+-- Usada por ObterPerfilPublicoTecnicoService ->
+-- GET /api/tecnicos/<id>/perfil-publico (funcionalidade 5). Sem linha quando
+-- o usuário não é técnico. Não expõe e-mail, telefone, CPF nem coordenadas;
+-- dos avaliadores sai só o primeiro nome. Os certificados são os diplomas
+-- que o próprio técnico enviou (a tela de perfil avisa isso a ele).
+CREATE OR REPLACE FUNCTION fn_perfil_publico_tecnico(p_usuario_id integer)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', u.id,
+        'nome', u.nome,
+        'foto_perfil', COALESCE(u.foto_perfil, pt.foto_perfil),
+        'cidade', u.cidade,
+        'estado', u.estado,
+        'membro_desde', to_char(u.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00',
+        'especialidade', pt.especialidade,
+        'escolaridade', pt.escolaridade,
+        'curso_superior', pt.curso_superior,
+        'regiao_atendimento', pt.regiao_atendimento,
+        'cursos_experiencias', pt.cursos_experiencias,
+        'especializacoes', pt.especializacoes,
+        'preco_medio', pt.valor_medio,
+        'nota_media', pt.nota_media,
+        'total_avaliacoes', COALESCE(pt.total_avaliacoes, 0),
+        'nota_tempo_media', (
+            SELECT ROUND(AVG(av.nota_tempo)::numeric, 1)
+            FROM avaliacoes av
+            JOIN servicos sv ON sv.id = av.servico_id AND sv.tecnico_id = av.avaliado_id
+            WHERE av.avaliado_id = u.id
+        ),
+        'nota_honestidade_media', (
+            SELECT ROUND(AVG(av.nota_honestidade)::numeric, 1)
+            FROM avaliacoes av
+            JOIN servicos sv ON sv.id = av.servico_id AND sv.tecnico_id = av.avaliado_id
+            WHERE av.avaliado_id = u.id
+        ),
+        'nota_preco_justo_media', (
+            SELECT ROUND(AVG(av.nota_preco_justo)::numeric, 1)
+            FROM avaliacoes av
+            JOIN servicos sv ON sv.id = av.servico_id AND sv.tecnico_id = av.avaliado_id
+            WHERE av.avaliado_id = u.id
+        ),
+        'modalidades', fn_modalidades_json(pt.modalidades),
+        'disponivel_agora', fn_tecnico_disponivel_agora(pt.disponivel_ate),
+        'especialista_verificado', COALESCE(fn_tecnico_eh_especialista(u.id), FALSE),
+        'atendimentos_concluidos', fn_tecnico_atendimentos_concluidos(u.id),
+        'taxa_sucesso', fn_tecnico_taxa_sucesso(u.id),
+        'tempo_medio_atendimento_horas', fn_tecnico_tempo_medio_horas(u.id),
+        'certificados', COALESCE((
+            SELECT json_agg(json_build_object('id', d.id, 'url', d.arquivo) ORDER BY d.enviado_em)
+            FROM diplomas d WHERE d.perfil_tecnico_id = pt.id
+        ), '[]'::json),
+        'janelas', COALESCE((
+            SELECT json_agg(json_build_object(
+                'dia_semana', j.dia_semana, 'inicio', j.inicio, 'fim', j.fim
+            ) ORDER BY j.dia_semana, j.inicio)
+            FROM janelas_disponibilidade j WHERE j.tecnico_id = u.id
+        ), '[]'::json),
+        'ultimas_avaliacoes', COALESCE((
+            SELECT json_agg(r.item ORDER BY r.criado_em DESC)
+            FROM (
+                SELECT av.criado_em, json_build_object(
+                    'nota', av.nota,
+                    'comentario', av.comentario,
+                    'autor', split_part(autor.nome, ' ', 1),
+                    'criado_em', to_char(av.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00'
+                ) AS item
+                FROM avaliacoes av
+                JOIN servicos sv ON sv.id = av.servico_id AND sv.tecnico_id = av.avaliado_id
+                JOIN usuarios autor ON autor.id = av.autor_id
+                WHERE av.avaliado_id = u.id AND COALESCE(av.comentario, '') <> ''
+                ORDER BY av.criado_em DESC
+                LIMIT 5
+            ) r
+        ), '[]'::json)
+    )
+    FROM usuarios u
+    JOIN perfis_tecnicos pt ON pt.usuario_id = u.id
+    WHERE u.id = p_usuario_id;
+$$ LANGUAGE sql STABLE;
+
+
+-- ServicoRepository.buscar_historico_aparelho(cliente_id, equipamento, excluir_id)
+-- Usada por ObterHistoricoAparelhoService -> GET /api/servicos/historico-aparelho
+-- (funcionalidade 10). Só chamados do próprio cliente; o modelo é comparado
+-- sem diferença de caixa nem de espaços repetidos.
+CREATE OR REPLACE FUNCTION fn_historico_aparelho(
+    p_cliente_id integer,
+    p_equipamento varchar,
+    p_excluir_id integer DEFAULT NULL
+)
+RETURNS TABLE(dado json) AS $$
+    SELECT json_build_object(
+        'id', s.id,
+        'codigo', 'IFX-' || (1000 + s.id),
+        'titulo', s.titulo,
+        'equipamento', s.equipamento,
+        'status', s.status,
+        'causa_defeito', s.causa_defeito,
+        'causa_defeito_label', fn_rotulo_causa_defeito(s.causa_defeito),
+        'tecnico_nome', t.nome,
+        'criado_em', to_char(s.criado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00',
+        'finalizado_em', CASE WHEN s.finalizado_em IS NULL THEN NULL
+            ELSE to_char(s.finalizado_em, 'YYYY-MM-DD"T"HH24:MI:SS.US') || '+00:00' END
+    )
+    FROM servicos s
+    LEFT JOIN usuarios t ON t.id = s.tecnico_id
+    WHERE s.cliente_id = p_cliente_id
+      AND lower(regexp_replace(trim(s.equipamento), '\s+', ' ', 'g'))
+        = lower(regexp_replace(trim(p_equipamento), '\s+', ' ', 'g'))
+      AND (p_excluir_id IS NULL OR s.id <> p_excluir_id)
+    ORDER BY s.criado_em DESC
+    LIMIT 10;
 $$ LANGUAGE sql STABLE;

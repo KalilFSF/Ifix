@@ -1,6 +1,7 @@
-from constants import ORCAMENTO_PENDENTE, STATUS_AGUARDANDO
+from constants import NOTIFICACAO_TECNICO_DEFINIDO, ORCAMENTO_PENDENTE, STATUS_AGUARDANDO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.atendimentos.models.atendimento import Atendimento
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.solicitacao import SolicitacaoTecnico
 
@@ -43,5 +44,15 @@ class EscolherOrcamentoService:
         status_anterior = servico.status
         servico.atribuir_tecnico(atendimento.tecnico_id, STATUS_AGUARDANDO)
         HistoricoServico.registrar(servico.id, status_anterior, STATUS_AGUARDANDO, cliente.id)
+
+        prazo = " É um atendimento de urgência: o prazo é de 2 horas." if servico.urgente else ""
+        RegistrarNotificacaoService.executar(
+            atendimento.tecnico_id,
+            "tecnico",
+            NOTIFICACAO_TECNICO_DEFINIDO,
+            "Seu orçamento foi escolhido",
+            f"O cliente escolheu o seu orçamento do chamado {servico.codigo}.{prazo}",
+            servico.id,
+        )
 
         return servico

@@ -75,6 +75,9 @@ const elModalBody = document.getElementById("detalheBody");
 const elModalClose = document.getElementById("detalheClose");
 
 
+/* Espelha URGENCIA_PRAZO_HORAS de backend/constants.py. */
+const PRAZO_URGENCIA_HORAS = 2;
+
 function formatarMoeda(valor) {
     return `R$ ${Number(valor || 0).toFixed(2)}`;
 }
@@ -140,8 +143,8 @@ function renderizarSolicitacoes() {
         return `
             <article class="solicitacao-card">
                 <div>
-                    <p class="solicitacao-titulo">${escaparHtml(servico.titulo || "Chamado")}</p>
-                    <p class="solicitacao-meta">${escaparHtml(cliente.nome || "Cliente")} • ${escaparHtml(servico.categoria || "")}</p>
+                    <p class="solicitacao-titulo">${servico.urgente ? `<span class="badge-urgente" title="Atendimento de urgência">Urgente</span> ` : ""}${escaparHtml(servico.titulo || "Chamado")}</p>
+                    <p class="solicitacao-meta">${escaparHtml(cliente.nome || "Cliente")} • ${escaparHtml(servico.categoria || "")}${servico.modalidade_label ? ` • ${escaparHtml(servico.modalidade_label)}` : ""}</p>
                     ${servico.equipamento ? `<p class="solicitacao-meta">${escaparHtml(servico.equipamento)}</p>` : ""}
                 </div>
                 <div class="solicitacao-actions">
@@ -233,8 +236,8 @@ function renderizarTabela() {
             <tr class="painel-row" data-id="${servico.id}">
                 <td class="painel-codigo">${escaparHtml(servico.codigo)}</td>
                 <td>
-                    <p class="painel-problema">${escaparHtml(servico.titulo)}</p>
-                    ${servico.equipamento ? `<p class="painel-equipamento">${escaparHtml(servico.equipamento)}</p>` : ""}
+                    <p class="painel-problema">${servico.urgente ? `<span class="badge-urgente" title="Atendimento de urgência">Urgente</span> ` : ""}${escaparHtml(servico.titulo)}</p>
+                    ${servico.equipamento ? `<p class="painel-equipamento">${escaparHtml(servico.equipamento)}${servico.modalidade_label ? ` • ${escaparHtml(servico.modalidade_label)}` : ""}</p>` : ""}
                 </td>
                 <td>
                     <p>${escaparHtml(cliente.nome || "-")}</p>
@@ -324,6 +327,11 @@ function montarEstruturaModalSolicitacao(solicitacao) {
 
         <div class="modal-info-grid">
             <div><span>Tipo</span><p>${tipo}</p></div>
+            <div><span>Modalidade</span><p>${escaparHtml(servico.modalidade_label || "—")}</p></div>
+            ${servico.urgente ? `
+                <div><span>Urgência</span><p><span class="badge-urgente">Urgente</span>
+                    <br><small>Se o cliente escolher o seu orçamento, você tem até ${PRAZO_URGENCIA_HORAS} horas para atender. Taxa de ${servico.urgencia_taxa_percentual}% combinada direto com o cliente.</small></p></div>
+            ` : ""}
             <div><span>Valor de referência do cliente</span><p>${formatarMoeda(valorOrcadoCliente(servico))}</p></div>
             <div><span>Cliente</span><p>${cliente.nome || "-"}</p></div>
             <div><span>Telefone</span><p>${cliente.telefone || "-"}</p></div>
@@ -521,7 +529,11 @@ function montarEstruturaModal(servico) {
                 ${servico.titulo && servico.titulo.startsWith("[Garantia]")
                     ? `<p class="detalhe-garantia-aviso">Atendimento em garantia — sem custo para o cliente.</p>`
                     : ""}
-                <p class="painel-equipamento">${escaparHtml(servico.equipamento || servico.categoria)}</p>
+                <p class="painel-equipamento">${escaparHtml(servico.equipamento || servico.categoria)}${servico.modalidade_label ? ` • ${escaparHtml(servico.modalidade_label)}` : ""}</p>
+                ${servico.urgente ? `
+                    <p class="detalhe-urgencia"><span class="badge-urgente">Urgente</span>
+                        ${servico.urgencia_prazo_em ? `Atender até ${formatarData(servico.urgencia_prazo_em)}` : `Prazo de ${PRAZO_URGENCIA_HORAS} horas`}</p>
+                ` : ""}
             </div>
             <div class="detalhe-valor-card">
                 <span>Valor orçado pelo cliente</span>

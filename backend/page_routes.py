@@ -62,6 +62,14 @@ def cliente_abrir_chamado():
     return current_app.send_static_file("pages/cliente-abrir-chamado.html")
 
 
+@pages_bp.route("/cliente/tecnicos")
+@login_required
+def cliente_tecnicos():
+    # Diretório de técnicos (funcionalidade 4). Sem checagem de papel: quem é
+    # técnico também contrata, como no resto da área do cliente.
+    return current_app.send_static_file("pages/cliente-tecnicos.html")
+
+
 @pages_bp.route("/perfil")
 @login_required
 def perfil():

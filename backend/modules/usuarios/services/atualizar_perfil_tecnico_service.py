@@ -1,3 +1,4 @@
+from constants import MODALIDADES
 from exceptions import RecursoNaoEncontradoError, ValidacaoError
 from utils import ESCOLARIDADES_VALIDAS
 
@@ -37,10 +38,31 @@ class AtualizarPerfilTecnicoService:
         if "valor_medio" in dados:
             limpos["valor_medio"] = self._parse_valor_medio(dados.get("valor_medio"))
 
+        if "modalidades" in dados:
+            limpos["modalidades"] = self._parse_modalidades(dados.get("modalidades"))
+
         if not limpos:
             raise ValidacaoError("Nada para atualizar.")
 
         return perfil.atualizar(limpos)
+
+    @staticmethod
+    def _parse_modalidades(valor):
+        """Lista fechada (constants.MODALIDADES). Vazia não vale: o técnico
+        sem nenhuma modalidade não receberia chamado nenhum — pra não
+        escolher, é só não mexer (nulo = atende todas)."""
+        if not isinstance(valor, (list, tuple)):
+            raise ValidacaoError("Informe as modalidades de atendimento em uma lista.")
+        escolhidas = []
+        for item in valor:
+            modalidade = str(item or "").strip().lower()
+            if modalidade not in MODALIDADES:
+                raise ValidacaoError("Modalidade de atendimento inválida.")
+            if modalidade not in escolhidas:
+                escolhidas.append(modalidade)
+        if not escolhidas:
+            raise ValidacaoError("Selecione ao menos uma modalidade de atendimento.")
+        return ",".join(m for m in MODALIDADES if m in escolhidas)
 
     @staticmethod
     def _parse_valor_medio(valor):

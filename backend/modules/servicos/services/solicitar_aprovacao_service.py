@@ -1,11 +1,13 @@
 from constants import (
     MIN_CARACTERES_DESCRICAO_APROVACAO,
+    NOTIFICACAO_AUTORIZACAO_PEDIDA,
     STATUS_ABERTO,
     STATUS_AGUARDANDO,
     STATUS_CANCELADO,
     STATUS_FINALIZADO,
 )
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
+from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
 from modules.servicos.models.aprovacao import SolicitacaoAprovacao
 from modules.servicos.models.servico import Servico
 from services.email_service import EmailService
@@ -41,6 +43,14 @@ class SolicitarAprovacaoService:
         valor = self._parse_valor(dados.get("valor_adicional"))
 
         aprovacao = SolicitacaoAprovacao.criar(servico_id, tecnico.id, descricao, valor)
+        RegistrarNotificacaoService.executar(
+            servico.cliente_id,
+            "cliente",
+            NOTIFICACAO_AUTORIZACAO_PEDIDA,
+            "Autorização necessária",
+            f"O técnico pediu autorização de {formatar_moeda_brl(valor)} extras no chamado {servico.codigo}.",
+            servico.id,
+        )
         self._notificar_cliente(servico, aprovacao)
         return aprovacao
 
