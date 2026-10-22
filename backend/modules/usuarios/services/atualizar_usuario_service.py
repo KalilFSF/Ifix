@@ -1,6 +1,6 @@
 from exceptions import ValidacaoError
 from modules.usuarios.models.usuario import Usuario
-from utils import parsear_coordenada, somente_digitos
+from utils import parsear_coordenada, somente_digitos, validar_telefone
 
 
 class AtualizarUsuarioService:
@@ -19,11 +19,14 @@ class AtualizarUsuarioService:
 
         for campo in self.CAMPOS_TEXTO:
             if campo in dados:
-                limpos[campo] = (dados.get(campo) or "").strip() or None
+                valor = dados.get(campo)
+                if valor is not None and not isinstance(valor, str):
+                    raise ValidacaoError("Informe um valor de texto para o campo " + campo + ".")
+                limpos[campo] = (valor or "").strip() or None
 
         if "nome" in limpos and (not limpos["nome"] or len(limpos["nome"]) < 3):
             raise ValidacaoError("Informe seu nome completo.")
-        if "telefone" in limpos and not limpos["telefone"]:
+        if "telefone" in limpos and not validar_telefone(limpos["telefone"]):
             raise ValidacaoError("Informe um telefone válido.")
 
         if "cep" in limpos and limpos["cep"]:

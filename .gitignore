@@ -25,3 +25,4 @@ frontend/uploads/*
 Thumbs.db
 
 .vercel
+.env*

@@ -2,14 +2,14 @@
    - Sem perfil técnico: chip Técnico abre o modal de conversão.
    - Com perfil técnico: chips alternam entre /cliente/home e /tecnico/home. */
 
-async function iniciarRoleChips(modoAtivo) {
+async function iniciarRoleChips(modoAtivo, dadosUsuario = null) {
     const indicador = document.querySelector(".role-indicator");
     if (!indicador) return null;
 
     // Só 401 significa "não está logado". Antes, QUALQUER falha (inclusive
     // uma oscilação de rede) mandava o usuário pro login sem mensagem, como
     // se a sessão tivesse expirado — e ele perdia o que estava fazendo.
-    const resultado = await obterJson("/api/me");
+    const resultado = dadosUsuario ? { ok: true, dados: dadosUsuario } : await obterJson("/api/me");
     if (!resultado.ok) {
         if (resultado.naoAutenticado) {
             window.location.href = "/";

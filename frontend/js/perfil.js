@@ -40,6 +40,13 @@ function renderizarAvatar(dados) {
 }
 
 function iniciarDadosPessoais() {
+    const telefone = document.getElementById("perfilTelefone");
+    telefone.addEventListener("input", () => {
+        telefone.value = telefone.value.replace(/[^0-9+(). \-]/g, "").slice(0, 20);
+        const digitos = telefone.value.replace(/\D/g, "");
+        telefone.setCustomValidity(digitos.length >= 8 && digitos.length <= 15
+            ? "" : "Informe um telefone com 8 a 15 d\u00edgitos, incluindo DDD e c\u00f3digo do pa\u00eds, se houver.");
+    });
     document.getElementById("formDados").addEventListener("submit", async (evento) => {
         evento.preventDefault();
         const botao = evento.target.querySelector("button[type=submit]");
@@ -58,7 +65,7 @@ function iniciarDadosPessoais() {
         }
 
         usuarioAtual = { ...usuarioAtual, ...resultado.dados.usuario };
-        renderizarAvatar(usuarioAtual);
+        preencherDadosPessoais(usuarioAtual);
         limparMensagem("mensagemDados");
         mostrarToast("Dados pessoais atualizados.");
     });
@@ -107,13 +114,24 @@ async function preencherEndereco(dados) {
     const selectEstado = document.getElementById("perfilEstado");
     const selectCidade = document.getElementById("perfilCidade");
 
+    const botaoSalvar = document.querySelector("#formEndereco button[type=submit]");
+    botaoSalvar.disabled = true;
     await carregarEstados(selectEstado);
     if (dados.estado) {
+        if (!Array.from(selectEstado.options).some(opcao => opcao.value === dados.estado)) {
+            selectEstado.add(new Option(dados.estado, dados.estado));
+        }
         selectEstado.value = dados.estado;
         await carregarCidades(dados.estado, selectCidade);
-        if (dados.cidade) selectCidade.value = dados.cidade;
+        if (dados.cidade) {
+            if (!Array.from(selectCidade.options).some(opcao => opcao.value === dados.cidade)) {
+                selectCidade.add(new Option(dados.cidade, dados.cidade));
+            }
+            selectCidade.value = dados.cidade;
+        }
     }
 
+    botaoSalvar.disabled = false;
     atualizarStatusLocalizacao(dados);
 }
 
@@ -511,25 +529,37 @@ function iniciarSenha() {
 
 /* ============== Bootstrap ============== */
 
-(async function iniciar() {
-    iniciarSidebarMobile();
+async function carregarPerfil() {
+    const estado = document.getElementById("perfilCarregamento");
+    estado.textContent = "Carregando perfil...";
+    const resultado = await obterJson("/api/me");
+    if (!resultado.ok) {
+        if (resultado.naoAutenticado) {
+            window.location.href = "/";
+            return;
+        }
+        renderizarEstadoErro(estado, resultado.erro, carregarPerfil);
+        return;
+    }
 
-    // O perfil é da conta, não do papel — mas os chips da sidebar precisam
-    // refletir o modo certo, então o modo ativo segue o papel do usuário.
-    const dados = await iniciarRoleChips("cliente");
-    if (!dados) return;
-
+    const dados = resultado.dados;
     usuarioAtual = dados;
-
+    await iniciarRoleChips("cliente", dados);
     preencherDadosPessoais(dados);
-    await preencherEndereco(dados);
     iniciarHorario(dados);
     preencherPerfilTecnico(dados);
-    iniciarDisponibilidade(dados);
-
     iniciarDadosPessoais();
     iniciarFoto();
     iniciarEndereco();
     iniciarPerfilTecnico();
     iniciarSenha();
-})();
+
+    estado.classList.add("hidden");
+    document.getElementById("perfilConteudo").classList.remove("hidden");
+    // As consultas externas de endereço não bloqueiam os outros formulários.
+    preencherEndereco(dados);
+    iniciarDisponibilidade(dados);
+}
+
+iniciarSidebarMobile();
+carregarPerfil();

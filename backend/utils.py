@@ -63,6 +63,16 @@ def validar_cpf(cpf):
     return True
 
 
+def validar_telefone(valor):
+    """Aceita telefone formatado, com limite compativel com VARCHAR(20)."""
+    return (
+        isinstance(valor, str)
+        and len(valor) <= 20
+        and re.fullmatch(r"[+0-9(). -]+", valor) is not None
+        and 8 <= len(somente_digitos(valor)) <= 15
+    )
+
+
 def validar_data_nascimento(valor):
     """Converte a string 'YYYY-MM-DD' do <input type="date"> em date e valida o intervalo.
 
@@ -201,7 +211,7 @@ def validar_campos_comuns(dados, senha, confirmar_senha):
         return "Informe seu nome completo."
     if not dados["email"] or "@" not in dados["email"]:
         return "Informe um email válido."
-    if not dados["telefone"]:
+    if not validar_telefone(dados["telefone"]):
         return "Informe um telefone válido."
     if not dados["cpf"] or len(dados["cpf"]) != 11:
         return "Informe um CPF válido."

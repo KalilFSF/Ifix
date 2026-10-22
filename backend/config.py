@@ -3,6 +3,8 @@
 
 import os
 
+from sqlalchemy.engine import make_url
+
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 
@@ -18,7 +20,14 @@ class Config:
     # backend/database/procedures.sql, recurso que o SQLite não tem. Defina
     # DATABASE_URL com a connection string do Neon (Vercel > Settings >
     # Environment Variables).
-    SQLALCHEMY_DATABASE_URI = os.environ["DATABASE_URL"]
+    # SQLAlchemy 2.1 passou a usar psycopg 3 para postgresql://, mas o
+    # projeto usa psycopg2-binary. Fixe o driver sem alterar credenciais,
+    # parâmetros SSL ou URLs que já especificam um driver explicitamente.
+    SQLALCHEMY_DATABASE_URI = make_url(os.environ["DATABASE_URL"])
+    if SQLALCHEMY_DATABASE_URI.drivername in {"postgres", "postgresql"}:
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.set(
+            drivername="postgresql+psycopg2"
+        )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Uploads de foto de perfil e diplomas do técnico ficam dentro de

@@ -373,3 +373,34 @@ O roteiro abaixo é o caminho feliz, de ponta a ponta. Precisa de
   opcionalmente, `BREVO_SENDER_NOME`.
 - Para parar a aplicação, pressione Ctrl + C no terminal onde o servidor
   está rodando.
+
+
+## Publicação no Vercel
+
+A raiz do projeto no Vercel deve conter `vercel.json`, `backend/` e
+`frontend/`. A entrada configurada é a instância Flask `app` exportada
+por `backend/app.py`; as dependências ficam em `backend/requirements.txt`.
+
+O erro confirmado nos logs de produção em 22/10/2026 foi
+`ModuleNotFoundError: No module named 'psycopg'` em `db.init_app(app)`.
+O SQLAlchemy 2.1 passou a selecionar psycopg 3 para URLs `postgresql://`,
+mas o projeto instala `psycopg2-binary`. A configuração agora seleciona
+explicitamente `postgresql+psycopg2` para URLs `postgresql://` e
+`postgres://`, preservando credenciais e parâmetros SSL. URLs com driver
+explícito continuam intactas; use `postgresql+psycopg2://` nesse caso.
+
+Para publicar novamente:
+
+1. Envie a correção ao repositório conectado e faça um novo deploy,
+   ou execute `vercel --prod` na raiz do projeto.
+2. Confira `DATABASE_URL` nos ambientes utilizados (Production/Preview),
+   com os parâmetros SSL exigidos pelo Neon. Configure também `SECRET_KEY`
+   com um segredo estável para as sessões de produção.
+3. Confira os logs de inicialização e teste `/`, `/cadastro`,
+   `/css/style.css`, login e uma listagem autenticada.
+4. Teste uploads com `CLOUDINARY_*` e e-mails com `BREVO_*` configurados.
+
+A inicialização continua criando tabelas, ajustando colunas/constraints e
+instalando `backend/database/procedures.sql`. O PostgreSQL deve estar
+acessível e o usuário deve ter as permissões correspondentes. As consultas
+dependem de funções PostgreSQL, sem fallback SQLite.

@@ -109,6 +109,10 @@
                     </div>
                 </section>
 
+                <div id="perfilCarregamento" role="status" aria-live="polite">
+                    <p>Carregando perfil...</p>
+                </div>
+                <div id="perfilConteudo" class="hidden">
                 <!-- ===== Foto + dados pessoais ===== -->
                 <section class="section-block perfil-card">
                     <div class="section-header"><h2>Dados pessoais</h2></div>
@@ -130,7 +134,7 @@
                             </div>
                             <div class="input-group">
                                 <label for="perfilTelefone">Telefone</label>
-                                <input type="text" id="perfilTelefone" name="telefone" required>
+                                <input type="tel" id="perfilTelefone" name="telefone" maxlength="20" inputmode="tel" autocomplete="tel" required>
                             </div>
                         </div>
 
@@ -361,6 +365,7 @@
                     </form>
                 </section>
 
+                </div>
             </main>
         </div>
     </div>
