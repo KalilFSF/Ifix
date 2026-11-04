@@ -1,3 +1,5 @@
+"""Janelas semanais informativas de um técnico, com dia e horários em HH:MM."""
+from transactions import persist
 from constants import DIAS_SEMANA_LABELS
 from database import db
 
@@ -22,7 +24,7 @@ class JanelaDisponibilidade(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     @classmethod
@@ -41,13 +43,9 @@ class JanelaDisponibilidade(db.Model):
                 inicio=janela["inicio"],
                 fim=janela["fim"],
             ))
-        db.session.commit()
+        persist()
         return cls.listar_por_tecnico(tecnico_id)
 
     def to_dict(self):
-        return {
-            "dia_semana": self.dia_semana,
-            "dia_label": DIAS_SEMANA_LABELS[self.dia_semana],
-            "inicio": self.inicio,
-            "fim": self.fim,
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

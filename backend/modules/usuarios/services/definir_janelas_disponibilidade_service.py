@@ -1,3 +1,5 @@
+"""Valida dias/faixas sem sobreposição e substitui as janelas semanais do técnico."""
+from transactions import atomic, lock_model, lock_child
 from constants import MAX_JANELAS_DISPONIBILIDADE
 from exceptions import ValidacaoError
 from modules.usuarios.models.disponibilidade import JanelaDisponibilidade
@@ -11,7 +13,10 @@ class DefinirJanelasDisponibilidadeService:
     Faixa que atravessa a meia-noite não é aceita aqui — quem trabalha de
     madrugada cadastra duas janelas (até 23:59 e a partir de 00:00)."""
 
+    @atomic
     def executar(self, tecnico, dados):
+        from modules.usuarios.models.usuario import Usuario
+        tecnico = lock_model(Usuario, tecnico.id)
         janelas = dados.get("janelas")
         if not isinstance(janelas, list):
             raise ValidacaoError("Informe as janelas de disponibilidade em uma lista.")

@@ -1,3 +1,4 @@
+/* Responsabilidade: Intercepta o formulário de login, envia multipart protegido e redireciona após autenticar. */
 /* Envia o login via fetch pra API (POST /api/login) em vez de um POST de
    formulário normal — assim a página não recarrega e dá pra mostrar o erro
    (ex: "Email ou senha inválidos") direto na tela, sem depender do Flask

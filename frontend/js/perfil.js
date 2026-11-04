@@ -1,3 +1,4 @@
+/* Responsabilidade: Coordena edição da própria conta, senha, avatar, endereço, perfil profissional e disponibilidade. */
 /* Tela de perfil (frontend/pages/perfil.html).
 
    Uma única tela para cliente e técnico: o núcleo (foto, dados pessoais,

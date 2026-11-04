@@ -1,3 +1,4 @@
+"""Lista atendimentos pertencentes ao usuário autenticado no papel solicitado."""
 from modules.atendimentos.models.atendimento import Atendimento
 
 

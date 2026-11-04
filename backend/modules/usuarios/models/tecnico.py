@@ -1,8 +1,10 @@
+"""Perfil profissional e certificados associados à conta, com métricas e disponibilidade temporária."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timedelta, timezone
 
 from constants import DISPONIVEL_AGORA_VALIDADE_HORAS, MODALIDADES
 from database import db
-from utils import isoformat_utc
 
 
 class PerfilTecnico(db.Model):
@@ -39,7 +41,7 @@ class PerfilTecnico(db.Model):
 
     # "Disponível agora" (funcionalidade 6): o técnico liga o status e ele
     # vale até este momento (UTC). Nulo ou no passado = indisponível.
-    disponivel_ate = db.Column(db.DateTime)
+    disponivel_ate = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     usuario = db.relationship("Usuario", back_populates="perfil_tecnico")
     diplomas = db.relationship(
@@ -52,7 +54,7 @@ class PerfilTecnico(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def registrar_avaliacao(self, nota):
@@ -81,8 +83,8 @@ class PerfilTecnico(db.Model):
     def disponivel_agora(self):
         if self.disponivel_ate is None:
             return False
-        # O Postgres devolve datetime naive; disponivel_ate é gravado em UTC.
-        return datetime.utcnow() < self.disponivel_ate.replace(tzinfo=None)
+        # O DATETIME MySQL devolve datetime naive; disponivel_ate é gravado em UTC.
+        return datetime.now(timezone.utc).replace(tzinfo=None) < self.disponivel_ate.replace(tzinfo=None)
 
     def definir_disponivel_agora(self, disponivel):
         self.disponivel_ate = (
@@ -102,11 +104,11 @@ class PerfilTecnico(db.Model):
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, perfil_id):
-        return cls.query.get(perfil_id)
+        return db.session.get(cls, perfil_id)
 
     @classmethod
     def buscar_por_usuario_id(cls, usuario_id):
@@ -134,22 +136,8 @@ class PerfilTecnico(db.Model):
         return perfil.salvar()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "especialidade": self.especialidade,
-            "escolaridade": self.escolaridade,
-            "curso_superior": self.curso_superior,
-            "regiao_atendimento": self.regiao_atendimento,
-            "cursos_experiencias": self.cursos_experiencias,
-            "especializacoes": self.especializacoes,
-            "foto_perfil": self.foto_perfil,
-            "valor_medio": float(self.valor_medio) if self.valor_medio is not None else None,
-            "nota_media": float(self.nota_media) if self.nota_media is not None else None,
-            "total_avaliacoes": self.total_avaliacoes,
-            "modalidades": self.modalidades_lista,
-            "disponivel_agora": self.disponivel_agora,
-            "disponivel_ate": isoformat_utc(self.disponivel_ate) if self.disponivel_agora else None,
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)
 
 
 class Diploma(db.Model):
@@ -158,7 +146,7 @@ class Diploma(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     perfil_tecnico_id = db.Column(db.Integer, db.ForeignKey("perfis_tecnicos.id", ondelete="CASCADE"), nullable=False)
     arquivo = db.Column(db.String(255), nullable=False)
-    enviado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    enviado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     perfil_tecnico = db.relationship("PerfilTecnico", back_populates="diplomas")
 
@@ -166,24 +154,21 @@ class Diploma(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, diploma_id):
-        return cls.query.get(diploma_id)
+        return db.session.get(cls, diploma_id)
 
     @classmethod
     def listar_todos(cls):
         return cls.query.all()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "arquivo": self.arquivo,
-            "enviado_em": isoformat_utc(self.enviado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

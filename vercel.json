@@ -4,7 +4,11 @@
       "src": "backend/app.py",
       "use": "@vercel/python",
       "config": {
-        "includeFiles": "backend/database/procedures.sql"
+        "includeFiles": [
+          "frontend/**",
+          "backend/database/*.sql",
+          "backend/certs/*.pem"
+        ]
       }
     }
   ],

@@ -1,3 +1,7 @@
+"""Registra a gorjeta combinada após conclusão; não executa cobrança ou transferência financeira."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from constants import STATUS_FINALIZADO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.servicos.models.servico import Servico
@@ -15,8 +19,9 @@ class RegistrarGorjetaService:
     serve de acordo explícito, não de cobrança.
     """
 
+    @atomic
     def executar(self, servico_id, cliente, dados):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != cliente.id:
@@ -36,7 +41,7 @@ class RegistrarGorjetaService:
     @staticmethod
     def _parse_valor(valor):
         try:
-            numero = float(str(valor).replace(",", "."))
+            numero = decimal_value(str(valor).replace(",", "."))
         except (TypeError, ValueError):
             raise ValidacaoError("Informe um valor de gorjeta válido.") from None
         if numero <= 0:
@@ -50,9 +55,9 @@ class RegistrarGorjetaService:
             return
 
         corpo_html = f"""
-            <p>Olá, {tecnico.nome}!</p>
-            <p>O cliente do chamado <strong>{servico.codigo}</strong> ({servico.titulo})
-               deixou uma gorjeta de <strong>{formatar_moeda_brl(valor)}</strong>
+            <p>Olá, {escape(str(tecnico.nome))}!</p>
+            <p>O cliente do chamado <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))})
+               deixou uma gorjeta de <strong>{escape(str(formatar_moeda_brl(valor)))}</strong>
                como reconhecimento pelo atendimento.</p>
             <p>O iFix ainda não processa pagamentos, então combine o repasse
                diretamente com o cliente.</p>

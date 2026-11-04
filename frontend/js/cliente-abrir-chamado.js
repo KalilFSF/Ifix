@@ -1,8 +1,9 @@
+/* Responsabilidade: Controla opções, fotos e validação do formulário de abertura antes do envio multipart. */
 /* Abrir chamado (frontend/pages/cliente-abrir-chamado.html).
    Envia multipart para POST /api/servicos e redireciona para Meus chamados. */
 
 const MAX_FOTOS = 5;
-const MAX_BYTES = 5 * 1024 * 1024; // mantido igual a constants.MAX_BYTES_FOTO_CHAMADO no backend
+const MAX_BYTES = 4 * 1024 * 1024; // mantido igual a constants.MAX_BYTES_FOTO_CHAMADO no backend
 const EXTENSOES = ["png", "jpg", "jpeg", "webp"];
 
 const form = document.getElementById("abrirChamadoForm");
@@ -45,7 +46,7 @@ function extensaoOk(nome) {
 
 function renderizarFotos() {
     if (!arquivosSelecionados.length) {
-        fotosLabel.textContent = "PNG, JPG ou WEBP — até 5 fotos (5 MB cada)";
+        fotosLabel.textContent = "PNG, JPG ou WEBP — até 5 fotos; envio completo até 4 MB";
         fotosPreview.innerHTML = "";
         return;
     }
@@ -69,7 +70,7 @@ function iniciarUpload() {
                 return;
             }
             if (arquivo.size > MAX_BYTES) {
-                mostrarErroDoForm("Cada foto deve ter no máximo 5 MB.");
+                mostrarErroDoForm("Cada foto deve ter no máximo 4 MB.");
                 inputFotos.value = "";
                 return;
             }

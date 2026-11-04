@@ -1,7 +1,9 @@
+"""Mensagem do chat do chamado, autor e instante de leitura."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from database import db
-from utils import isoformat_utc
 
 MAX_CARACTERES_MENSAGEM = 1000
 
@@ -25,9 +27,9 @@ class MensagemChamado(db.Model):
     # Nulo = ainda não lida pelo destinatário. É o que alimenta o badge de
     # não lidas nos painéis — sem isso, a única forma de saber que chegou
     # mensagem seria abrir o chamado.
-    lida_em = db.Column(db.DateTime)
+    lida_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     autor = db.relationship("Usuario", foreign_keys=[autor_id])
 
@@ -35,12 +37,12 @@ class MensagemChamado(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     @classmethod
     def buscar_por_id(cls, mensagem_id):
-        return cls.query.get(mensagem_id)
+        return db.session.get(cls, mensagem_id)
 
     # ============== Finders / operações específicas ==============
 
@@ -58,16 +60,9 @@ class MensagemChamado(db.Model):
             cls.autor_id != destinatario_id,
             cls.lida_em.is_(None),
         ).update({cls.lida_em: agora}, synchronize_session=False)
-        db.session.commit()
+        persist()
         return atualizadas
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "autor_id": self.autor_id,
-            "autor_nome": self.autor.nome if self.autor else None,
-            "conteudo": self.conteudo,
-            "lida_em": isoformat_utc(self.lida_em),
-            "criado_em": isoformat_utc(self.criado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

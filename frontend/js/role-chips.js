@@ -1,3 +1,4 @@
+/* Responsabilidade: Alterna navegação entre áreas cliente/técnico e abre a opção de conversão de conta. */
 /* Chips Cliente | Técnico na sidebar.
    - Sem perfil técnico: chip Técnico abre o modal de conversão.
    - Com perfil técnico: chips alternam entre /cliente/home e /tecnico/home. */

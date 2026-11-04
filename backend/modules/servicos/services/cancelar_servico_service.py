@@ -1,3 +1,5 @@
+"""Autoriza cancelamento ou exclusão do chamado conforme proprietário e estados permitidos."""
+from transactions import atomic, lock_model, lock_child
 from constants import STATUS_ABERTO, STATUS_AGUARDANDO, STATUS_CANCELADO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.servicos.models.historico import HistoricoServico
@@ -5,8 +7,9 @@ from modules.servicos.models.servico import Servico
 
 
 class CancelarServicoService:
+    @atomic
     def executar(self, servico_id, usuario):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != usuario.id:
@@ -23,8 +26,9 @@ class CancelarServicoService:
 
 
 class ExcluirServicoService:
+    @atomic
     def executar(self, servico_id, usuario):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != usuario.id:

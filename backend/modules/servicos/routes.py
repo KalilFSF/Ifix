@@ -1,3 +1,4 @@
+"""Rotas HTTP do módulo servicos: aplica autenticação inicial e encaminha ao controller."""
 # Rotas do módulo "servicos": chamados (Servico) e as solicitações feitas
 # a técnicos específicos (SolicitacaoTecnico) — só declara endpoint +
 # auth/autorização de sessão e encaminha pro Controller.
@@ -183,3 +184,38 @@ def api_tecnico_solicitacao_recusar(solicitacao_id):
 @login_required
 def api_tecnico_solicitacao_orcamento(solicitacao_id):
     return SolicitacaoController().enviar_orcamento(solicitacao_id)
+
+
+@servicos_bp.route("/api/servicos/<int:servico_id>/fotos/<int:foto_id>",methods=["GET"])
+@login_required
+def api_foto_chamado(servico_id,foto_id):
+    from flask import Response,redirect
+    from flask_login import current_user
+    from access import service_access
+    from database import db
+    from modules.servicos.models.servico import FotoServico
+    from exceptions import RecursoNaoEncontradoError
+    import cloudinary.utils
+    import requests
+    import time
+    service_access(servico_id,current_user,allow_invited=True)
+    photo=db.session.get(FotoServico,foto_id)
+    if photo is None or photo.servico_id!=servico_id:
+        raise RecursoNaoEncontradoError("Foto não encontrada.")
+    if not photo.arquivo.startswith("private-cloudinary:"):
+        # Referências antigas permanecem sujeitas à revisão externa de privacidade.
+        if photo.arquivo.startswith(("https://res.cloudinary.com/","/assets/")):
+            return redirect(photo.arquivo)
+        raise RecursoNaoEncontradoError("Foto não encontrada.")
+    _,resource,format_name,public_id=photo.arquivo.split(":",3)
+    url=cloudinary.utils.private_download_url(public_id,format_name,type="authenticated",resource_type=resource,expires_at=int(time.time())+60)
+    with requests.get(url,timeout=8,stream=True) as result:
+        result.raise_for_status()
+        chunks=[];length=0
+        for chunk in result.iter_content(65536):
+            length+=len(chunk)
+            if length>4*1024*1024:raise RecursoNaoEncontradoError("Foto indisponível.")
+            chunks.append(chunk)
+        response=Response(b"".join(chunks),mimetype={"png":"image/png","jpg":"image/jpeg","jpeg":"image/jpeg","webp":"image/webp"}.get(format_name,"application/octet-stream"))
+        response.headers["Cache-Control"]="no-store"
+        return response

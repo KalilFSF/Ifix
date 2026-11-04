@@ -1,3 +1,4 @@
+"""Reúne as janelas semanais e o estado disponível agora do técnico autenticado."""
 from modules.usuarios.models.disponibilidade import JanelaDisponibilidade
 
 

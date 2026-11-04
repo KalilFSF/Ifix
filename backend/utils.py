@@ -1,3 +1,4 @@
+"""Valida dados de formulários, horários, coordenadas e uploads usados pelos casos de uso."""
 # Funções auxiliares de validação e upload, usadas pelas rotas de cadastro
 # (routes.py). Ficam separadas pra não inchar routes.py com lógica que não
 # é sobre "o que fazer com a requisição", e sim "como validar um dado".
@@ -7,6 +8,7 @@ import os
 import re
 import uuid
 from datetime import date, datetime, timezone
+from money import decimal_value
 
 import cloudinary
 import cloudinary.uploader
@@ -97,7 +99,7 @@ def formatar_moeda_brl(valor):
     não tem acesso a ele — e um e-mail com "1234.56" passa a impressão de
     valor errado justamente na hora em que o cliente autoriza um gasto.
     """
-    return f"R$ {float(valor or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {decimal_value(valor or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def parsear_horario(valor):
@@ -145,20 +147,8 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 
 def isoformat_utc(dt):
-    """Serializa um datetime pra ISO 8601 com o offset UTC explícito.
-
-    Toda data do projeto é gravada como datetime.now(timezone.utc), mas o
-    Postgres (TIMESTAMP WITHOUT TIME ZONE, o tipo do db.DateTime puro) joga
-    fora o tzinfo ao salvar — o valor lido de volta vem "naive". Sem
-    recolocar o offset aqui, dt.isoformat() sai sem sufixo de fuso, e o
-    front (new Date(str) em JS) interpreta a string como horário LOCAL em
-    vez de UTC, mostrando a hora errada.
-    """
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.isoformat()
+    from serialization import isoformat_utc as serialize_datetime
+    return serialize_datetime(dt)
 
 
 def parsear_coordenada(valor):
@@ -168,7 +158,8 @@ def parsear_coordenada(valor):
     if valor in (None, ""):
         return None
     try:
-        return float(valor)
+        number = float(valor)
+        return number if math.isfinite(number) and -180 <= number <= 180 else None
     except (TypeError, ValueError):
         return None
 
@@ -179,24 +170,22 @@ def extensao_permitida(filename, extensoes):
 
 
 def salvar_arquivo(arquivo, pasta_destino):
-    """Envia o arquivo pro Cloudinary com um nome único e retorna a URL pública dele.
-
-    O prefixo uuid4 evita que dois uploads com o mesmo nome de arquivo
-    (ex: "foto.jpg" de dois técnicos diferentes) se sobrescrevam. A pasta_destino
-    vira o "folder" dentro do Cloudinary, mantendo a mesma organização que
-    tínhamos localmente (perfil/, diplomas/, chamados/).
-    """
-    nome_seguro = secure_filename(arquivo.filename)
-    nome_sem_extensao = os.path.splitext(nome_seguro)[0]
-    public_id = f"{uuid.uuid4().hex}_{nome_sem_extensao}"
-
-    resultado = cloudinary.uploader.upload(
-        arquivo,
-        public_id=public_id,
-        folder=pasta_destino,
-    )
-
-    return resultado["secure_url"]
+    from uploads import validate_upload
+    from transactions import after_rollback
+    from exceptions import ValidacaoError
+    folder = pasta_destino.replace("\\","/").rstrip("/").split("/")[-1]
+    if folder not in {"perfil","diplomas","chamados"}:
+        raise ValidacaoError("Destino de upload inválido.")
+    extension = validate_upload(arquivo,allow_pdf=folder=="diplomas")
+    private = folder=="chamados"
+    delivery = "authenticated" if private else "upload"
+    result = cloudinary.uploader.upload(arquivo,public_id=uuid.uuid4().hex,
+        folder="ifix/"+folder,resource_type="image",type=delivery)
+    public_id = result["public_id"]
+    after_rollback(lambda: cloudinary.uploader.destroy(public_id,resource_type="image",type=delivery,invalidate=True))
+    if private:
+        return f"private-cloudinary:image:{extension}:{public_id}"
+    return result["secure_url"]
 
 
 ESCOLARIDADES_VALIDAS = {"Ensino médio", "Técnico", "Superior cursando", "Superior completo"}

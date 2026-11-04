@@ -1,9 +1,11 @@
+"""Valida e envia a nova foto ao Cloudinary antes de atualizar a própria conta."""
+from transactions import atomic, lock_model, lock_child
 from flask import current_app
 
 from exceptions import ValidacaoError
 from utils import IMAGE_EXTENSIONS, extensao_permitida, salvar_arquivo
 
-MAX_BYTES_FOTO_PERFIL = 5 * 1024 * 1024
+MAX_BYTES_FOTO_PERFIL = 4 * 1024 * 1024
 
 
 class DefinirFotoPerfilService:
@@ -15,7 +17,10 @@ class DefinirFotoPerfilService:
     para a do perfil técnico em Usuario.to_dict().
     """
 
+    @atomic
     def executar(self, usuario, arquivo):
+        from modules.usuarios.models.usuario import Usuario
+        usuario = lock_model(Usuario, usuario.id)
         if arquivo is None or not arquivo.filename:
             raise ValidacaoError("Escolha uma imagem para enviar.")
         if not extensao_permitida(arquivo.filename, IMAGE_EXTENSIONS):

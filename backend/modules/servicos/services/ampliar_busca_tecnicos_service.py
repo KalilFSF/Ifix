@@ -1,3 +1,5 @@
+"""Amplia o raio de busca do chamado aberto e convida somente novos candidatos."""
+from transactions import atomic, lock_model, lock_child
 from constants import (
     RAIO_AMPLIACAO_MAXIMO_KM,
     RAIO_SELECAO_TECNICOS_KM,
@@ -26,8 +28,9 @@ class AmpliarBuscaTecnicosService:
         self.selecionar_tecnicos_service = SelecionarTecnicosService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
 
+    @atomic
     def executar(self, servico_id, cliente):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != cliente.id:

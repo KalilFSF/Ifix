@@ -1,3 +1,4 @@
+"""Obtém o perfil profissional privado da própria conta ou informa sua ausência."""
 from exceptions import RecursoNaoEncontradoError
 
 

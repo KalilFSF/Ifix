@@ -1,3 +1,6 @@
+"""Permite ao cliente responder uma aprovação pendente e elevar o teto uma única vez."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
 from constants import APROVACAO_APROVADA, APROVACAO_STATUS_RESPOSTA, NOTIFICACAO_AUTORIZACAO_RESPONDIDA
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.notificacoes.services.registrar_notificacao_service import RegistrarNotificacaoService
@@ -14,8 +17,9 @@ class ResponderAprovacaoService:
     limite continua valendo pro que vier depois, em vez de virar um cheque
     em branco a partir da primeira autorização."""
 
+    @atomic
     def executar(self, aprovacao_id, cliente, dados):
-        aprovacao = SolicitacaoAprovacao.buscar_por_id(aprovacao_id)
+        aprovacao = lock_child(SolicitacaoAprovacao, aprovacao_id)
         if aprovacao is None:
             raise RecursoNaoEncontradoError("Solicitação de autorização não encontrada.")
 
@@ -60,13 +64,13 @@ class ResponderAprovacaoService:
             else "<p>Não execute o reparo adicional. Finalize o chamado com o que foi acordado.</p>"
         )
         if not autorizado and aprovacao.justificativa_recusa:
-            complemento += f"<p><strong>Motivo do cliente:</strong> {aprovacao.justificativa_recusa}</p>"
+            complemento += f"<p><strong>Motivo do cliente:</strong> {escape(str(aprovacao.justificativa_recusa))}</p>"
 
         corpo_html = f"""
-            <p>Olá, {tecnico.nome}!</p>
-            <p>O cliente <strong>{titulo}</strong> o custo adicional de
-               {formatar_moeda_brl(aprovacao.valor_adicional)} no chamado
-               <strong>{servico.codigo}</strong> ({servico.titulo}).</p>
+            <p>Olá, {escape(str(tecnico.nome))}!</p>
+            <p>O cliente <strong>{escape(str(titulo))}</strong> o custo adicional de
+               {escape(str(formatar_moeda_brl(aprovacao.valor_adicional)))} no chamado
+               <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}).</p>
             {complemento}
         """
         EmailService.enviar_email(

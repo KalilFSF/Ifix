@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Papel desta página: Cadastro de cliente/técnico: formulários e uploads são coordenados por js/cadastro.js. -->
 <html lang="pt-BR" translate="no">
 <head>
     <meta charset="UTF-8">
@@ -346,7 +347,8 @@
 
                     <div class="input-group">
                         <label>Diplomas e certificados</label>
-                        <input type="file" name="diplomas" accept="image/*,.pdf" multiple>
+                        <input type="file" name="diplomas" aria-description="Certificados aparecem no perfil público. Envie uma cópia sem CPF, endereço ou outros dados privados." accept="image/*,.pdf" multiple>
+<p class="input-helper">Certificados são públicos. Envie cópias sem CPF, endereço ou outros dados privados. Limite total do envio: 4 MB.</p>
                     </div>
 
                     <div class="input-group">

@@ -1,3 +1,4 @@
+/* Responsabilidade: Consulta o histórico do mesmo aparelho e identifica causa repetida em pelo menos dois registros. */
 /* Histórico do aparelho (funcionalidade 10), compartilhado entre "Abrir
    chamado" (avisa enquanto o cliente digita o modelo) e "Meus chamados"
    (bloco dentro do detalhe do chamado).

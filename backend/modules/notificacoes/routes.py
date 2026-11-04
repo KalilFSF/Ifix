@@ -1,3 +1,4 @@
+"""Rotas HTTP do módulo notificacoes: aplica autenticação inicial e encaminha ao controller."""
 # Rotas do módulo "notificacoes" (avisos dentro do app, o "sino") — só declara
 # endpoint + auth e encaminha pro Controller.
 

@@ -1,3 +1,5 @@
+"""Registra avaliação única pós-conclusão e atualiza médias ou alertas do participante avaliado."""
+from transactions import atomic, lock_model, lock_child
 from sqlalchemy.exc import IntegrityError
 
 from constants import NOTA_COMPORTAMENTO_LIMITE, STATUS_FINALIZADO
@@ -22,8 +24,9 @@ class AvaliarService:
       alerta de comportamento (ver Usuario.registrar_alerta_comportamento)
       que, acumulado, suspende a conta do cliente."""
 
+    @atomic
     def executar(self, servico_id, autor, dados):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.status != STATUS_FINALIZADO:
@@ -36,22 +39,20 @@ class AvaliarService:
         if avaliado_id is None:
             raise ValidacaoError("Chamado sem técnico atribuído.")
 
+        # Adquirir locks antes do INSERT: FKs InnoDB tomam locks compartilhados.
+        # Ordem estável evita upgrade simultâneo desses locks em avaliações cruzadas.
+        for user_id in sorted({servico.cliente_id,servico.tecnico_id}):
+            lock_model(Usuario,user_id)
+
         if Avaliacao.buscar_por_servico_e_autor(servico_id, autor.id):
             raise ValidacaoError("Você já avaliou este chamado.")
 
         comentario = (dados.get("comentario") or "").strip()
 
-        # A checagem acima é um read-then-write: entre ela e o INSERT cabe um
-        # segundo envio (duplo clique, duas abas), e aí quem barra é a
-        # constraint uq_avaliacao_servico_autor. Sem este except isso virava
-        # 500 com a sessão suja, em vez da mesma mensagem de negócio.
-        try:
-            if autor_e_tecnico:
-                return self._avaliar_cliente(servico_id, autor.id, avaliado_id, dados, comentario)
-            return self._avaliar_tecnico(servico_id, autor.id, avaliado_id, dados, comentario)
-        except IntegrityError:
-            db.session.rollback()
-            raise ValidacaoError("Você já avaliou este chamado.")
+        # Lock do chamado serializa avaliações; UNIQUE é a segunda barreira.
+        if autor_e_tecnico:
+            return self._avaliar_cliente(servico_id, autor.id, avaliado_id, dados, comentario)
+        return self._avaliar_tecnico(servico_id, autor.id, avaliado_id, dados, comentario)
 
     def _avaliar_tecnico(self, servico_id, autor_id, tecnico_id, dados, comentario):
         nota_tempo = self._parse_nota(dados.get("nota_tempo"), "tempo de atendimento")
@@ -64,7 +65,10 @@ class AvaliarService:
             nota_tempo=nota_tempo, nota_honestidade=nota_honestidade, nota_preco_justo=nota_preco_justo,
         )
 
-        perfil = PerfilTecnico.buscar_por_usuario_id(tecnico_id)
+        lock_model(Usuario, tecnico_id)
+        from sqlalchemy import select
+        perfil = db.session.execute(select(PerfilTecnico).where(PerfilTecnico.usuario_id==tecnico_id)
+            .with_for_update().execution_options(populate_existing=True)).scalar_one_or_none()
         if perfil:
             perfil.registrar_avaliacao(nota_geral)
         else:
@@ -88,7 +92,7 @@ class AvaliarService:
         )
 
         if min(nota_comportamento, nota_colaboracao) <= NOTA_COMPORTAMENTO_LIMITE:
-            cliente = Usuario.buscar_por_id(cliente_id)
+            cliente = lock_model(Usuario, cliente_id)
             if cliente:
                 cliente.registrar_alerta_comportamento()
 

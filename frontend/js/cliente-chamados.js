@@ -1,3 +1,4 @@
+/* Responsabilidade: Painel do proprietário: lista chamados, compara propostas e coordena ações, histórico, chat e garantia. */
 /* "Meus chamados" / Acompanhar chamado (frontend/pages/cliente-chamados.html).
    Lista todos os chamados do cliente logado (GET /api/servicos/meus?como=cliente) e,
    ao clicar em um, mostra o histórico completo de status

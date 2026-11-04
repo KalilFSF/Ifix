@@ -1,3 +1,6 @@
+"""Valida e atualiza apenas campos profissionais permitidos do técnico autenticado."""
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from constants import MODALIDADES
 from exceptions import RecursoNaoEncontradoError, ValidacaoError
 from utils import ESCOLARIDADES_VALIDAS
@@ -18,8 +21,11 @@ class AtualizarPerfilTecnicoService:
     gravar uma escolaridade fora do catálogo aceito no cadastro.
     """
 
+    @atomic
     def executar(self, usuario, dados):
-        perfil = usuario.perfil_tecnico
+        from modules.usuarios.models.usuario import Usuario
+        usuario = lock_model(Usuario, usuario.id)
+        perfil = lock_model(type(usuario.perfil_tecnico),usuario.perfil_tecnico.id) if usuario.perfil_tecnico else None
         if not perfil:
             raise RecursoNaoEncontradoError("Perfil não encontrado.")
 
@@ -72,7 +78,7 @@ class AtualizarPerfilTecnicoService:
         if valor in (None, ""):
             return None
         try:
-            numero = float(str(valor).replace(",", "."))
+            numero = decimal_value(str(valor).replace(",", "."))
         except (TypeError, ValueError):
             raise ValidacaoError("Informe um valor médio válido.") from None
         if numero < 0:

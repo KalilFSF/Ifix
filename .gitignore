@@ -7,13 +7,11 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Banco de dados local (SQLite) — cada dev tem o seu, criado automaticamente
-# ao rodar `python app.py`
+# Arquivos locais de banco não fazem parte da aplicação MySQL/Aiven
 backend/database/*.db
 
 # Uploads de usuário (fotos de perfil, diplomas) — conteúdo gerado em
-# runtime, não faz parte do código. As pastas são recriadas sozinhas
-# quando o app.py roda (ver os.makedirs em backend/app.py).
+# runtime, não faz parte do código. Em produção os uploads usam Cloudinary.
 frontend/uploads/*
 
 # Claude Code (assistente de IA usado no desenvolvimento) — configs e

@@ -1,3 +1,4 @@
+"""Autoriza os participantes a consultar solicitações de custo adicional daquele chamado."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.servicos.models.servico import Servico
 from modules.servicos.repositories.aprovacao_repository import AprovacaoRepository

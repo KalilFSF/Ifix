@@ -1,3 +1,6 @@
+"""Valida técnico responsável, causa padronizada e explicação do reparo antes de salvar o laudo."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
 from constants import (
     CAUSAS_DEFEITO,
     CAUSAS_DEFEITO_LABELS,
@@ -23,8 +26,9 @@ class RegistrarLaudoService:
     Pode ser registrado (e corrigido) enquanto o chamado está em andamento;
     AtualizarStatusServicoService exige que exista antes de finalizar."""
 
+    @atomic
     def executar(self, servico_id, usuario, dados):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.tecnico_id != usuario.id:
@@ -68,10 +72,10 @@ class RegistrarLaudoService:
 
         rotulo_causa = CAUSAS_DEFEITO_LABELS.get(servico.causa_defeito, servico.causa_defeito)
         corpo_html = f"""
-            <p>Olá, {cliente.nome}!</p>
+            <p>Olá, {escape(str(cliente.nome))}!</p>
             <p>O técnico registrou o relatório técnico do seu chamado
-               <strong>{servico.codigo}</strong> ({servico.titulo}).</p>
-            <p><strong>Causa identificada:</strong> {rotulo_causa}</p>
+               <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}).</p>
+            <p><strong>Causa identificada:</strong> {escape(str(rotulo_causa))}</p>
             <p>Acesse sua conta no iFix pra ler a explicação completa.</p>
         """
         EmailService.enviar_email(

@@ -1,3 +1,4 @@
+"""Valida filtros de busca, categoria, modalidade, nota e disponibilidade do diretório público."""
 from constants import CATEGORIAS_PROBLEMA, MODALIDADES
 from exceptions import ValidacaoError
 from modules.usuarios.repositories.usuario_repository import UsuarioRepository

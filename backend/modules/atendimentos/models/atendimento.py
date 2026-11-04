@@ -1,8 +1,10 @@
+"""Proposta/orçamento associado ao chamado, com cliente, técnico, valor, prazo e estado."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from constants import ORCAMENTO_ACEITO, ORCAMENTO_PENDENTE, ORCAMENTO_RECUSADO
 from database import db
-from utils import isoformat_utc
 
 
 class Atendimento(db.Model):
@@ -23,8 +25,8 @@ class Atendimento(db.Model):
     cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"))
     servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    atualizado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
+    atualizado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     cliente = db.relationship("Usuario", foreign_keys=[cliente_id], back_populates="atendimentos_cliente")
     tecnico = db.relationship("Usuario", foreign_keys=[tecnico_id], back_populates="atendimentos_tecnico")
@@ -34,7 +36,7 @@ class Atendimento(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def atualizar(self, dados):
@@ -45,11 +47,11 @@ class Atendimento(db.Model):
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, atendimento_id):
-        return cls.query.get(atendimento_id)
+        return db.session.get(cls, atendimento_id)
 
     @classmethod
     def listar_todos(cls):
@@ -78,21 +80,21 @@ class Atendimento(db.Model):
 
     @classmethod
     def buscar_por_servico(cls, servico_id):
-        return cls.query.filter_by(servico_id=servico_id).first()
+        return cls.query.filter_by(servico_id=servico_id).with_for_update().populate_existing().first()
 
     @classmethod
     def buscar_por_servico_e_tecnico(cls, servico_id, tecnico_id):
-        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).first()
+        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).with_for_update().populate_existing().first()
 
     @classmethod
     def contar_orcamentos_do_servico(cls, servico_id):
         """Orçamentos já enviados (com valor) pro chamado — usado pelo limite
         de MAX_ORCAMENTOS_POR_CHAMADO em EnviarOrcamentoService."""
-        return cls.query.filter(cls.servico_id == servico_id, cls.valor_orcamento.isnot(None)).count()
+        return len(cls.query.with_entities(cls.id).filter(cls.servico_id == servico_id, cls.valor_orcamento.isnot(None)).with_for_update().all())
 
     @classmethod
     def listar_por_servico(cls, servico_id):
-        return cls.query.filter_by(servico_id=servico_id).order_by(cls.criado_em).all()
+        return cls.query.filter_by(servico_id=servico_id).order_by(cls.criado_em).with_for_update().populate_existing().all()
 
     @classmethod
     def listar_por_usuario(cls, usuario_id, role):
@@ -118,16 +120,5 @@ class Atendimento(db.Model):
         return self.salvar()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "titulo": self.titulo,
-            "descricao": self.descricao,
-            "status": self.status,
-            "valor_orcamento": float(self.valor_orcamento) if self.valor_orcamento is not None else None,
-            "prazo_estimado_dias": self.prazo_estimado_dias,
-            "cliente_id": self.cliente_id,
-            "tecnico_id": self.tecnico_id,
-            "servico_id": self.servico_id,
-            "criado_em": isoformat_utc(self.criado_em),
-            "atualizado_em": isoformat_utc(self.atualizado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

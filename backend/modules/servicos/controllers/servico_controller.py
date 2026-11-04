@@ -1,3 +1,4 @@
+"""Controller HTTP: lê a requisição, chama os services de servicos e devolve o contrato JSON da API."""
 from flask import jsonify, request
 from flask_login import current_user, login_required
 
@@ -113,12 +114,10 @@ class ServicoController:
     @login_required
     def detalhes(self, servico_id):
         try:
-            servico = self.obter_detalhes_servico_service.executar(servico_id)
+            payload = self.obter_detalhes_servico_service.executar(servico_id, current_user)
         except DominioError as erro:
             return jsonify({"ok": False, "erro": erro.mensagem}), erro.status_code
 
-        payload = servico.to_dict()
-        payload["atendimentos"] = [atendimento.to_dict() for atendimento in servico.atendimentos]
         return jsonify(payload)
 
     @login_required

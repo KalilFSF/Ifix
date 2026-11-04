@@ -1,3 +1,4 @@
+/* Responsabilidade: Resumo inicial do cliente: conta, indicadores e chamados recentes obtidos pela API. */
 /* Dashboard do cliente (frontend/pages/cliente-home.html).
    O nome do usuário vem de GET /api/me. Os números de resumo e os
    "chamados recentes" vêm de GET /api/servicos/meus?como=cliente. */

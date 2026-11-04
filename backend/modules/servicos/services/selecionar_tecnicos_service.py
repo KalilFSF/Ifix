@@ -1,3 +1,4 @@
+"""Calcula ranking por distância, nota, preço e disponibilidade, respeitando modalidade."""
 from constants import (
     BONUS_DISPONIVEL_AGORA,
     PESO_AVALIACAO,

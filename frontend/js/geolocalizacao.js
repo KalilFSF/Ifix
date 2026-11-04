@@ -1,3 +1,4 @@
+/* Responsabilidade: Obtém coordenadas via permissão do navegador e anexa a formulários de cadastro/chamado. */
 /* Coordenadas do dispositivo via API nativa do navegador (Geolocation) —
    não é geocoding externo, é a própria localização do aparelho, usada só
    pra alimentar o ranking automático de técnicos no backend (Haversine).

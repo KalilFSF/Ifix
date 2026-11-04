@@ -1,8 +1,11 @@
+"""Solicitação de custo adicional aguardando decisão do cliente."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
+from money import decimal_value
 from datetime import datetime, timezone
 
 from constants import APROVACAO_APROVADA, APROVACAO_PENDENTE, APROVACAO_RECUSADA
 from database import db
-from utils import isoformat_utc
 
 
 class SolicitacaoAprovacao(db.Model):
@@ -23,8 +26,8 @@ class SolicitacaoAprovacao(db.Model):
     valor_adicional = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), nullable=False, default=APROVACAO_PENDENTE)
     justificativa_recusa = db.Column(db.Text)
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    respondido_em = db.Column(db.DateTime)
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
+    respondido_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     servico = db.relationship("Servico", back_populates="aprovacoes")
     tecnico = db.relationship("Usuario")
@@ -33,16 +36,16 @@ class SolicitacaoAprovacao(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, aprovacao_id):
-        return cls.query.get(aprovacao_id)
+        return db.session.get(cls, aprovacao_id)
 
     @classmethod
     def listar_todos(cls):
@@ -62,7 +65,7 @@ class SolicitacaoAprovacao(db.Model):
 
     @classmethod
     def buscar_pendente_do_servico(cls, servico_id):
-        return cls.query.filter_by(servico_id=servico_id, status=APROVACAO_PENDENTE).first()
+        return cls.query.filter_by(servico_id=servico_id, status=APROVACAO_PENDENTE).with_for_update().populate_existing().first()
 
     @classmethod
     def listar_por_servico(cls, servico_id):
@@ -77,7 +80,7 @@ class SolicitacaoAprovacao(db.Model):
             .filter_by(servico_id=servico_id, status=APROVACAO_APROVADA)
             .scalar()
         )
-        return float(total or 0)
+        return decimal_value(total or 0)
 
     def aprovar(self):
         self.status = APROVACAO_APROVADA
@@ -95,15 +98,5 @@ class SolicitacaoAprovacao(db.Model):
         return self.status == APROVACAO_PENDENTE
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "tecnico_id": self.tecnico_id,
-            "tecnico_nome": self.tecnico.nome if self.tecnico else None,
-            "descricao": self.descricao,
-            "valor_adicional": float(self.valor_adicional) if self.valor_adicional is not None else 0.0,
-            "status": self.status,
-            "justificativa_recusa": self.justificativa_recusa,
-            "criado_em": isoformat_utc(self.criado_em),
-            "respondido_em": isoformat_utc(self.respondido_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

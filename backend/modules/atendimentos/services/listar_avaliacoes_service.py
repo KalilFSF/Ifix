@@ -1,3 +1,4 @@
+"""Autoriza cliente/responsável a consultar avaliações do chamado."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.atendimentos.repositories.avaliacao_repository import AvaliacaoRepository
 from modules.servicos.models.servico import Servico

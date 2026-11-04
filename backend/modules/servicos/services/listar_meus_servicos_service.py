@@ -1,3 +1,4 @@
+"""Consulta chamados filtrados pelo id autenticado, papel exercido e status opcional."""
 from modules.servicos.repositories.servico_repository import ServicoRepository
 
 

@@ -1,3 +1,4 @@
+"""Mantém o endpoint legado de listagem usando a projeção pública do diretório."""
 from modules.usuarios.repositories.usuario_repository import UsuarioRepository
 
 

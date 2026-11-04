@@ -1,3 +1,5 @@
+"""Escolhe uma proposta, recusa concorrentes e atribui o responsável com histórico/notificação."""
+from transactions import atomic, lock_model, lock_child
 from constants import NOTIFICACAO_TECNICO_DEFINIDO, ORCAMENTO_PENDENTE, STATUS_AGUARDANDO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.atendimentos.models.atendimento import Atendimento
@@ -15,14 +17,17 @@ class EscolherOrcamentoService:
     automaticamente — a única forma de "notificação" hoje é a mudança de
     status, sem push/e-mail externo."""
 
+    @atomic
     def executar(self, atendimento_id, cliente):
-        atendimento = Atendimento.buscar_por_id(atendimento_id)
+        atendimento = lock_child(Atendimento, atendimento_id)
         if atendimento is None:
             raise RecursoNaoEncontradoError("Orçamento não encontrado.")
 
         servico = atendimento.servico
         if servico.cliente_id != cliente.id:
             raise PermissaoNegadaError("Apenas o cliente dono do chamado pode escolher um orçamento.")
+        if servico.status != "aberto":
+            raise ValidacaoError("Este chamado não está aberto para escolha.")
         if atendimento.status != ORCAMENTO_PENDENTE:
             raise ValidacaoError("Este orçamento já foi decidido.")
         if servico.tecnico_id is not None:

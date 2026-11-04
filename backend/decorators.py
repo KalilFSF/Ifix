@@ -1,3 +1,4 @@
+"""Restrições de papel reutilizáveis; não substituem autorização de cada chamado no service."""
 # Decorators de autorização por papel, aplicados nos Controllers depois do
 # @login_required (que só garante "tem sessão", não "tem permissão").
 #

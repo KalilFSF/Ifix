@@ -1,3 +1,4 @@
+/* Responsabilidade: Componente do sino: lista avisos, atualiza contagem e marca notificações como lidas. */
 /* Sino de notificações (funcionalidade 9), compartilhado pelos painéis.
 
    Substitui o aviso por WhatsApp/SMS por algo que não depende de plataforma

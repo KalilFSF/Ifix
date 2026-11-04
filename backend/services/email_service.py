@@ -11,6 +11,7 @@
 import os
 
 import requests
+from transactions import after_commit
 
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
@@ -30,6 +31,10 @@ class EmailService:
         (API key ausente, Brevo fora do ar, etc.) não pode derrubar a operação
         principal que disparou o envio (ex: atualização de status do chamado).
         Retorna True/False só pra quem quiser logar/testar."""
+        return after_commit(lambda: EmailService._enviar(destinatario_email,destinatario_nome,assunto,corpo_html))
+
+    @staticmethod
+    def _enviar(destinatario_email,destinatario_nome,assunto,corpo_html):
         if not BREVO_API_KEY:
             print("[email] BREVO_API_KEY não configurada — e-mail não enviado.")
             return False
@@ -51,10 +56,10 @@ class EmailService:
         try:
             resposta = requests.post(BREVO_API_URL, json=payload, headers=headers, timeout=8)
         except requests.RequestException as erro:
-            print(f"[email] Falha ao chamar a API da Brevo: {erro}")
+            print("[email] Falha no transporte Brevo; requer reconciliação.")
             return False
 
         if resposta.status_code >= 300:
-            print(f"[email] Brevo respondeu {resposta.status_code}: {resposta.text}")
+            print(f"[email] Brevo respondeu HTTP {resposta.status_code}; requer reconciliação.")
             return False
         return True

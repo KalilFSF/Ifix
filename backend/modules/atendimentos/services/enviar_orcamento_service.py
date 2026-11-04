@@ -1,3 +1,6 @@
+"""Valida convite, valor e prazo; limita propostas e notifica o cliente na mesma transação."""
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from constants import (
     MAX_ORCAMENTOS_POR_CHAMADO,
     NOTIFICACAO_ORCAMENTO_RECEBIDO,
@@ -18,8 +21,9 @@ class EnviarOrcamentoService:
     chamado — quem assume de fato só é decidido depois, pelo cliente
     (EscolherOrcamentoService)."""
 
+    @atomic
     def executar(self, solicitacao_id, tecnico_id, dados):
-        solicitacao = SolicitacaoTecnico.buscar_por_id(solicitacao_id)
+        solicitacao = lock_child(SolicitacaoTecnico, solicitacao_id)
         if solicitacao is None:
             raise RecursoNaoEncontradoError("Solicitação não encontrada.")
         if solicitacao.tecnico_id != tecnico_id:
@@ -32,6 +36,8 @@ class EnviarOrcamentoService:
         observacoes = (dados.get("observacoes") or "").strip()
 
         servico = solicitacao.servico
+        if servico.status != "aberto" or servico.tecnico_id is not None:
+            raise ValidacaoError("Este chamado já foi decidido ou encerrado.")
         atendimento_existente = Atendimento.buscar_por_servico_e_tecnico(servico.id, tecnico_id)
 
         # Comparativo de propostas (funcionalidade 8): o cliente compara no
@@ -76,7 +82,7 @@ class EnviarOrcamentoService:
     @staticmethod
     def _parse_valor(valor):
         try:
-            valor = float(valor)
+            valor = decimal_value(valor)
         except (TypeError, ValueError):
             raise ValidacaoError("Informe um valor de orçamento válido.")
         if valor <= 0:

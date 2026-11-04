@@ -2966,6 +2966,25 @@
 
 .perfil-publico-card {
     max-width: 680px;
+    /* Palavras sem espaços não podem aumentar a largura mínima do modal. */
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.perfil-publico-card .modal-info-grid {
+    /* minmax(0, ...) permite que as colunas encolham mesmo com texto muito longo. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.perfil-publico-card .modal-info-grid > div,
+.perfil-publico-topo > div {
+    min-width: 0;
+}
+
+.perfil-publico-experiencias p {
+    /* Preserva Enter do cadastro e quebra também sequências sem espaços. */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .perfil-publico-topo {
@@ -3116,6 +3135,10 @@
 }
 
 @media (max-width: 640px) {
+    .perfil-publico-card .modal-info-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .perfil-publico-metricas {
         grid-template-columns: repeat(2, 1fr);
     }

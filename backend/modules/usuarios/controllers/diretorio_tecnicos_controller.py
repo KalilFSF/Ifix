@@ -1,3 +1,4 @@
+"""Controller HTTP: lê a requisição, chama os services de usuarios e devolve o contrato JSON da API."""
 from flask import jsonify, request
 from flask_login import login_required
 

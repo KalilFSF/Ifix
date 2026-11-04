@@ -1,3 +1,4 @@
+/* Responsabilidade: Componente reutilizável de avaliação: critérios, estrelas, rascunho e envio após conclusão. */
 /* Bloco de avaliação mútua, compartilhado pelos dois painéis.
 
    Isto estava duplicado byte a byte em cliente-chamados.js e tecnico-home.js,

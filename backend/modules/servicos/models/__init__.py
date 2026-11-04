@@ -1,3 +1,4 @@
+"""Pacote backend.modules.servicos.models. Organiza imports; não inicializa a aplicação."""
 from .servico import Servico, FotoServico
 from .solicitacao import SolicitacaoTecnico
 from .historico import HistoricoServico

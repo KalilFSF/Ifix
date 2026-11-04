@@ -1,3 +1,7 @@
+"""Permite ao proprietário elevar a oferta enquanto aberto e avisa os técnicos já convidados."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from constants import STATUS_ABERTO
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError, ValidacaoError
 from modules.servicos.models.servico import Servico
@@ -18,8 +22,9 @@ class AumentarTetoServicoService:
     adicional (funcionalidades 6 e 7), que existe justamente pra isso.
     """
 
+    @atomic
     def executar(self, servico_id, novo_valor, cliente):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != cliente.id:
@@ -31,7 +36,7 @@ class AumentarTetoServicoService:
             )
 
         valor = self._parse_valor(novo_valor)
-        teto_atual = float(servico.valor_maximo_aprovado) if servico.tem_teto else 0.0
+        teto_atual = decimal_value(servico.valor_maximo_aprovado) if servico.tem_teto else decimal_value(0)
         if valor <= teto_atual:
             raise ValidacaoError(
                 f"O novo valor precisa ser maior que o atual ({formatar_moeda_brl(teto_atual)})."
@@ -46,7 +51,7 @@ class AumentarTetoServicoService:
     @staticmethod
     def _parse_valor(valor):
         try:
-            numero = float(str(valor).replace(",", "."))
+            numero = decimal_value(str(valor).replace(",", "."))
         except (TypeError, ValueError):
             raise ValidacaoError("Informe um valor válido.") from None
         if numero <= 0:
@@ -63,10 +68,10 @@ class AumentarTetoServicoService:
                 continue
 
             corpo_html = f"""
-                <p>Olá, {tecnico.nome}!</p>
+                <p>Olá, {escape(str(tecnico.nome))}!</p>
                 <p>O cliente aumentou o valor máximo do chamado
-                   <strong>{servico.codigo}</strong> ({servico.titulo}) para
-                   <strong>{formatar_moeda_brl(valor)}</strong>.</p>
+                   <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}) para
+                   <strong>{escape(str(formatar_moeda_brl(valor)))}</strong>.</p>
                 <p>Se antes não compensava, vale uma nova olhada no seu painel.</p>
             """
             EmailService.enviar_email(

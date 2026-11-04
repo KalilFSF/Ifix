@@ -1,9 +1,12 @@
+"""Valida os dados e a unicidade de CPF/e-mail antes de criar uma conta cliente."""
+from transactions import atomic, lock_model, lock_child
 from exceptions import ValidacaoError
 from modules.usuarios.models.usuario import Usuario
 from utils import validar_campos_comuns
 
 
 class CadastrarClienteService:
+    @atomic
     def executar(self, dados, senha, confirmar_senha):
         erro = validar_campos_comuns(dados, senha, confirmar_senha)
         if erro:

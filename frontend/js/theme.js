@@ -1,3 +1,4 @@
+/* Responsabilidade: Aplica e guarda a preferência visual claro/escuro; não persiste dados de negócio no MySQL. */
 /* Tema claro/escuro compartilhado por TODAS as páginas do iFix.
    O tema em si é feito 100% em CSS via a classe "light" na <html> (ver as
    variáveis --bg-*, --text-*, --border-* em style.css); aqui só ligamos/

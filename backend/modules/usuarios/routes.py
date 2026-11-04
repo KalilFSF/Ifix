@@ -1,3 +1,4 @@
+"""Rotas HTTP do módulo usuarios: aplica autenticação inicial e encaminha ao controller."""
 # Rotas do módulo "usuarios": autenticação, cadastro (cliente/técnico),
 # perfil próprio, listagem de técnicos, perfil técnico e conversão
 # cliente -> técnico. Só declara endpoint + auth/autorização de sessão e

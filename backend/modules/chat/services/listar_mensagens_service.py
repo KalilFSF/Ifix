@@ -1,3 +1,4 @@
+"""Autoriza a conversa e consulta mensagens incrementais ou contadores de não lidas."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.chat.repositories.mensagem_repository import MensagemRepository
 from modules.servicos.models.servico import Servico

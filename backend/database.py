@@ -1,3 +1,4 @@
+"""Instância SQLAlchemy compartilhada; a conexão é configurada pela factory da aplicação."""
 # Instância única do SQLAlchemy, compartilhada por todo o projeto.
 #
 # Fica no seu próprio arquivo (em vez de dentro de app.py ou models.py) pra

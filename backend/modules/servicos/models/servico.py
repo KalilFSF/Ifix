@@ -1,3 +1,7 @@
+"""Chamado do cliente e suas fotos; reúne estado, participantes, valores, laudo e garantia."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
+from money import decimal_value
 from datetime import datetime, timedelta, timezone
 
 from constants import (
@@ -10,7 +14,6 @@ from constants import (
     URGENCIA_TAXA_PERCENTUAL,
 )
 from database import db
-from utils import isoformat_utc
 
 
 class Servico(db.Model):
@@ -42,7 +45,7 @@ class Servico(db.Model):
     # de URGENCIA_PRAZO_HORAS só começa a correr quando um técnico é definido
     # (atribuir_tecnico) — antes disso não há ninguém a quem cobrar.
     urgente = db.Column(db.Boolean, nullable=False, default=False)
-    urgencia_prazo_em = db.Column(db.DateTime)
+    urgencia_prazo_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     # Modalidade de atendimento (funcionalidade 2): constants.MODALIDADES.
     modalidade = db.Column(db.String(20), nullable=False, default=MODALIDADE_LOJA)
@@ -65,20 +68,20 @@ class Servico(db.Model):
     # os GARANTIA_DIAS. Dá pra derivar do historico_servicos, mas uma coluna
     # explícita evita um JOIN em toda checagem de prazo e deixa a regra
     # legível na própria Model.
-    finalizado_em = db.Column(db.DateTime)
+    finalizado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     # Localização do chamado, usada por SelecionarTecnicosService pra
     # calcular distância (Haversine) até cada técnico. Preenchida em
     # Servico.criar a partir do endereço do cliente (Usuario.latitude/
     # longitude); pode ficar nula se o cliente ainda não tem lat/long
     # cadastrados, caso em que a seleção automática é pulada.
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
+    latitude = db.Column(db.Float().with_variant(DOUBLE(), "mysql"))
+    longitude = db.Column(db.Float().with_variant(DOUBLE(), "mysql"))
 
     cliente_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"))
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    atualizado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
+    atualizado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     cliente = db.relationship("Usuario", foreign_keys=[cliente_id], back_populates="servicos_criados")
     tecnico = db.relationship("Usuario", foreign_keys=[tecnico_id], back_populates="servicos_atendidos")
@@ -122,7 +125,7 @@ class Servico(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def atualizar(self, dados):
@@ -133,11 +136,11 @@ class Servico(db.Model):
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, servico_id):
-        return cls.query.get(servico_id)
+        return db.session.get(cls, servico_id)
 
     @classmethod
     def listar_todos(cls):
@@ -215,7 +218,7 @@ class Servico(db.Model):
         definido não há o que elevar — o chamado segue sem limite."""
         if self.valor_maximo_aprovado is None:
             return self
-        self.valor_maximo_aprovado = float(self.valor_maximo_aprovado) + float(valor_adicional)
+        self.valor_maximo_aprovado = decimal_value(self.valor_maximo_aprovado) + decimal_value(valor_adicional)
         return self.salvar()
 
     @property
@@ -226,7 +229,7 @@ class Servico(db.Model):
         """Sem teto definido, tudo cabe — o cliente optou por não limitar."""
         if not self.tem_teto:
             return True
-        return float(valor) <= float(self.valor_maximo_aprovado)
+        return decimal_value(valor) <= decimal_value(self.valor_maximo_aprovado)
 
     # ============== Garantia (funcionalidade 2) ==============
 
@@ -241,16 +244,16 @@ class Servico(db.Model):
         expira_em = self.garantia_expira_em
         if expira_em is None:
             return False
-        # finalizado_em é gravado em UTC, mas o Postgres devolve naive —
+        # finalizado_em é gravado em UTC, mas o DATETIME MySQL devolve naive —
         # comparar com utcnow() naive mantém os dois lados na mesma régua.
-        return datetime.utcnow() <= self._sem_fuso(expira_em)
+        return datetime.now(timezone.utc).replace(tzinfo=None) <= self._sem_fuso(expira_em)
 
     @property
     def garantia_dias_restantes(self):
         expira_em = self.garantia_expira_em
         if expira_em is None:
             return None
-        restantes = (self._sem_fuso(expira_em) - datetime.utcnow()).days
+        restantes = (self._sem_fuso(expira_em) - datetime.now(timezone.utc).replace(tzinfo=None)).days
         return max(restantes, 0)
 
     @staticmethod
@@ -262,41 +265,8 @@ class Servico(db.Model):
         return f"IFX-{1000 + self.id}"
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "codigo": self.codigo,
-            "titulo": self.titulo,
-            "descricao": self.descricao,
-            "categoria": self.categoria,
-            "tipo_equipamento": self.tipo_equipamento,
-            "equipamento": self.equipamento,
-            "preco_estimado": float(self.preco_estimado) if self.preco_estimado is not None else 0.0,
-            "valor_maximo_aprovado": float(self.valor_maximo_aprovado) if self.valor_maximo_aprovado is not None else None,
-            "gorjeta": float(self.gorjeta) if self.gorjeta is not None else None,
-            "raio_busca_km": self.raio_busca_km,
-            "garantia": bool(self.garantia),
-            "urgente": bool(self.urgente),
-            "urgencia_taxa_percentual": URGENCIA_TAXA_PERCENTUAL if self.urgente else None,
-            "urgencia_prazo_em": isoformat_utc(self.urgencia_prazo_em),
-            "modalidade": self.modalidade,
-            "modalidade_label": MODALIDADES_LABELS.get(self.modalidade),
-            "garantia_ativa": self.garantia_ativa,
-            "garantia_expira_em": isoformat_utc(self.garantia_expira_em),
-            "garantia_dias_restantes": self.garantia_dias_restantes,
-            "finalizado_em": isoformat_utc(self.finalizado_em),
-            "status": self.status,
-            "causa_defeito": self.causa_defeito,
-            "causa_defeito_label": CAUSAS_DEFEITO_LABELS.get(self.causa_defeito),
-            "laudo_tecnico": self.laudo_tecnico,
-            "solucao_aplicada": self.solucao_aplicada,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "cliente_id": self.cliente_id,
-            "tecnico_id": self.tecnico_id,
-            "criado_em": isoformat_utc(self.criado_em),
-            "atualizado_em": isoformat_utc(self.atualizado_em),
-            "fotos": [foto.to_dict() for foto in self.fotos],
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)
 
 
 class FotoServico(db.Model):
@@ -309,27 +279,23 @@ class FotoServico(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     arquivo = db.Column(db.String(255), nullable=False)
-    enviado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    enviado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     servico = db.relationship("Servico", back_populates="fotos")
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def criar(cls, servico_id, nome_arquivo):
         return cls(servico_id=servico_id, arquivo=nome_arquivo).salvar()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "arquivo": self.arquivo,
-            "url": self.arquivo,
-            "enviado_em": isoformat_utc(self.enviado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

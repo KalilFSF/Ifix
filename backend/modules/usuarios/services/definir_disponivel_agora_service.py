@@ -1,3 +1,5 @@
+"""Ativa ou desativa a disponibilidade temporária do próprio técnico."""
+from transactions import atomic, lock_model, lock_child
 from exceptions import RecursoNaoEncontradoError, ValidacaoError
 
 
@@ -5,8 +7,11 @@ class DefinirDisponivelAgoraService:
     """Liga/desliga o status "disponível agora" (funcionalidade 6). Ligado,
     vale por DISPONIVEL_AGORA_VALIDADE_HORAS — ver PerfilTecnico."""
 
+    @atomic
     def executar(self, tecnico, dados):
-        perfil = tecnico.perfil_tecnico
+        from modules.usuarios.models.usuario import Usuario
+        tecnico = lock_model(Usuario, tecnico.id)
+        perfil = lock_model(type(tecnico.perfil_tecnico),tecnico.perfil_tecnico.id) if tecnico.perfil_tecnico else None
         if perfil is None:
             raise RecursoNaoEncontradoError("Perfil não encontrado.")
 

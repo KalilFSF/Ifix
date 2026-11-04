@@ -1,3 +1,4 @@
+"""Retorna avisos recentes do próprio usuário e a contagem total de não lidos."""
 from constants import MAX_NOTIFICACOES_LISTADAS
 from modules.notificacoes.models.notificacao import Notificacao
 

@@ -1,406 +1,170 @@
-# iFix
+# IFix — assistência técnica
 
-Aplicação web para conexão entre clientes e técnicos de assistência técnica
-(cadastro, login, perfil da conta, abertura e acompanhamento de chamados,
-orçamento, chat por chamado, painel do técnico com solicitações, aceite/recusa,
-atualização de status e histórico).
+O IFix conecta clientes e técnicos: o cliente abre um chamado, o sistema seleciona profissionais compatíveis, os técnicos enviam propostas e o cliente escolhe quem fará o reparo. A aplicação acompanha status, laudo, custos adicionais, garantia, avaliações, mensagens e notificações.
 
-## Arquitetura
+O backend usa Python, Flask e SQLAlchemy; o frontend usa HTML, CSS e JavaScript. A aplicação é hospedada na Vercel, os dados ficam no MySQL 8.4 do Aiven, os arquivos no Cloudinary e os e-mails são enviados pela Brevo. Não há dependência de Redis.
 
-Backend em **Monólito Modular** (MVC + Services + Model no padrão Active
-Record + Repository), separado em módulos de domínio — cada um com sua
-própria camada de rotas, controllers, services, models e (quando precisa
-de consultas com JOIN) repositories:
+## Guia de estudo para a apresentação
 
-```
-backend/
-  app.py            # application factory: registra os módulos e cria o banco
-  config.py, database.py, exceptions.py, utils.py, constants.py
-  decorators.py      # @apenas_tecnico — autorização por papel, aplicada nos Controllers
-  page_routes.py     # rotas de página HTML (login, cadastro, home, perfil...)
+O [guia completo do projeto](docs/GUIA_COMPLETO_DO_PROJETO.md) explica os fluxos passo a passo, cataloga 204 arquivos, 67 declarações de rota, os 14 modelos com colunas/relações e as 23 rotinas SQL. Também inclui glossário, funções/métodos por arquivo, perguntas com respostas e roteiro de apresentação de 12 minutos.
 
-  services/           # Services compartilhados entre módulos (não pertencem a um domínio só)
-    email_service.py    # envio de e-mail transacional via Brevo (API REST, sem SDK)
+Comece pelas seções 1–7 do guia, acompanhe um chamado do HTML até o banco e use o catálogo de arquivos para aprofundar. Arquivos legados, diretórios gerados e segredos são distinguidos da aplicação atual.
 
-  database/
-    procedures.sql     # procedures/functions em SQL chamadas pelas Repositories
+## Como explicar a arquitetura
 
-  modules/
-    usuarios/         # Usuario, PerfilTecnico, Diploma — cadastro, login, perfil da conta
-    servicos/          # Servico (chamado), SolicitacaoTecnico, HistoricoServico,
-                       # SolicitacaoAprovacao (custo adicional), AcionamentoGarantia
-    atendimentos/       # Atendimento (orçamento), Avaliacao (avaliação mútua)
-    chat/               # MensagemChamado — conversa cliente/técnico por chamado
-    notificacoes/       # Notificacao — avisos dentro do app (o "sino")
-```
-
-Erro de domínio levantado por um Service vira resposta HTTP pelo
-`@app.errorhandler(DominioError)` registrado em `app.py` — Controllers novos
-não precisam repetir `try/except DominioError`.
-
-Fluxo padrão de uma requisição: `Route → Controller → Service.executar() →
-Model` (CRUD simples) ou `→ Repository → procedure (SQL)` (consulta com
-JOIN entre tabelas — a Repository só chama a procedure/function definida
-em `backend/database/procedures.sql` via `db.session.execute(text(...))`,
-nunca Model ou `db.session.query` diretamente).
-
-`frontend/` é HTML/CSS/JavaScript puro (sem framework/build step), servido
-diretamente pelo Flask como estático. O acesso à API passa por `js/api.js`:
-falha de listagem não some em silêncio — a tela mostra o erro e um botão
-**Tentar novamente**.
-
-## Requisitos
-
-- Python 3.10+
-- pip
-- Navegador moderno
-- Postgres (Neon): a variável `DATABASE_URL` precisa estar definida; o app
-  não sobe sem ela. Não há Postgres local nem Docker neste repositório.
-
-## Como executar
-
-### 1. Entrar na pasta do projeto
-
-```bash
-cd Ifix-main
-```
-
-### 2. Criar e ativar ambiente virtual
-
-No Windows:
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-No Linux/macOS:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### 3. Instalar dependências do backend
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-### 4. Iniciar a API
-
-```bash
-python app.py
-```
-
-O projeto usa Postgres (Neon) como único banco — defina `DATABASE_URL` com a
-connection string do Neon antes de rodar (`.venv` não sobe sem ela). Tabelas
-e procedures são criadas/atualizadas automaticamente a cada início do app —
-não precisa rodar nada à parte para isso.
-
-A API ficará disponível em:
+É um monólito modular: uma aplicação Flask, organizada por assunto. As telas e a API usam o mesmo domínio, e o JavaScript conversa com a API por HTTP/JSON.
 
 ```text
-http://127.0.0.1:5000
+Navegador: página HTML + JavaScript
+    → frontend/js/api.js: envia a requisição e o token CSRF
+    → routes.py: escolhe a rota e o método HTTP
+    → controllers/: recebe os dados e monta a resposta
+    → services/: valida permissão e aplica a regra de negócio
+    → models/: representa e persiste os dados via SQLAlchemy
+      ou repositories/: executa consultas com rotinas MySQL
+    → Aiven MySQL: guarda os registros
+    → serializers: convertem os dados em JSON explícito
+    → JavaScript: atualiza a tela
 ```
 
-### 5. Abrir o frontend
+Modelos tratam o CRUD pelo padrão Active Record: o objeto representa uma tabela e possui operações de persistência. Repositories concentram consultas SQL mais complexas, inclusive CALL de procedures. Services coordenam essas operações numa transação de negócio.
 
-O Flask já serve o frontend como estático — não precisa de outro servidor.
-Acesse direto:
+## Mapa de pastas
 
-```text
-http://127.0.0.1:5000
-```
-
-## Funcionalidades principais
-
-- Cadastro de clientes e técnicos, com login/sessão (Flask-Login).
-- **Seleção automática de técnicos**: ao abrir um chamado, o sistema calcula
-  a distância (fórmula de Haversine, Python puro — sem PostGIS, IA ou
-  serviço externo de geolocalização) entre o chamado e cada técnico
-  cadastrado, combina isso com a avaliação média e o preço médio do
-  técnico num score único, e já notifica os 2-3 melhores automaticamente.
-  O raio começa em **40 km** e dobra até achar o mínimo de candidatos ou
-  estourar o teto de **600 km**; a partir daí entram todos os técnicos com
-  lat/long, pra nunca deixar um chamado sem ninguém notificado se houver
-  algum no sistema. Se ninguém orçar, o cliente pode **ampliar a busca**
-  (dobra o raio de novo, até 1200 km) ou **aumentar o teto de gasto** —
-  os técnicos já avisados são notificados do novo valor.
-- **Geolocalização**: cadastro, conversão para técnico, abertura de
-  chamado e a tela de perfil capturam a localização via
-  `navigator.geolocation` do próprio navegador — usada só pro ranking
-  acima, nunca enviada a serviço externo.
-- **Orçamento**: em vez de aceitar um chamado direto, o técnico vê todos os
-  detalhes (descrição, fotos, dados do cliente) e decide entre recusar ou
-  enviar um orçamento (valor + prazo estimado + observações). Vários
-  técnicos podem orçar o mesmo chamado.
-- **Escolha do orçamento** (cliente): compara os orçamentos recebidos
-  (técnico, valor, prazo, avaliação média) e escolhe um — isso atribui o
-  técnico ao chamado, avança o status e recusa automaticamente os demais
-  orçamentos/solicitações do mesmo chamado. A partir daí o **chat** do
-  chamado fica disponível.
-- **Chat por chamado**: cliente e técnico conversam depois que um orçamento
-  é escolhido (e o chat continua aberto depois de finalizado, pra tratar
-  garantia). Sem e-mail a cada mensagem — o aviso é o badge de não lidas
-  nos painéis, atualizado pelo mesmo polling de 7s. O GET aceita
-  `?desde=<id>` pra trazer só o incremento.
-- **Painel do técnico**: solicitações pendentes com detalhe completo antes
-  de decidir, lista dos próprios chamados com filtro por status e busca,
-  barra de progresso animada, atualização de status e histórico. Depois de
-  deixar o chamado **Em reparo**, registrar o laudo e resolver autorizações
-  pendentes, o técnico pode marcá-lo como **Finalizado**.
-- **Confirmação de conclusão**: com o chamado em reparo, o laudo enviado e
-  nenhuma autorização de custo pendente, tanto o técnico quanto o cliente
-  podem finalizar. No painel do cliente, a ação aparece como **Confirmar
-  conclusão** em Meus chamados. O prazo da garantia começa quando o status
-  vira `finalizado` (`servicos.finalizado_em`).
-- **Notificação por e-mail** (via Brevo): quem recebe o aviso é sempre o
-  outro lado — o cliente, quando o técnico muda o status; o técnico,
-  quando o cliente confirma a conclusão, deixa gorjeta ou autoriza custo.
-  A atualização também aparece no site.
-- **Avaliação mútua**, com critérios diferentes por direção — cliente avalia
-  o técnico por tempo de atendimento, honestidade e preço justo (alimenta
-  o ranking automático acima); técnico avalia o comportamento e a
-  colaboração do cliente durante o atendimento. Nota baixa de
-  comportamento acumulada em 3 chamados diferentes suspende a conta do
-  cliente automaticamente (não pode mais abrir chamados novos).
-- **Gorjeta** opcional depois da conclusão: o cliente registra um valor
-  (sugestões ou valor livre) e o técnico é avisado por e-mail. O iFix ainda
-  não processa pagamento — o registro é um acordo entre os dois, e o
-  texto na tela diz isso.
-- **Perfil da conta** (`/perfil`): uma tela só para cliente e técnico —
-  foto, dados pessoais, endereço/localização, senha e restrição de
-  horário. Técnico vê também os dados profissionais (escolaridade, preço
-  médio, diplomas); cliente vê o convite para virar técnico.
-- **Abrir chamado** (cliente): formulário com tipo, categoria, modelo,
-  título, descrição, limite máximo de gasto e até 5 fotos (5 MB cada).
-- **Limite de gasto + autorização remota**: o valor informado na abertura é
-  um teto de verdade (`servicos.valor_maximo_aprovado`), guardado separado
-  do `preco_estimado` porque o teto pode ser elevado depois por autorizações.
-  A taxa da garantia não compõe o valor de referência enviado ao técnico.
-  Achou um problema novo no meio do reparo, o técnico não executa por conta
-  própria: abre um pedido com descrição e valor, e o cliente autoriza ou
-  recusa de onde estiver. Aprovar soma o valor ao teto, então o limite
-  continua valendo pro que vier depois. Só um pedido pendente por vez, e o
-  chamado não pode ser finalizado enquanto houver pedido sem resposta.
-- **Relatório técnico**: antes de o cliente poder confirmar a conclusão, o
-  técnico registra a causa do defeito (catálogo fechado em
-  `constants.CAUSAS_DEFEITO`, pra permitir agregar reincidência depois), a
-  explicação em linguagem de cliente e o que foi feito. Sem laudo o botão
-  de confirmar fica desabilitado.
-- **Restrição de horário**: cliente e técnico definem em `/perfil` a faixa
-  do dia em que aceitam ser acionados. Fora dela o e-mail de aviso é
-  suprimido, mas a solicitação continua sendo criada e aparecendo no
-  painel — bloquear deixaria o chamado sem técnico por um motivo que é do
-  técnico.
-- **Acompanhar chamado** (cliente): lista dos próprios chamados, orçamentos
-  recebidos, chat, histórico de status, conclusão, avaliação e gorjeta —
-  tudo atualizado por polling.
-- **Modos Cliente | Técnico** na mesma conta: técnico continua podendo abrir
-  e acompanhar chamados como cliente.
-- **Conversão de conta cliente → técnico**, com confirmação antes de abrir o
-  formulário e checagem de e-mail já cadastrado.
-- **Garantia** opcional na abertura do chamado (+7% sobre o valor, 10 dias):
-  o prazo corre a partir de `servicos.finalizado_em`, gravado na primeira
-  vez que o chamado é finalizado. Dentro dele, o cliente aciona a garantia
-  escolhendo entre reembolso ou novo atendimento — neste caso um chamado
-  novo é aberto na hora, gratuito e já atribuído ao mesmo técnico (sem
-  passar de novo por seleção e orçamento). O chamado de garantia não tem
-  garantia própria, senão ela se renovaria pra sempre.
-
-- **Atendimento de urgência**: o cliente marca na abertura; taxa de 20% sobre
-  o orçamento escolhido (só informada, fora do teto), prazo de 2 h contado da
-  escolha do técnico (`servicos.urgencia_prazo_em`). O técnico vê o selo
-  URGENTE, as urgentes sobem na fila e o e-mail de aviso ignora a restrição de
-  horário.
-- **Modalidade de atendimento** (loja, visita domiciliar ou remoto): escolhida
-  na abertura; o técnico marca em `/perfil` o que atende e a seleção
-  automática só aciona quem atende a modalidade (técnico que nunca configurou
-  atende todas).
-- **Disponibilidade do técnico**: janelas semanais (dia + faixa de horário) e
-  o status **Disponível agora**, que vale 4 h e desempata a seleção automática.
-  Sem agendamento: as janelas são só informativas.
-- **Diretório de técnicos** (`/cliente/tecnicos`): busca por nome/especialidade
-  e filtros de modalidade, "já atuou com" hardware/software, nota mínima e
-  disponível agora. Sem preço, experiência nem nota de fora do sistema.
-- **Perfil público do técnico**: foto, nota por critério, atendimentos
-  concluídos, taxa de sucesso, tempo médio de atendimento, preço médio,
-  modalidades, horários, certificados (os diplomas enviados) e últimas
-  avaliações. Nunca mostra e-mail, telefone, CPF ou coordenadas.
-- **Selo Especialista verificado**: automático — 5 ou mais atendimentos
-  concluídos, nota média 4,5 ou mais e pelo menos 1 certificado.
-- **Comparativo de propostas**: com 2 ou mais orçamentos, destaca menor preço,
-  menor prazo e melhor avaliado; mostra selo, disponibilidade e histórico de
-  cada técnico. Cada chamado recebe no máximo 3 orçamentos.
-- **Notificações no app**: sino com contador em todas as telas autenticadas
-  (polling de 7 s) para solicitação nova, orçamento recebido, técnico
-  escolhido, mudança de status e autorização de custo.
-- **Histórico do aparelho**: ao digitar o modelo na abertura, e dentro do
-  chamado, lista os chamados anteriores do mesmo cliente para o mesmo modelo,
-  com a causa do laudo, e avisa quando a mesma causa se repete.
-
-> **Pagamento**: ponto de extensão já marcado no código (comentário em
-> `constants.py`, antes de `STATUS_FINALIZADO`), mas a lógica de pagamento
-> em si não foi implementada. Gorjeta e reembolso de garantia ficam no
-> mesmo ponto: o sistema registra o combinado, não cobra.
-
-## Endpoints novos / de conta
-
-Rotas de página e de API estão em `page_routes.py` e `modules/*/routes.py`.
-As que entraram (ou passaram a ter tela) nesta etapa:
-
-**Página**
-
-| Método | Caminho | Quem |
+| Pasta | Responsabilidade | O que mostrar na apresentação |
 |---|---|---|
-| GET | `/perfil` | autenticado (cliente ou técnico) |
+| `backend/` | Aplicação Python, configuração e componentes compartilhados | `app.py` monta o Flask; `config.py` lê as variáveis da Vercel |
+| `backend/modules/` | Módulos organizados por domínio | Cada módulo reúne suas rotas, controllers, services, models e repositories quando necessário |
+| `backend/modules/usuarios/` | Cadastro, autenticação, conta, técnicos, diretório e disponibilidade | Login e perfil; distinção entre dados próprios e públicos |
+| `backend/modules/servicos/` | Chamados, seleção de técnicos, solicitações, status, laudo, custos, garantia e histórico | Abertura de chamado e acompanhamento do reparo |
+| `backend/modules/atendimentos/` | Propostas/orçamentos, escolha e avaliações | Comparação de até três propostas e avaliação após conclusão |
+| `backend/modules/chat/` | Mensagens entre participantes do chamado | Autorização por participante e marcação de leitura |
+| `backend/modules/notificacoes/` | Avisos internos e contagem de não lidos | Notificação criada junto com a operação de negócio |
+| `backend/services/` | Integrações compartilhadas entre módulos | `email_service.py` envia e-mail pela Brevo depois do commit |
+| `backend/database/` | Arquivos SQL da estrutura e das rotinas MySQL | `schema_mysql.sql` documenta 14 tabelas; `procedures.sql` contém 23 rotinas |
+| `backend/certs/` | Local opcional para a CA pública | Na Vercel, a opção recomendada é MYSQL_SSL_CA_PEM, sem arquivo |
+| `frontend/` | Interface entregue pelo Flask | `index.html` é a tela de entrada atual |
+| `frontend/pages/` | Telas completas em HTML | Cadastro, cliente, técnico, perfil e diretório |
+| `frontend/js/` | Interação das telas e comunicação com a API | `api.js`, `cliente-abrir-chamado.js`, `cliente-chamados.js` e `tecnico-home.js` |
+| `frontend/css/` | Layout, componentes e temas | Arquivos de estilo do login/cadastro e dos painéis |
+| `frontend/assets/` | Logotipo, ícones e imagens da interface | Recursos visuais estáticos, sem registros do banco |
+| `frontend/uploads/` | Diretórios locais de apoio ao upload, ignorados no Git | Na implantação, os arquivos são enviados ao Cloudinary; a pasta não é armazenamento persistente |
+| `frontend/views/` | HTML/CSS legados existentes no projeto | Não é a estrutura de templates usada pelo fluxo atual; as páginas atuais ficam em frontend/pages e frontend/index.html |
+| `scripts/` | Ferramentas manuais de manutenção do schema e diagnóstico | Não são executadas no startup nem no deploy; não usar inicializador em banco já criado |
+| `docs/` | Contratos da API, configuração e limites operacionais | `PRODUCAO.md` contém o procedimento de implantação |
+| `.vscode/` | Preferências locais do editor | Não contém a lógica do site |
+| `.venv/` | Ambiente virtual local com dependências Python | Não é enviado ao Git; a Vercel instala backend/requirements.txt |
+| `.git/` | Histórico e controle de versão local | Não é componente da aplicação em execução |
 
-**Chat** (`modules/chat`)
+Dentro de cada módulo, `routes.py` registra URLs; `controllers/` traduz HTTP para chamadas de serviço; `services/` implementa casos de uso; `models/` define tabelas e relações; `repositories/` concentra consultas complexas. Arquivos `__init__.py` identificam os pacotes Python.
 
-| Método | Caminho | O que faz |
-|---|---|---|
-| GET | `/api/servicos/<id>/mensagens` | lista (query `?desde=` opcional) |
-| POST | `/api/servicos/<id>/mensagens` | envia |
-| POST | `/api/servicos/<id>/mensagens/lidas` | marca as recebidas como lidas |
-| GET | `/api/mensagens/nao-lidas` | totais por chamado (badge dos painéis) |
+## Arquivos importantes do backend
 
-**Conta / perfil** (`modules/usuarios`)
+| Arquivo | Função |
+|---|---|
+| `app.py` | Factory create_app, Flask-Login, blueprints, erros HTTP/JSON e arquivos estáticos; não cria tabelas |
+| `page_routes.py` | Serve páginas e redireciona conforme a sessão/papel; logout protegido |
+| `config.py` | DATABASE_URL, banco por ambiente, segredo, cookies, pool e tamanho máximo da requisição |
+| `database.py` | Instância SQLAlchemy compartilhada pelos modelos |
+| `database_errors.py` | Extrai código MySQL/categoria para logs sem expor SQL, senha ou URL |
+| `model_registry.py` | Importa os 14 modelos para registrar os metadados |
+| `mysql_tls.py` | Carrega CA e exige TLS com verificação de certificado e hostname |
+| `serialization.py` | Normalização de Decimal/datas e contratos explícitos dos modelos para JSON |
+| `query_serializers.py` | Projeta linhas das procedures nos formatos consumidos pelas telas |
+| `sql_routines.py` | Executa CALL parametrizado usando a conexão da sessão e esgota os result sets |
+| `transactions.py` | Uma transação por operação, rollback e locks FOR UPDATE |
+| `access.py` | Verifica participantes antes de expor detalhes privados e reduz dados dos convidados |
+| `http_security.py` | CSRF, isolamento de sessões e cabeçalhos HTTP; não usa serviço de rate limiting |
+| `retention.py` | Bloqueia exclusão ORM de contas para preservar o histórico relacionado |
+| `uploads.py` | Verifica extensão/MIME/conteúdo/tamanho e gera links protegidos de fotos de chamado |
+| `business_time.py` | Obtém o horário no fuso de negócio configurável |
+| `money.py` | Trabalha com Decimal para valores financeiros |
+| `constants.py` | Centraliza status, modalidades, limites e percentuais do negócio |
+| `decorators.py` | Restrições de papel em operações específicas |
+| `exceptions.py` | Erros de negócio convertidos em respostas HTTP |
+| `utils.py` | Validações e integração de upload com Cloudinary |
+| `requirements.txt` | Dependências de execução do backend |
+| `create_db.py` | Entrada legada para inicialização manual; não executar no banco existente |
 
-| Método | Caminho | O que faz |
-|---|---|---|
-| GET / PATCH | `/api/me` | lê / atualiza dados pessoais |
-| PUT | `/api/me/foto` | foto de perfil |
-| POST | `/api/me/senha` | troca de senha (exige a atual) |
-| PUT | `/api/me/horario-atendimento` | faixa de horário (antes nas homes) |
-| GET / PATCH | `/api/tecnico/perfil` | dados profissionais do técnico |
+Na raiz, `vercel.json` encaminha as requisições para backend/app.py e inclui os arquivos necessários. O `index.html` da raiz é um arquivo legado; a página servida por `/` é **frontend/index.html**, escolhida em backend/page_routes.py. `.gitignore` impede versionar ambiente virtual, segredos e uploads locais.
 
-**Técnicos e notificações** (`modules/usuarios`, `modules/notificacoes`)
+## Relações principais do banco
 
-| Método | Caminho | O que faz |
-|---|---|---|
-| GET | `/cliente/tecnicos` | página do diretório |
-| GET | `/api/tecnicos/diretorio` | lista com filtros (`busca`, `categoria`, `modalidade`, `nota_minima`, `disponivel`, `ordem`) |
-| GET | `/api/tecnicos/<id>/perfil-publico` | perfil público do técnico |
-| GET / PUT | `/api/tecnico/disponibilidade` | janelas semanais (PUT substitui o conjunto) |
-| PUT | `/api/tecnico/disponivel-agora` | liga/desliga o status (`{"disponivel": true}`) |
-| GET | `/api/notificacoes` | últimas notificações + total não lidas |
-| POST | `/api/notificacoes/lidas` | marca todas como lidas |
-| POST | `/api/notificacoes/<id>/lida` | marca uma como lida |
-| GET | `/api/servicos/historico-aparelho` | `?equipamento=...&excluir=<id>` |
+Existem 14 tabelas: usuarios, perfis_tecnicos, diplomas, janelas_disponibilidade, servicos, fotos_servicos, solicitacoes_tecnicos, historico_servicos, solicitacoes_aprovacao, acionamentos_garantia, atendimentos, avaliacoes, mensagens_chamado e notificacoes.
 
-**Chamado** (`modules/servicos`)
+- Usuario é a conta. Pode abrir chamados como cliente e, quando técnico, possuir PerfilTecnico, diplomas e janelas de disponibilidade.
+- Servico é o chamado: pertence ao cliente, pode ter técnico responsável, fotos, solicitações, propostas, histórico, mensagens, aprovações e acionamentos de garantia.
+- Atendimento representa uma proposta/orçamento associado ao chamado e aos participantes.
+- Avaliacao vincula chamado, autor e avaliado; a combinação serviço/autor é única.
+- Notificacao pertence ao destinatário e pode apontar para um chamado.
 
-| Método | Caminho | O que faz |
-|---|---|---|
-| GET | `/api/servicos/<id>/avaliacoes` | avaliações do chamado |
-| POST | `/api/servicos/<id>/ampliar-busca` | dobra o raio e avisa técnicos novos |
-| PATCH | `/api/servicos/<id>/teto` | eleva o valor máximo (chamado ainda aberto) |
-| POST | `/api/servicos/<id>/gorjeta` | registra gorjeta após a conclusão |
-| PATCH | `/api/servicos/<id>/status` | técnico: conduz e finaliza; cliente: confirma `finalizado` |
+As relações concretas estão nos arquivos models/ de cada módulo. As 23 rotinas MySQL são 11 funções escalares e 12 procedures para consultas, métricas e regras compartilhadas; elas retornam dados tabulares e a serialização JSON fica no Python.
 
-## Como testar o fluxo pelo navegador
+## Roteiro para apresentar o código
 
-O roteiro abaixo é o caminho feliz, de ponta a ponta. Precisa de
-`DATABASE_URL` apontando para um Postgres (Neon); sem isso o app não sobe.
+### 1. Entrada e login
 
-1. Cadastre um técnico em `/cadastro` — **permita o acesso à localização**
-   quando o navegador pedir (sem isso a conta fica de fora da seleção
-   automática de técnicos).
-2. Cadastre um cliente (outro navegador/aba anônima), também permitindo
-   localização, e faça login.
-3. Em **Abrir chamado**, preencha o formulário e envie — o chamado é
-   criado com status `aberto` e a seleção automática já dispara sozinha,
-   notificando os melhores técnicos num raio inicial de 40 km (sem
-   precisar de nenhuma chamada manual à API).
-4. No painel do técnico (`/tecnico/home`), a solicitação aparece em
-   **Solicitações pendentes** — clique pra ver os detalhes completos do
-   chamado e envie um orçamento (valor + prazo) ou recuse.
-5. De volta como cliente, abra o chamado em **Meus chamados** — os
-   orçamentos recebidos aparecem ali, com técnico, valor, prazo e
-   avaliação; escolha um. Se ninguém orçar, o card oferece **Ampliar busca**
-   e **Aumentar o valor máximo**.
-6. Com o técnico definido, o **chat** do chamado abre nos dois painéis.
-   Como técnico, avance o status até **Em reparo** (só o técnico escolhido
-   tem essa opção) — o cliente recebe um e-mail a cada atualização (se
-   `BREVO_API_KEY` estiver configurada). A partir de **Em análise** aparecem
-   dois cards novos no modal do técnico:
-   - **Custo adicional**: peça autorização de um valor a mais. Volte como
-     cliente (o card aparece em destaque no topo do chamado, em até 7s pelo
-     polling) e autorize ou recuse — tentar concluir antes disso é
-     bloqueado.
-   - **Relatório técnico**: escolha a causa do defeito e explique o que
-     houve. Sem isso o cliente não consegue confirmar.
-   Com os dois resolvidos, finalize no painel do técnico ou volte como
-   cliente e clique em **Confirmar conclusão**.
-7. Com o chamado finalizado, cliente e técnico já podem se avaliar
-   mutuamente pelos respectivos painéis. O cliente também pode deixar uma
-   **gorjeta**. Se o chamado foi aberto com garantia, o cliente vê o bloco
-   **Garantia iFix** com os dias restantes e o botão de acionar (reembolso
-   ou novo atendimento — este abre na hora um chamado gratuito no painel
-   do mesmo técnico). Pra testar a expiração, mude `finalizado_em` do
-   chamado no banco pra mais de 10 dias atrás: o acionamento passa a ser
-   recusado.
-8. Em `/perfil` (**Meu perfil**, na sidebar), ajuste foto, dados, endereço
-   e a faixa de **Restrições de horário** — fora dela o e-mail de aviso de
-   nova solicitação deixa de ser enviado, mas a solicitação continua
-   aparecendo no painel.
-9. Quem é técnico continua podendo abrir `/cliente/home` pelo chip **Cliente**
-   e abrir chamados normalmente na mesma conta.
+Mostre `frontend/index.html`, `frontend/js/login.js` e `frontend/js/api.js`. Depois abra `backend/modules/usuarios/routes.py`, `controllers/auth_controller.py` e `services/autenticar_usuario_service.py`. Explique que a senha é comparada ao hash, o Flask-Login mantém a sessão e o navegador recebe JSON com o destino do painel. Não mostre senhas/variáveis reais na apresentação.
 
-## Observações
+### 2. Abrir um chamado
 
-- O backend usa Postgres (Neon) — defina a variável de ambiente
-  `DATABASE_URL` com a connection string antes de rodar.
-- Não há Alembic/Flask-Migrate configurado — mas `app.py` tem uma
-  "migration leve" que roda a cada início do app: `db.create_all()` cria
-  tabelas novas, duas funções (`_garantir_colunas_novas`/
-  `_garantir_cascade_exclusao`) rodam `ALTER TABLE` pra colunas/constraints
-  novas em tabelas que já existiam (incluindo FKs de `avaliacoes`), e
-  `_instalar_procedures()` aplica `backend/database/procedures.sql`
-  (`CREATE OR REPLACE FUNCTION`, idempotente). Não precisa apagar o banco
-  pra pegar uma Model ou procedure nova — só reiniciar o app.
-- As procedures são Postgres. Sem `DATABASE_URL` elas não rodam contra um
-  banco de verdade; se alguma falhar no Neon, as listagens (chamados,
-  solicitações, mensagens, avaliações) vêm vazias e a tela mostra o erro
-  com **Tentar novamente**, em vez de sumir em silêncio.
-- Upload de fotos (perfil, diplomas, chamados) usa Cloudinary — defina
-  `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` e `CLOUDINARY_API_SECRET`.
-- Notificação por e-mail (Brevo) é opcional: sem `BREVO_API_KEY` definida,
-  o envio é pulado (com aviso no log), sem quebrar nada. Pra ativar,
-  defina também `BREVO_SENDER_EMAIL` (precisa estar verificado na Brevo) e,
-  opcionalmente, `BREVO_SENDER_NOME`.
-- Para parar a aplicação, pressione Ctrl + C no terminal onde o servidor
-  está rodando.
+Mostre `frontend/pages/cliente-abrir-chamado.html` e seu JavaScript; siga para `backend/modules/servicos/routes.py`, `controllers/servico_controller.py` e `services/criar_servico_service.py`. Mostre o modelo `models/servico.py`. Explique validação, persistência e transação antes de falar do ranking.
 
+### 3. Selecionar profissionais
 
-## Publicação no Vercel
+Abra `backend/modules/servicos/services/selecionar_tecnicos_service.py`. O ranking usa distância Haversine, nota, preço e bônus de disponível agora; também respeita modalidade. Os dados vêm de `backend/modules/usuarios/repositories/usuario_repository.py`, que chama rotina em `backend/database/procedures.sql`. A seleção entrega IDs de técnicos, sem divulgar coordenadas privadas na resposta pública.
 
-A raiz do projeto no Vercel deve conter `vercel.json`, `backend/` e
-`frontend/`. A entrada configurada é a instância Flask `app` exportada
-por `backend/app.py`; as dependências ficam em `backend/requirements.txt`.
+### 4. Comparar e escolher proposta
 
-O erro confirmado nos logs de produção em 22/10/2026 foi
-`ModuleNotFoundError: No module named 'psycopg'` em `db.init_app(app)`.
-O SQLAlchemy 2.1 passou a selecionar psycopg 3 para URLs `postgresql://`,
-mas o projeto instala `psycopg2-binary`. A configuração agora seleciona
-explicitamente `postgresql+psycopg2` para URLs `postgresql://` e
-`postgres://`, preservando credenciais e parâmetros SSL. URLs com driver
-explícito continuam intactas; use `postgresql+psycopg2://` nesse caso.
+Mostre `backend/modules/atendimentos/services/enviar_orcamento_service.py`, `listar_orcamentos_service.py` e `escolher_orcamento_service.py`, junto de `frontend/js/cliente-chamados.js`. Explique o limite de três propostas, escolha pelo proprietário e transação com lock do chamado para evitar escolhas simultâneas.
 
-Para publicar novamente:
+### 5. Acompanhar e concluir
 
-1. Envie a correção ao repositório conectado e faça um novo deploy,
-   ou execute `vercel --prod` na raiz do projeto.
-2. Confira `DATABASE_URL` nos ambientes utilizados (Production/Preview),
-   com os parâmetros SSL exigidos pelo Neon. Configure também `SECRET_KEY`
-   com um segredo estável para as sessões de produção.
-3. Confira os logs de inicialização e teste `/`, `/cadastro`,
-   `/css/style.css`, login e uma listagem autenticada.
-4. Teste uploads com `CLOUDINARY_*` e e-mails com `BREVO_*` configurados.
+Mostre os serviços de status, laudo e aprovação em `backend/modules/servicos/services/`. O chamado só pode ser concluído conforme os requisitos de estado, laudo e custos autorizados. Mostre o histórico e a criação de notificações na mesma transação.
 
-A inicialização continua criando tabelas, ajustando colunas/constraints e
-instalando `backend/database/procedures.sql`. O PostgreSQL deve estar
-acessível e o usuário deve ter as permissões correspondentes. As consultas
-dependem de funções PostgreSQL, sem fallback SQLite.
+### 6. Avaliações, privacidade e integridade
+
+Abra `backend/modules/atendimentos/models/avaliacao.py`, `services/avaliar_service.py`, `backend/access.py`, `backend/serialization.py` e `backend/transactions.py`. Explique avaliação única por autor, projeção pública mínima, autorização por recurso e rollback quando uma etapa falha.
+
+### 7. Hospedagem
+
+Finalize mostrando `vercel.json`, `backend/config.py`, `backend/mysql_tls.py` e a tabela de variáveis em docs/PRODUCAO.md. A Vercel executa Flask, que conecta ao Aiven com TLS; nenhum banco é criado ao iniciar.
+
+## Funcionalidades e regras preservadas
+
+| Funcionalidade | Como funciona |
+|---|---|
+| Cadastro e login | Contas com senha em hash e sessão protegida; o cliente pode acrescentar um perfil técnico à própria conta. |
+| Abertura de chamado | O cliente descreve o problema, informa equipamento, modalidade e valor de referência e pode enviar fotos. |
+| Seleção de técnicos | Ranking em Python combina distância, nota, preço e disponibilidade, respeitando modalidade; os selecionados recebem convites. |
+| Fotos e propostas | O técnico convidado pode analisar as imagens e enviar valor/prazo. O cliente compara até três propostas e escolhe o responsável. |
+| Urgência | Prazo de duas horas começa na escolha do técnico; adicional de 20% é informado, sem cobrança automática. |
+| Modalidades | Loja, visita domiciliar ou suporte remoto, conforme a escolha do cliente e as opções atendidas pelo profissional. |
+| Diretório e perfil público | Busca/filtros, dados profissionais, certificados e métricas; campos pessoais privados ficam fora da projeção pública. |
+| Disponibilidade | Janelas semanais informativas e estado disponível agora válido por quatro horas. Não há agendamento automático. |
+| Selo de especialista | Requer ao menos cinco chamados concluídos, nota média >=4,5 e certificado cadastrado. |
+| Reparo e custos adicionais | O responsável registra status/laudo; custos extras precisam de aprovação do proprietário antes de elevar o teto. |
+| Chat e notificações | Participantes conversam pelo chamado; avisos internos acompanham eventos e podem ser marcados como lidos. E-mail usa Brevo. |
+| Histórico e reincidência | Linha do tempo do chamado e consulta de reparos do mesmo aparelho por cliente; uma causa repetida em dois registros gera o indicativo de reincidência. |
+| Garantia e avaliações | Garantia opcional por dez dias após conclusão; avaliações entre os participantes atualizam métricas e alertas conforme os critérios do sistema. |
+
+Garantia contratada dura dez dias após a conclusão. Pagamentos, gorjetas e reembolsos não possuem processamento financeiro automático; não apresentar o registro como cobrança efetivada. O selo usa critérios do sistema, sem auditoria documental externa.
+
+## Colocar na Vercel
+
+Siga [docs/PRODUCAO.md](docs/PRODUCAO.md). Em resumo:
+
+1. Conferir DATABASE_URL de Production terminando em `/ifix` e MYSQL_SSL_CA_PEM completo, sem MYSQL_SSL_CA simultâneo.
+2. Configurar SECRET_KEY nova de pelo menos 32 caracteres e preservar as credenciais Cloudinary/Brevo.
+3. Enviar esta versão do código para a branch de produção do repositório conectado à Vercel, quando decidir publicar. Reimplantar um commit antigo não inclui estas alterações locais.
+4. Conferir o build e validar login/cadastro, chamado/propostas, upload, notificações e histórico no site.
+
+Não é necessário arquivo .env, Redis, seed ou inicializador. Os bancos já estão criados e devem ser preservados. Preview, se utilizado, exige configuração própria apontando a ifix_test; nunca compartilhe a URL Production com Preview.
+
+## Manutenção e limites conhecidos
+
+`python -m pip install -r backend/requirements.txt` instala as dependências locais. `scripts/gerar_schema.py --check` compara modelos e SQL offline, sem conectar ao Aiven. `scripts/validar_mysql.py` é diagnóstico manual somente leitura; não é executado automaticamente.
+
+As suítes, os runners e os dados fictícios de demonstração foram removidos do projeto a pedido. Antes da remoção, a regressão local passou com 182 casos após retirar o limitador externo. Isso não comprova implantação ou concorrência real desta versão no Aiven; nenhum acesso remoto foi realizado nesta entrega.
+
+Sem Redis, não há limitação automática de tentativas no backend. As proteções de autorização, CSRF, sessão, TLS, uploads e transações permanecem. O total de upload é 4 MiB por requisição. E-mail é best-effort depois do commit; foto de chamado usa Cloudinary authenticated, enquanto avatar/certificados são públicos. Detalhes em [docs/SEGURANCA_PENDENTE.md](docs/SEGURANCA_PENDENTE.md).

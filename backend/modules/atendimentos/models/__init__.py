@@ -1,3 +1,4 @@
+"""Pacote backend.modules.atendimentos.models. Organiza imports; não inicializa a aplicação."""
 from .atendimento import Atendimento
 from .avaliacao import Avaliacao
 

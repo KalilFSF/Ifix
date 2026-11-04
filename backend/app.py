@@ -1,3 +1,4 @@
+"""Inicializa Flask, sessão, rotas e erros HTTP; não cria schema ou registros no startup."""
 # Ponto de entrada da aplicação: monta o Flask app (application factory),
 # liga o SQLAlchemy/Flask-Login e registra os módulos (Monólito Modular:
 # cada módulo de domínio tem seu próprio routes/controllers/services/
@@ -23,7 +24,7 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(os.path.dirname(BACKEND_DIR), "frontend")
 
 
-def create_app():
+def create_app(config_override=None):
     # Sem Jinja: frontend/ é servido inteiro como arquivo estático "puro".
     # static_url_path="" tira o prefixo /static, então frontend/index.html
     # vira a URL /index.html, frontend/css/style.css vira /css/style.css,
@@ -35,9 +36,15 @@ def create_app():
         static_folder=FRONTEND_DIR,
         static_url_path="",
     )
-    app.config.from_object(Config)
+    app.config.from_mapping(Config.from_environment() if config_override is None else config_override)
+    from serialization import IFixJSONProvider
+    app.json = IFixJSONProvider(app)
 
     db.init_app(app)
+    import retention
+    from http_security import install_security
+    app.config.setdefault("MAX_CONTENT_LENGTH",4*1024*1024)
+    install_security(app)
 
     # Flask-Login cuida da sessão do usuário logado (cookie de sessão).
     # login_view é a rota para onde um usuário não autenticado é mandado
@@ -50,7 +57,14 @@ def create_app():
     def load_user(user_id):
         # Flask-Login chama isso a cada request pra recarregar o usuário
         # a partir do id guardado no cookie de sessão.
-        return db.session.get(Usuario, int(user_id))
+        from http_security import BINDING_KEY,session_scope
+        from flask import session
+        if session.get(BINDING_KEY) != session_scope():
+            return None
+        try:
+            return db.session.get(Usuario, int(user_id))
+        except (TypeError,ValueError):
+            return None
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -70,6 +84,48 @@ def create_app():
         # 403/404/409) em vez de um 500 genérico do Flask. Os Controllers
         # antigos ainda tratam na mão; os novos podem só deixar propagar.
         return jsonify({"ok": False, "erro": erro.mensagem, **erro.extra}), erro.status_code
+
+    @app.before_request
+    def prevent_static_api_fallback():
+        if request.path.startswith("/api/") and request.endpoint == "static":
+            from werkzeug.routing import Map
+            api_map = Map([rule.empty() for rule in app.url_map.iter_rules() if rule.endpoint != "static"])
+            # 405 para um endpoint conhecido; 404 para uma API inexistente.
+            api_map.bind(request.host).match(request.path,method=request.method)
+
+    from werkzeug.exceptions import HTTPException
+    from sqlalchemy.exc import SQLAlchemyError,OperationalError
+
+    @app.errorhandler(HTTPException)
+    def api_http_error(error):
+        if not request.path.startswith("/api/"):
+            return error
+        messages = {400:"Requisição inválida.",401:"Não autenticado.",403:"Acesso negado.",404:"Recurso não encontrado.",
+                    405:"Método não permitido.",413:"O envio excede o limite total de 4 MB.",429:"Muitas tentativas. Aguarde e tente novamente.",503:"Serviço temporariamente indisponível."}
+        message = error.description if error.code in {403,429,503} else messages.get(error.code,"Não foi possível concluir a requisição.")
+        response = jsonify(ok=False,erro=message)
+        response.status_code = error.code or 500
+        retry = error.get_headers()
+        for key,value in retry:
+            if key.lower() in {"retry-after","allow"}:
+                response.headers[key] = value
+        return response
+
+    @app.errorhandler(Exception)
+    def unexpected_error(error):
+        db.session.rollback()
+        # Nunca registrar str(error), parâmetros SQL, URL ou traceback: podem conter segredos.
+        from database_errors import mysql_error_info
+        code,category = mysql_error_info(error)
+        if isinstance(error,SQLAlchemyError):
+            app.logger.error("Falha de banco (%s; codigo=%s; categoria=%s).",
+                type(error).__name__,code if code is not None else "indisponivel",category)
+        else:
+            app.logger.error("Falha interna (%s).",type(error).__name__)
+        status = 409 if isinstance(error,OperationalError) and code in {1205,1213} else 500
+        if request.path.startswith("/api/"):
+            return jsonify(ok=False,erro="Operação concorrente. Tente novamente." if status==409 else "Não foi possível concluir a operação."),status
+        return "Não foi possível abrir esta página.",status
 
     # Import tardio (depois do login_manager pronto) pra evitar import circular
     # entre os módulos e app.py.
@@ -94,172 +150,7 @@ def create_app():
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "diplomas"), exist_ok=True)
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chamados"), exist_ok=True)
 
-    # As Models de todo módulo precisam estar importadas (registradas no
-    # metadata do SQLAlchemy) antes do create_all() — os imports acima já
-    # importam os módulos inteiros (routes -> controllers -> services ->
-    # models), então a esta altura já estão todas carregadas.
-    with app.app_context():
-        db.create_all()
-        _garantir_colunas_novas()
-        _garantir_cascade_exclusao()
-        _instalar_procedures()
-
     return app
-
-
-def _garantir_colunas_novas():
-    """Migration leve sem Alembic: adiciona colunas novas em tabelas já
-    existentes (create_all só cria tabelas que ainda não existem, nunca
-    altera as que já existem)."""
-    from sqlalchemy import inspect, text
-
-    inspector = inspect(db.engine)
-    tabelas = inspector.get_table_names()
-
-    alteracoes_por_tabela = {
-        "servicos": [
-            ("tipo_equipamento", "ALTER TABLE servicos ADD COLUMN tipo_equipamento VARCHAR(20) NOT NULL DEFAULT 'notebook'"),
-            ("garantia", "ALTER TABLE servicos ADD COLUMN garantia BOOLEAN NOT NULL DEFAULT FALSE"),
-            ("latitude", "ALTER TABLE servicos ADD COLUMN latitude FLOAT"),
-            ("longitude", "ALTER TABLE servicos ADD COLUMN longitude FLOAT"),
-            ("valor_maximo_aprovado", "ALTER TABLE servicos ADD COLUMN valor_maximo_aprovado NUMERIC(10, 2)"),
-            ("causa_defeito", "ALTER TABLE servicos ADD COLUMN causa_defeito VARCHAR(50)"),
-            ("laudo_tecnico", "ALTER TABLE servicos ADD COLUMN laudo_tecnico TEXT"),
-            ("solucao_aplicada", "ALTER TABLE servicos ADD COLUMN solucao_aplicada TEXT"),
-            ("finalizado_em", "ALTER TABLE servicos ADD COLUMN finalizado_em TIMESTAMP"),
-            ("raio_busca_km", "ALTER TABLE servicos ADD COLUMN raio_busca_km INTEGER"),
-            ("gorjeta", "ALTER TABLE servicos ADD COLUMN gorjeta NUMERIC(10, 2)"),
-            ("urgente", "ALTER TABLE servicos ADD COLUMN urgente BOOLEAN NOT NULL DEFAULT FALSE"),
-            ("urgencia_prazo_em", "ALTER TABLE servicos ADD COLUMN urgencia_prazo_em TIMESTAMP"),
-            ("modalidade", "ALTER TABLE servicos ADD COLUMN modalidade VARCHAR(20) NOT NULL DEFAULT 'loja'"),
-        ],
-        "usuarios": [
-            ("latitude", "ALTER TABLE usuarios ADD COLUMN latitude FLOAT"),
-            ("longitude", "ALTER TABLE usuarios ADD COLUMN longitude FLOAT"),
-            ("alertas_comportamento", "ALTER TABLE usuarios ADD COLUMN alertas_comportamento INTEGER NOT NULL DEFAULT 0"),
-            ("suspenso", "ALTER TABLE usuarios ADD COLUMN suspenso BOOLEAN NOT NULL DEFAULT FALSE"),
-            ("horario_inicio_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_inicio_atendimento VARCHAR(5) NOT NULL DEFAULT '08:00'"),
-            ("horario_fim_atendimento", "ALTER TABLE usuarios ADD COLUMN horario_fim_atendimento VARCHAR(5) NOT NULL DEFAULT '18:00'"),
-            ("foto_perfil", "ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255)"),
-        ],
-        "perfis_tecnicos": [
-            ("valor_medio", "ALTER TABLE perfis_tecnicos ADD COLUMN valor_medio NUMERIC(10, 2)"),
-            ("nota_media", "ALTER TABLE perfis_tecnicos ADD COLUMN nota_media NUMERIC(3, 2)"),
-            ("total_avaliacoes", "ALTER TABLE perfis_tecnicos ADD COLUMN total_avaliacoes INTEGER NOT NULL DEFAULT 0"),
-            ("modalidades", "ALTER TABLE perfis_tecnicos ADD COLUMN modalidades VARCHAR(60)"),
-            ("disponivel_ate", "ALTER TABLE perfis_tecnicos ADD COLUMN disponivel_ate TIMESTAMP"),
-        ],
-        "atendimentos": [
-            ("prazo_estimado_dias", "ALTER TABLE atendimentos ADD COLUMN prazo_estimado_dias INTEGER"),
-        ],
-        "avaliacoes": [
-            ("nota_tempo", "ALTER TABLE avaliacoes ADD COLUMN nota_tempo INTEGER"),
-            ("nota_honestidade", "ALTER TABLE avaliacoes ADD COLUMN nota_honestidade INTEGER"),
-            ("nota_preco_justo", "ALTER TABLE avaliacoes ADD COLUMN nota_preco_justo INTEGER"),
-            ("nota_comportamento", "ALTER TABLE avaliacoes ADD COLUMN nota_comportamento INTEGER"),
-            ("nota_colaboracao", "ALTER TABLE avaliacoes ADD COLUMN nota_colaboracao INTEGER"),
-        ],
-    }
-
-    alteracoes = []
-    for tabela, colunas_novas in alteracoes_por_tabela.items():
-        if tabela not in tabelas:
-            continue
-        colunas_existentes = {coluna["name"] for coluna in inspector.get_columns(tabela)}
-        alteracoes.extend(sql for nome, sql in colunas_novas if nome not in colunas_existentes)
-
-    if not alteracoes:
-        return
-    with db.engine.begin() as conn:
-        for sql in alteracoes:
-            conn.execute(text(sql))
-
-
-def _garantir_cascade_exclusao():
-    """Alinha as FKs do banco com o cascade que o SQLAlchemy já assume nos
-    relationships (Usuario.perfil_tecnico, Servico.atendimentos, etc, todos
-    com cascade="all, delete-orphan") — sem isso, apagar um usuário ou
-    chamado fora do ORM (ex: direto pelo SQL editor do Neon) esbarra em
-    ForeignKeyViolation mesmo quando o cascade já é o comportamento que a
-    aplicação pretende."""
-    from sqlalchemy import inspect, text
-
-    inspector = inspect(db.engine)
-    tabelas = set(inspector.get_table_names())
-
-    # (tabela, coluna, tabela_referenciada, ação) — SET NULL só em
-    # alterado_por_id: é opcional e apagar quem alterou não deve apagar o
-    # registro de histórico em si, só perder essa referência.
-    fks = [
-        ("perfis_tecnicos", "usuario_id", "usuarios", "CASCADE"),
-        ("diplomas", "perfil_tecnico_id", "perfis_tecnicos", "CASCADE"),
-        ("servicos", "cliente_id", "usuarios", "CASCADE"),
-        ("servicos", "tecnico_id", "usuarios", "CASCADE"),
-        ("fotos_servicos", "servico_id", "servicos", "CASCADE"),
-        ("solicitacoes_tecnicos", "servico_id", "servicos", "CASCADE"),
-        ("solicitacoes_tecnicos", "tecnico_id", "usuarios", "CASCADE"),
-        ("historico_servicos", "servico_id", "servicos", "CASCADE"),
-        ("historico_servicos", "alterado_por_id", "usuarios", "SET NULL"),
-        ("atendimentos", "cliente_id", "usuarios", "CASCADE"),
-        ("atendimentos", "tecnico_id", "usuarios", "CASCADE"),
-        ("atendimentos", "servico_id", "servicos", "CASCADE"),
-        ("solicitacoes_aprovacao", "servico_id", "servicos", "CASCADE"),
-        ("solicitacoes_aprovacao", "tecnico_id", "usuarios", "CASCADE"),
-        ("acionamentos_garantia", "servico_id", "servicos", "CASCADE"),
-        ("acionamentos_garantia", "cliente_id", "usuarios", "CASCADE"),
-        ("acionamentos_garantia", "servico_novo_id", "servicos", "SET NULL"),
-        # As três FKs de avaliacoes declaram ondelete="CASCADE" na Model, o
-        # que só vale no CREATE TABLE: em banco criado antes disso elas
-        # ficaram sem cascade, e apagar um usuário ou chamado esbarrava em
-        # ForeignKeyViolation — exatamente o que esta função existe pra evitar.
-        ("avaliacoes", "servico_id", "servicos", "CASCADE"),
-        ("avaliacoes", "autor_id", "usuarios", "CASCADE"),
-        ("avaliacoes", "avaliado_id", "usuarios", "CASCADE"),
-        ("mensagens_chamado", "servico_id", "servicos", "CASCADE"),
-        ("mensagens_chamado", "autor_id", "usuarios", "CASCADE"),
-        ("janelas_disponibilidade", "tecnico_id", "usuarios", "CASCADE"),
-        ("notificacoes", "usuario_id", "usuarios", "CASCADE"),
-        ("notificacoes", "servico_id", "servicos", "CASCADE"),
-    ]
-
-    with db.engine.begin() as conn:
-        for tabela, coluna, tabela_ref, acao in fks:
-            if tabela not in tabelas:
-                continue
-
-            constraint = f"{tabela}_{coluna}_fkey"
-            regra_atual = conn.execute(
-                text(
-                    "SELECT delete_rule FROM information_schema.referential_constraints "
-                    "WHERE constraint_name = :nome"
-                ),
-                {"nome": constraint},
-            ).scalar()
-            if regra_atual == acao:
-                continue
-
-            conn.execute(text(f'ALTER TABLE {tabela} DROP CONSTRAINT IF EXISTS "{constraint}"'))
-            conn.execute(text(
-                f'ALTER TABLE {tabela} ADD CONSTRAINT "{constraint}" '
-                f'FOREIGN KEY ({coluna}) REFERENCES {tabela_ref}(id) ON DELETE {acao}'
-            ))
-
-
-def _instalar_procedures():
-    """(Re)cria no Postgres as procedures/functions que as Repositories
-    chamam (ver backend/database/procedures.sql — arquitetura da disciplina:
-    Repository só acessa o banco por procedure, nunca via Model/ORM direto).
-    CREATE OR REPLACE é idempotente, então isso roda a cada início do app,
-    igual às outras duas migrations leves acima — sem precisar de um passo
-    manual separado no Neon."""
-    from sqlalchemy import text
-
-    caminho_sql = os.path.join(BACKEND_DIR, "database", "procedures.sql")
-    with open(caminho_sql, encoding="utf-8") as arquivo:
-        script_sql = arquivo.read()
-
-    with db.engine.begin() as conn:
-        conn.execute(text(script_sql))
 
 
 app = create_app()
@@ -292,4 +183,4 @@ if __name__ == "__main__":
         print(f" * Acesse pelo seu PC:      http://127.0.0.1:{port}")
         print(f" * Acesse por outro dispositivo na mesma rede: http://{local_ip}:{port}")
 
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,3 +1,4 @@
+"""Busca histórico do modelo de aparelho somente entre os chamados do cliente autenticado."""
 from constants import MIN_CARACTERES_MODELO_HISTORICO
 from modules.servicos.repositories.servico_repository import ServicoRepository
 

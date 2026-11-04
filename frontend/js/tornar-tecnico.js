@@ -1,3 +1,4 @@
+/* Responsabilidade: Envia o formulário de conversão com dados profissionais e arquivos, preservando a conta existente. */
 /* Conversão de conta cliente -> técnico (frontend/pages/tornar-tecnico.html).
    Só pede os campos específicos de técnico (nome/email/CPF/endereço já
    existem na conta logada) e envia via fetch multipart pra

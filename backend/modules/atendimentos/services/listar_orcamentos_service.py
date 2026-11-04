@@ -1,3 +1,4 @@
+"""Autoriza o proprietário antes de consultar as propostas com dados dos técnicos."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.atendimentos.repositories.atendimento_repository import AtendimentoRepository
 from modules.servicos.models.servico import Servico

@@ -1,3 +1,4 @@
+"""Catálogo compartilhado de estados, percentuais, limites e rótulos das regras de negócio."""
 # Valores válidos de status de um Servico (chamado), centralizados aqui pra
 # não ficar espalhado como string livre entre model/service/controller.
 
@@ -73,14 +74,10 @@ CATEGORIA_SOFTWARE = "software"
 CATEGORIAS_PROBLEMA = (CATEGORIA_HARDWARE, CATEGORIA_SOFTWARE)
 
 MAX_FOTOS_CHAMADO = 5
-# 5 MB por foto (era 2 MB). Atenção: Serverless Functions do Vercel têm um
-# limite de payload da própria plataforma (historicamente ~4,5 MB por
-# request, fora do controle do Flask) — com várias fotos grandes juntas
-# nesse limite pode ser atingido antes mesmo de chegar no MAX_CONTENT_LENGTH
-# configurado em config.py. Se isso acontecer em produção, a saída correta
-# é subir a foto direto do navegador pro Cloudinary (upload assinado) em
-# vez de passar pelo backend, e não só aumentar esse número de novo.
-MAX_BYTES_FOTO_CHAMADO = 5 * 1024 * 1024
+# Até 4 MiB por arquivo, sempre limitado também pelo total da requisição.
+# O Flask e o frontend reservam margem para multipart; nunca somar este teto
+# por foto para ultrapassar o limite global da função Vercel.
+MAX_BYTES_FOTO_CHAMADO = 4 * 1024 * 1024
 
 # Garantia opcional na abertura do chamado: +7% sobre o valor do serviço.
 # Se o problema voltar em até 10 dias após a finalização, o cliente pode

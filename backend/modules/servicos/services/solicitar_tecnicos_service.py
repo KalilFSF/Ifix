@@ -1,4 +1,7 @@
-from datetime import datetime
+"""Cria convites/notificações e agenda e-mails conforme fuso, faixa de contato e urgência."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
+from business_time import business_now
 
 from constants import NOTIFICACAO_NOVA_SOLICITACAO, URGENCIA_PRAZO_HORAS
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
@@ -22,15 +25,23 @@ class SolicitarTecnicosService:
     um motivo que é do técnico, e o resto do sistema é construído pra nunca
     deixar um chamado sem ninguém notificado."""
 
+    @atomic
     def executar(self, servico_id, tecnico_ids, usuario):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != usuario.id:
             raise PermissaoNegadaError("Apenas o cliente dono do chamado pode solicitar técnicos.")
 
+        if servico.status != "aberto" or servico.tecnico_id is not None:
+            from exceptions import ValidacaoError
+            raise ValidacaoError("Este chamado já foi decidido ou encerrado.")
         criadas = []
-        for tecnico_id in tecnico_ids:
+        for tecnico_id in dict.fromkeys(tecnico_ids):
+            tecnico = Usuario.buscar_por_id(tecnico_id)
+            if tecnico is None or not tecnico.eh_tecnico or tecnico_id == usuario.id:
+                from exceptions import ValidacaoError
+                raise ValidacaoError("Técnico inválido para esta solicitação.")
             if SolicitacaoTecnico.buscar_pendente(servico_id, tecnico_id):
                 continue
             criadas.append(SolicitacaoTecnico.criar(servico_id, tecnico_id))
@@ -58,7 +69,7 @@ class SolicitarTecnicosService:
         if not tecnico or not tecnico.email:
             return
 
-        agora = datetime.now().time()
+        agora = business_now().time()
         # Urgência (funcionalidade 1) fura a restrição de horário: o cliente
         # pagou por resposta em até URGENCIA_PRAZO_HORAS, e um e-mail
         # suprimido de madrugada comeria esse prazo.
@@ -72,7 +83,7 @@ class SolicitarTecnicosService:
         if servico.urgente:
             aviso_urgencia = (
                 f"<p><strong>ATENDIMENTO DE URGÊNCIA:</strong> o cliente espera atendimento em até "
-                f"{URGENCIA_PRAZO_HORAS} horas depois de escolher o técnico.</p>"
+                f"{escape(str(URGENCIA_PRAZO_HORAS))} horas depois de escolher o técnico.</p>"
             )
             assunto = f"URGENTE — Nova solicitação de chamado — {servico.codigo}"
         else:
@@ -80,9 +91,9 @@ class SolicitarTecnicosService:
             assunto = f"Nova solicitação de chamado — {servico.codigo}"
 
         corpo_html = f"""
-            <p>Olá, {tecnico.nome}!</p>
+            <p>Olá, {escape(str(tecnico.nome))}!</p>
             <p>Você recebeu uma nova solicitação de chamado no iFix:
-               <strong>{servico.codigo}</strong> ({servico.titulo}).</p>
+               <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}).</p>
             {aviso_urgencia}
             <p>Acesse seu painel para ver os detalhes e enviar um orçamento.</p>
         """

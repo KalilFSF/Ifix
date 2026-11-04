@@ -1,3 +1,4 @@
+/* Responsabilidade: Chat compartilhado: monta a conversa, busca mensagens novas por polling e preserva a digitação. */
 /* Chat do chamado, compartilhado pelos dois painéis.
 
    O transporte é polling HTTP, no mesmo tique de 7s que os painéis já usam:

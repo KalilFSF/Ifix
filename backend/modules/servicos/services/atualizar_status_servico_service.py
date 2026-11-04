@@ -1,3 +1,6 @@
+"""Autoriza a transição, exige requisitos de conclusão e grava histórico/notificação juntos."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
 from constants import (
     NOTIFICACAO_STATUS,
     STATUS_CLIENTE_CHOICES,
@@ -26,8 +29,9 @@ class AtualizarStatusServicoService:
     As duas travas de finalização (autorização de custo pendente e laudo
     ausente) valem para os dois participantes."""
 
+    @atomic
     def executar(self, servico_id, novo_status, usuario):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
 
@@ -107,9 +111,9 @@ class AtualizarStatusServicoService:
             return
 
         corpo_html = f"""
-            <p>Olá, {destinatario.nome}!</p>
-            <p>O status do chamado <strong>{servico.codigo}</strong> ({servico.titulo}) foi atualizado:</p>
-            <p style="font-size:18px;"><strong>{rotulo}</strong></p>
+            <p>Olá, {escape(str(destinatario.nome))}!</p>
+            <p>O status do chamado <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}) foi atualizado:</p>
+            <p style="font-size:18px;"><strong>{escape(str(rotulo))}</strong></p>
             <p>Acesse sua conta no iFix pra ver os detalhes e o histórico completo.</p>
         """
         EmailService.enviar_email(

@@ -1,3 +1,7 @@
+"""Registra pedido de custo adicional pelo responsável e impede outra solicitação pendente."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from constants import (
     MIN_CARACTERES_DESCRICAO_APROVACAO,
     NOTIFICACAO_AUTORIZACAO_PEDIDA,
@@ -26,8 +30,9 @@ class SolicitarAprovacaoService:
     Só um pedido pendente por vez, pra não empilhar autorizações que o
     cliente responderia fora de ordem."""
 
+    @atomic
     def executar(self, servico_id, tecnico, dados):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.tecnico_id != tecnico.id:
@@ -67,7 +72,7 @@ class SolicitarAprovacaoService:
     @staticmethod
     def _parse_valor(valor):
         try:
-            valor_adicional = float(valor)
+            valor_adicional = decimal_value(valor)
         except (TypeError, ValueError):
             raise ValidacaoError("Informe um valor adicional válido.")
         if valor_adicional <= 0:
@@ -81,13 +86,13 @@ class SolicitarAprovacaoService:
             return
 
         corpo_html = f"""
-            <p>Olá, {cliente.nome}!</p>
+            <p>Olá, {escape(str(cliente.nome))}!</p>
             <p>O técnico encontrou um problema adicional no seu chamado
-               <strong>{servico.codigo}</strong> ({servico.titulo}) e precisa da sua
+               <strong>{escape(str(servico.codigo))}</strong> ({escape(str(servico.titulo))}) e precisa da sua
                autorização para continuar:</p>
-            <p>{aprovacao.descricao}</p>
+            <p>{escape(str(aprovacao.descricao))}</p>
             <p style="font-size:18px;"><strong>Custo adicional:
-               {formatar_moeda_brl(aprovacao.valor_adicional)}</strong></p>
+               {escape(str(formatar_moeda_brl(aprovacao.valor_adicional)))}</strong></p>
             <p>Nada será executado sem a sua aprovação. Acesse sua conta no iFix
                para autorizar ou recusar.</p>
         """

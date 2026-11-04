@@ -1,3 +1,4 @@
+/* Responsabilidade: Diretório público: lê filtros, consulta a API e monta cartões de profissionais. */
 /* Diretório de técnicos (frontend/pages/cliente-tecnicos.html) — funcionalidade 4.
 
    Lista GET /api/tecnicos/diretorio com os filtros da tela. O diretório mostra

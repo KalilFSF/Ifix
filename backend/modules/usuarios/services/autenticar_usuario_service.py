@@ -1,3 +1,4 @@
+"""Busca a conta por e-mail e compara a senha recebida ao hash armazenado."""
 from exceptions import CredenciaisInvalidasError
 from modules.usuarios.models.usuario import Usuario
 

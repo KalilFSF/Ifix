@@ -1,3 +1,6 @@
+"""Acionamento da garantia e eventual vínculo com o novo chamado de reparo."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from constants import (
@@ -8,7 +11,6 @@ from constants import (
     GARANTIA_TIPOS_LABELS,
 )
 from database import db
-from utils import isoformat_utc
 
 
 class AcionamentoGarantia(db.Model):
@@ -32,8 +34,8 @@ class AcionamentoGarantia(db.Model):
     # SET NULL: apagar o chamado gerado não deve apagar o registro de que a
     # garantia foi acionada — só perder a referência.
     servico_novo_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="SET NULL"))
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    respondido_em = db.Column(db.DateTime)
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
+    respondido_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     servico = db.relationship("Servico", foreign_keys=[servico_id], back_populates="acionamentos_garantia")
     servico_novo = db.relationship("Servico", foreign_keys=[servico_novo_id])
@@ -43,16 +45,16 @@ class AcionamentoGarantia(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, acionamento_id):
-        return cls.query.get(acionamento_id)
+        return db.session.get(cls, acionamento_id)
 
     @classmethod
     def listar_todos(cls):
@@ -78,7 +80,7 @@ class AcionamentoGarantia(db.Model):
         return cls.query.filter(
             cls.servico_id == servico_id,
             cls.status.in_((GARANTIA_STATUS_PENDENTE, GARANTIA_STATUS_APROVADO)),
-        ).first()
+        ).with_for_update().populate_existing().first()
 
     @classmethod
     def listar_por_servico(cls, servico_id):
@@ -101,16 +103,5 @@ class AcionamentoGarantia(db.Model):
         return self.salvar()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "cliente_id": self.cliente_id,
-            "descricao_problema": self.descricao_problema,
-            "tipo_solicitado": self.tipo_solicitado,
-            "tipo_solicitado_label": GARANTIA_TIPOS_LABELS.get(self.tipo_solicitado),
-            "status": self.status,
-            "servico_novo_id": self.servico_novo_id,
-            "servico_novo_codigo": self.servico_novo.codigo if self.servico_novo else None,
-            "criado_em": isoformat_utc(self.criado_em),
-            "respondido_em": isoformat_utc(self.respondido_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

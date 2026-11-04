@@ -1,3 +1,4 @@
+/* Responsabilidade: Preenche estados e municípios com a API de localidades do IBGE. */
 /* Funções auxiliares de busca de estados/cidades na API do IBGE.
    O valor de cada <option> de estado é a sigla (ex: "SP"), que também
    é aceita pela própria API do IBGE para buscar os municípios.

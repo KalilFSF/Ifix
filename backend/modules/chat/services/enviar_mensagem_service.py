@@ -1,3 +1,5 @@
+"""Valida participação e conteúdo; registra mensagens ou marca como lidas no chat do chamado."""
+from transactions import atomic, lock_model, lock_child
 from exceptions import ValidacaoError
 from modules.chat.models.mensagem import MAX_CARACTERES_MENSAGEM, MensagemChamado
 from modules.chat.services.listar_mensagens_service import garantir_acesso_ao_chat
@@ -13,6 +15,7 @@ class EnviarMensagemService:
     badge de não lidas no painel, que o polling já atualiza.
     """
 
+    @atomic
     def executar(self, servico_id, autor, dados):
         servico = garantir_acesso_ao_chat(servico_id, autor)
 
@@ -33,6 +36,7 @@ class EnviarMensagemService:
 
 
 class MarcarMensagensLidasService:
+    @atomic
     def executar(self, servico_id, usuario):
         garantir_acesso_ao_chat(servico_id, usuario)
         return MensagemChamado.marcar_lidas(servico_id, usuario.id)

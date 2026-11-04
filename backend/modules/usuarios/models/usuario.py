@@ -1,3 +1,6 @@
+"""Conta, identidade, senha em hash e dados pessoais; pode exercer papel de cliente ou técnico."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
@@ -9,7 +12,6 @@ from constants import (
     LIMITE_ALERTAS_COMPORTAMENTO,
 )
 from database import db
-from utils import isoformat_utc
 
 
 class Usuario(UserMixin, db.Model):
@@ -44,8 +46,8 @@ class Usuario(UserMixin, db.Model):
     # (distância via Haversine, ver SelecionarTecnicosService). Para o
     # técnico é a localização usada no cálculo; para o cliente, servem de
     # padrão para Servico.latitude/longitude no momento da criação do chamado.
-    latitude = db.Column(db.Float)
-    longitude = db.Column(db.Float)
+    latitude = db.Column(db.Float().with_variant(DOUBLE(), "mysql"))
+    longitude = db.Column(db.Float().with_variant(DOUBLE(), "mysql"))
 
     # Penalidade por comportamento (funcionalidade 4): incrementado sempre
     # que um técnico avalia essa conta com nota baixa de comportamento/
@@ -66,7 +68,7 @@ class Usuario(UserMixin, db.Model):
         db.String(5), nullable=False, default=HORARIO_ATENDIMENTO_PADRAO_FIM
     )
 
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     perfil_tecnico = db.relationship(
         "PerfilTecnico",
@@ -103,7 +105,7 @@ class Usuario(UserMixin, db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     # cep/bairro/numero/complemento entraram na lista: eles existem como
@@ -127,7 +129,7 @@ class Usuario(UserMixin, db.Model):
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     def registrar_alerta_comportamento(self):
         """Chamado quando um técnico avalia essa conta com nota baixa de
@@ -146,7 +148,7 @@ class Usuario(UserMixin, db.Model):
 
     @classmethod
     def buscar_por_id(cls, usuario_id):
-        return cls.query.get(usuario_id)
+        return db.session.get(cls, usuario_id)
 
     @classmethod
     def listar_todos(cls):
@@ -208,33 +210,5 @@ class Usuario(UserMixin, db.Model):
         return check_password_hash(self.senha_hash, senha)
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "nome": self.nome,
-            "email": self.email,
-            "telefone": self.telefone,
-            "cpf": self.cpf,
-            "role": self.role,
-            "eh_tecnico": self.eh_tecnico,
-            # Fallback pra foto do perfil técnico: quem virou técnico antes
-            # desta coluna existir tem a foto só lá, e ela continua valendo.
-            "foto_perfil": self.foto_perfil or (
-                self.perfil_tecnico.foto_perfil if self.perfil_tecnico else None
-            ),
-            "data_nascimento": self.data_nascimento.isoformat() if self.data_nascimento else None,
-            "cep": self.cep,
-            "cidade": self.cidade,
-            "estado": self.estado,
-            "bairro": self.bairro,
-            "endereco": self.endereco,
-            "numero": self.numero,
-            "complemento": self.complemento,
-            "pais": self.pais,
-            "latitude": self.latitude,
-            "longitude": self.longitude,
-            "alertas_comportamento": self.alertas_comportamento,
-            "suspenso": self.suspenso,
-            "horario_inicio_atendimento": self.horario_inicio_atendimento,
-            "horario_fim_atendimento": self.horario_fim_atendimento,
-            "criado_em": isoformat_utc(self.criado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

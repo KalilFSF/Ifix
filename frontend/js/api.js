@@ -1,3 +1,4 @@
+/* Responsabilidade: Cliente HTTP compartilhado: envia CSRF, processa JSON/erros e verifica limite total de multipart. */
 /* Camada única de acesso à API.
 
    Antes disso, cada tela escrevia `await fetch(...)` cru e tratava (ou não)
@@ -36,9 +37,34 @@ function mensagemPorStatus(status) {
 
 /* Base de tudo. Nunca lança: o erro vem no retorno, pra quem chama não
    precisar de try/catch só pra não travar um botão em "Enviando...". */
+let csrfPromise = null;
+async function obterCsrf() {
+    if (!csrfPromise) {
+        csrfPromise = fetch("/api/csrf", {credentials:"same-origin", cache:"no-store"})
+            .then(async resposta => {
+                if (!resposta.ok) throw new Error("Não foi possível preparar a segurança da sessão.");
+                return resposta.json();
+            }).catch(erro => { csrfPromise = null; throw erro; });
+    }
+    return csrfPromise;
+}
+
 async function requisitar(url, opcoes = {}) {
     let resposta;
     try {
+        const destino = new URL(url, window.location.origin);
+        if (destino.origin !== window.location.origin) throw new Error("API deve usar a mesma origem.");
+        if (!["GET","HEAD","OPTIONS"].includes((opcoes.method || "GET").toUpperCase())) {
+            const seguranca = await obterCsrf();
+            const headers = new Headers(opcoes.headers || {});
+            headers.set("X-CSRF-Token", seguranca.csrf_token);
+            opcoes = {...opcoes, headers, credentials:"same-origin"};
+            if (opcoes.body instanceof FormData) {
+                let tamanho = 64 * 1024; // Margem para os campos/cabeçalhos multipart.
+                for (const valor of opcoes.body.values()) tamanho += valor instanceof Blob ? valor.size : new Blob([valor]).size;
+                if (tamanho > seguranca.max_request_bytes) return {ok:false,status:413,dados:null,erro:"O envio completo deve ter até 4 MB. Reduza as imagens.",falhaDeRede:false,naoAutenticado:false};
+            }
+        }
         resposta = await fetch(url, opcoes);
     } catch (erro) {
         console.error(`[api] falha de rede em ${opcoes.method || "GET"} ${url}`, erro);
@@ -52,8 +78,7 @@ async function requisitar(url, opcoes = {}) {
         };
     }
 
-    // Um 500 do Flask devolve HTML, não JSON — por isso o parse é protegido
-    // em vez de `await resposta.json()` direto, que lançaria aqui.
+    // A plataforma também pode devolver HTML antes de chegar ao Flask.
     let dados = null;
     try {
         const tipo = resposta.headers.get("content-type") || "";
@@ -65,6 +90,7 @@ async function requisitar(url, opcoes = {}) {
     const erroDoServidor = dados && typeof dados === "object" ? dados.erro : null;
 
     if (resposta.ok) {
+        if (["/api/login","/logout"].includes(new URL(url,window.location.origin).pathname)) csrfPromise = null;
         // Alguns endpoints antigos devolvem {ok:false} com HTTP 200.
         if (dados && typeof dados === "object" && dados.ok === false) {
             console.error(`[api] ${url} respondeu ok:false — ${erroDoServidor}`);
@@ -80,6 +106,7 @@ async function requisitar(url, opcoes = {}) {
         return { ok: true, status: resposta.status, dados, erro: null, falhaDeRede: false, naoAutenticado: false };
     }
 
+    if (resposta.status === 403 && erroDoServidor && erroDoServidor.includes("Token de segurança")) csrfPromise = null;
     const erro = erroDoServidor || mensagemPorStatus(resposta.status);
     console.error(`[api] ${resposta.status} em ${opcoes.method || "GET"} ${url} — ${erro}`);
     return {
@@ -117,3 +144,13 @@ function enviarJson(url, corpo, metodo = "POST") {
 function enviarFormulario(url, formData, metodo = "POST") {
     return requisitar(url, { method: metodo, body: formData });
 }
+
+// Navegação de saída mantém o link existente, mas realiza uma escrita protegida.
+document.addEventListener("click", async evento => {
+    const link = evento.target.closest('a[href="/logout"]');
+    if (!link) return;
+    evento.preventDefault();
+    const resultado = await requisitar("/logout", {method:"POST"});
+    if (resultado.ok) window.location.assign("/");
+    else if (typeof mostrarToast === "function") mostrarToast(resultado.erro);
+});

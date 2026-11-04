@@ -1,3 +1,4 @@
+"""Rotas HTTP do módulo atendimentos: aplica autenticação inicial e encaminha ao controller."""
 # Rotas do módulo "atendimentos" (orçamentos/registros de atendimento
 # ligados a um Servico) — só declara endpoint + auth e encaminha pro
 # Controller.

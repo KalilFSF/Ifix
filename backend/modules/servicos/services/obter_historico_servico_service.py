@@ -1,3 +1,4 @@
+"""Autoriza os participantes a consultar a linha do tempo de estados do chamado."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.servicos.models.historico import HistoricoServico
 from modules.servicos.models.servico import Servico

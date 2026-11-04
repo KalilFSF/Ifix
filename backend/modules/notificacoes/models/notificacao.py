@@ -1,7 +1,9 @@
+"""Aviso interno para um destinatário, com papel, tipo, leitura e chamado opcional."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from database import db
-from utils import isoformat_utc
 
 # Painel pra onde cada notificação leva, conforme o papel de quem recebe.
 LINK_POR_PAPEL = {
@@ -29,19 +31,19 @@ class Notificacao(db.Model):
     mensagem = db.Column(db.String(300), nullable=False)
 
     # Nulo = ainda não vista. Alimenta o contador do sino.
-    lida_em = db.Column(db.DateTime)
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    lida_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     # ============== CRUD (Active Record) ==============
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     @classmethod
     def buscar_por_id(cls, notificacao_id):
-        return cls.query.get(notificacao_id)
+        return db.session.get(cls, notificacao_id)
 
     # ============== Finders / operações específicas ==============
 
@@ -74,7 +76,7 @@ class Notificacao(db.Model):
         atualizadas = cls.query.filter(
             cls.usuario_id == usuario_id, cls.lida_em.is_(None)
         ).update({cls.lida_em: datetime.now(timezone.utc)}, synchronize_session=False)
-        db.session.commit()
+        persist()
         return atualizadas
 
     def marcar_lida(self):
@@ -84,14 +86,5 @@ class Notificacao(db.Model):
         return self
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "papel": self.papel,
-            "tipo": self.tipo,
-            "titulo": self.titulo,
-            "mensagem": self.mensagem,
-            "link": LINK_POR_PAPEL.get(self.papel),
-            "lida": self.lida_em is not None,
-            "criado_em": isoformat_utc(self.criado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

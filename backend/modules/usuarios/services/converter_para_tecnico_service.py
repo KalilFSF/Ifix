@@ -1,3 +1,5 @@
+"""Acrescenta perfil profissional à conta existente, preservando id, e-mail e senha."""
+from transactions import atomic, lock_model, lock_child
 from flask import current_app
 
 from exceptions import ValidacaoError
@@ -9,7 +11,10 @@ class ConverterParaTecnicoService:
     """Transforma uma conta cliente já existente em técnico: mesmo id,
     email e senha — só anexa o perfil técnico e troca o papel da conta."""
 
+    @atomic
     def executar(self, usuario, dados_tecnico, foto_perfil, diplomas_arquivos, latitude=None, longitude=None):
+        from modules.usuarios.models.usuario import Usuario
+        usuario = lock_model(Usuario, usuario.id)
         erro = validar_dados_tecnico(dados_tecnico, foto_perfil, diplomas_arquivos)
         if erro:
             raise ValidacaoError(erro)

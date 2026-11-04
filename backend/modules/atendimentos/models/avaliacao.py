@@ -1,7 +1,9 @@
+"""Avaliação entre participantes após conclusão; uma por autor em cada chamado."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from database import db
-from utils import isoformat_utc
 
 
 class Avaliacao(db.Model):
@@ -34,7 +36,7 @@ class Avaliacao(db.Model):
     nota_comportamento = db.Column(db.Integer)
     nota_colaboracao = db.Column(db.Integer)
     comentario = db.Column(db.Text)
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         db.UniqueConstraint("servico_id", "autor_id", name="uq_avaliacao_servico_autor"),
@@ -48,12 +50,12 @@ class Avaliacao(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     @classmethod
     def buscar_por_id(cls, avaliacao_id):
-        return cls.query.get(avaliacao_id)
+        return db.session.get(cls, avaliacao_id)
 
     # ============== Finders / operações específicas ==============
 
@@ -76,26 +78,12 @@ class Avaliacao(db.Model):
 
     @classmethod
     def buscar_por_servico_e_autor(cls, servico_id, autor_id):
-        return cls.query.filter_by(servico_id=servico_id, autor_id=autor_id).first()
+        return cls.query.filter_by(servico_id=servico_id, autor_id=autor_id).with_for_update().populate_existing().first()
 
     @classmethod
     def listar_por_servico(cls, servico_id):
         return cls.query.filter_by(servico_id=servico_id).order_by(cls.criado_em).all()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "autor_id": self.autor_id,
-            "autor_nome": self.autor.nome if self.autor else None,
-            "avaliado_id": self.avaliado_id,
-            "avaliado_nome": self.avaliado.nome if self.avaliado else None,
-            "nota": self.nota,
-            "nota_tempo": self.nota_tempo,
-            "nota_honestidade": self.nota_honestidade,
-            "nota_preco_justo": self.nota_preco_justo,
-            "nota_comportamento": self.nota_comportamento,
-            "nota_colaboracao": self.nota_colaboracao,
-            "comentario": self.comentario,
-            "criado_em": isoformat_utc(self.criado_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

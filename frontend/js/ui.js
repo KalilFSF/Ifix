@@ -1,3 +1,4 @@
+/* Responsabilidade: Componentes compartilhados de feedback, avatar, modal e navegação lateral móvel. */
 /* Componentes de interface compartilhados entre as telas.
 
    Cada um destes estava duplicado em 4 arquivos — e `mostrarToast` em duas

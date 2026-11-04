@@ -1,3 +1,4 @@
+/* Responsabilidade: Escapa caracteres HTML antes de inserir texto de usuário em templates da interface. */
 /* Helper de escape para interpolação em template literal + innerHTML.
 
    Todo o front renderiza com `elemento.innerHTML = \`...${dado}...\``, e boa

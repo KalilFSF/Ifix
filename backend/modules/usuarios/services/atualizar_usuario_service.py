@@ -1,3 +1,5 @@
+"""Valida e atualiza dados pessoais/endereço da própria conta sem trocar sua identidade."""
+from transactions import atomic, lock_model, lock_child
 from exceptions import ValidacaoError
 from modules.usuarios.models.usuario import Usuario
 from utils import parsear_coordenada, somente_digitos, validar_telefone
@@ -14,7 +16,10 @@ class AtualizarUsuarioService:
 
     CAMPOS_TEXTO = ("nome", "telefone", "cep", "estado", "cidade", "bairro", "endereco", "numero", "complemento")
 
+    @atomic
     def executar(self, usuario, dados):
+        from modules.usuarios.models.usuario import Usuario
+        usuario = lock_model(Usuario, usuario.id)
         limpos = {}
 
         for campo in self.CAMPOS_TEXTO:

@@ -1,3 +1,4 @@
+"""Autoriza os participantes a consultar os acionamentos de garantia daquele chamado."""
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.servicos.models.garantia import AcionamentoGarantia
 from modules.servicos.models.servico import Servico

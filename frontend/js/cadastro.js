@@ -1,3 +1,4 @@
+/* Responsabilidade: Coordena formulários de cadastro, máscaras, endereço, geolocalização e uploads de técnico. */
 /* Lógica da tela de cadastro: alternar cliente/técnico, aplicar máscaras
    (telefone, CPF, CEP), buscar endereço pelo CEP (ViaCEP), popular os
    selects de estado/cidade (IBGE, via as funções de estadosCidades.js —

@@ -1,3 +1,4 @@
+"""Rotas HTTP do módulo chat: aplica autenticação inicial e encaminha ao controller."""
 # Rotas do módulo "chat" (conversa entre cliente e técnico dentro de um
 # chamado) — só declara endpoint + auth e encaminha pro Controller.
 

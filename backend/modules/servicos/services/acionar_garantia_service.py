@@ -1,3 +1,6 @@
+"""Valida a garantia vigente e registra reembolso solicitado ou novo atendimento vinculado."""
+from html import escape
+from transactions import atomic, lock_model, lock_child
 from constants import (
     GARANTIA_DIAS,
     GARANTIA_TIPO_NOVO_ATENDIMENTO,
@@ -32,8 +35,9 @@ class AcionarGarantiaService:
     chamado original, e renovar a cada acionamento daria garantia infinita.
     """
 
+    @atomic
     def executar(self, servico_id, cliente, dados):
-        servico = Servico.buscar_por_id(servico_id)
+        servico = lock_model(Servico, servico_id)
         if servico is None:
             raise RecursoNaoEncontradoError("Chamado não encontrado.")
         if servico.cliente_id != cliente.id:
@@ -122,10 +126,10 @@ class AcionarGarantiaService:
             complemento = "<p>O cliente solicitou reembolso. Entre em contato para tratar o caso.</p>"
 
         corpo_html = f"""
-            <p>Olá, {tecnico.nome}!</p>
-            <p>O cliente acionou a garantia do chamado <strong>{servico.codigo}</strong>
-               ({servico.titulo}).</p>
-            <p><strong>O que voltou a acontecer:</strong> {acionamento.descricao_problema}</p>
+            <p>Olá, {escape(str(tecnico.nome))}!</p>
+            <p>O cliente acionou a garantia do chamado <strong>{escape(str(servico.codigo))}</strong>
+               ({escape(str(servico.titulo))}).</p>
+            <p><strong>O que voltou a acontecer:</strong> {escape(str(acionamento.descricao_problema))}</p>
             {complemento}
         """
         EmailService.enviar_email(

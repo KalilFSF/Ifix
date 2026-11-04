@@ -1,3 +1,4 @@
+/* Responsabilidade: Painel do técnico: convites, propostas, chamados atribuídos, estado do reparo, laudo, chat e avaliações. */
 /* Painel do técnico (frontend/pages/tecnico-home.html).
    Busca solicitações pendentes (GET /api/tecnico/solicitacoes) e os
    chamados já aceitos pelo técnico logado (GET /api/servicos/meus),

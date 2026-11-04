@@ -1,3 +1,4 @@
+"""Consulta os convites do técnico com descrição e fotos necessárias ao orçamento."""
 from modules.servicos.repositories.solicitacao_repository import SolicitacaoRepository
 
 

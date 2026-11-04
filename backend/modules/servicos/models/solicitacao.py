@@ -1,3 +1,6 @@
+"""Convite de um chamado a um técnico e o estado da resposta/orçamento."""
+from transactions import persist
+from sqlalchemy.dialects.mysql import DATETIME, DOUBLE
 from datetime import datetime, timezone
 
 from constants import (
@@ -7,7 +10,6 @@ from constants import (
     SOLICITACAO_RECUSADA,
 )
 from database import db
-from utils import isoformat_utc
 
 
 class SolicitacaoTecnico(db.Model):
@@ -22,8 +24,8 @@ class SolicitacaoTecnico(db.Model):
     servico_id = db.Column(db.Integer, db.ForeignKey("servicos.id", ondelete="CASCADE"), nullable=False)
     tecnico_id = db.Column(db.Integer, db.ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False)
     status = db.Column(db.String(20), nullable=False, default=SOLICITACAO_PENDENTE)
-    criado_em = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    respondido_em = db.Column(db.DateTime)
+    criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
+    respondido_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
 
     servico = db.relationship("Servico", back_populates="solicitacoes")
     tecnico = db.relationship("Usuario")
@@ -32,16 +34,16 @@ class SolicitacaoTecnico(db.Model):
 
     def salvar(self):
         db.session.add(self)
-        db.session.commit()
+        persist()
         return self
 
     def remover(self):
         db.session.delete(self)
-        db.session.commit()
+        persist()
 
     @classmethod
     def buscar_por_id(cls, solicitacao_id):
-        return cls.query.get(solicitacao_id)
+        return db.session.get(cls, solicitacao_id)
 
     @classmethod
     def listar_todos(cls):
@@ -55,11 +57,11 @@ class SolicitacaoTecnico(db.Model):
 
     @classmethod
     def buscar_pendente(cls, servico_id, tecnico_id):
-        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id, status=SOLICITACAO_PENDENTE).first()
+        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id, status=SOLICITACAO_PENDENTE).with_for_update().populate_existing().first()
 
     @classmethod
     def buscar_por_servico_e_tecnico(cls, servico_id, tecnico_id):
-        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).first()
+        return cls.query.filter_by(servico_id=servico_id, tecnico_id=tecnico_id).with_for_update().populate_existing().first()
 
     @classmethod
     def listar_pendentes_por_tecnico(cls, tecnico_id):
@@ -82,7 +84,7 @@ class SolicitacaoTecnico(db.Model):
         query = cls.query.filter(cls.servico_id == servico_id, cls.status == SOLICITACAO_PENDENTE)
         if excluir_id is not None:
             query = query.filter(cls.id != excluir_id)
-        return query.all()
+        return query.with_for_update().populate_existing().all()
 
     @classmethod
     def listar_abertas_por_servico(cls, servico_id, excluir_tecnico_id=None):
@@ -95,7 +97,7 @@ class SolicitacaoTecnico(db.Model):
         )
         if excluir_tecnico_id is not None:
             query = query.filter(cls.tecnico_id != excluir_tecnico_id)
-        return query.all()
+        return query.with_for_update().populate_existing().all()
 
     def marcar_aceita(self):
         self.status = SOLICITACAO_ACEITA
@@ -113,11 +115,5 @@ class SolicitacaoTecnico(db.Model):
         return self.salvar()
 
     def to_dict(self):
-        return {
-            "id": self.id,
-            "servico_id": self.servico_id,
-            "tecnico_id": self.tecnico_id,
-            "status": self.status,
-            "criado_em": isoformat_utc(self.criado_em),
-            "respondido_em": isoformat_utc(self.respondido_em),
-        }
+        from serialization import to_jsonable
+        return to_jsonable(self)

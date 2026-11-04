@@ -1,10 +1,11 @@
+"""Entrega páginas HTML e redireciona de acordo com a sessão e o papel da conta."""
 # Rotas de PÁGINA (servem um arquivo .html puro de frontend/, só com um
 # redirect antes se o usuário não pode ver aquela página). Não é um módulo
 # de domínio — não toca Model/Service, só decide qual página HTML mostrar
 # pro papel/sessão atual. A lógica de "o que mostrar na tela" é toda do
 # JS de cada página, que chama a API dos módulos em modules/*/routes.py.
 
-from flask import Blueprint, current_app, redirect
+from flask import Blueprint, current_app, redirect, request, session
 from flask_login import current_user, login_required, logout_user
 
 pages_bp = Blueprint("pages", __name__)
@@ -89,10 +90,15 @@ def cliente_tornar_tecnico():
     return current_app.send_static_file("pages/tornar-tecnico.html")
 
 
-@pages_bp.route("/logout")
+@pages_bp.route("/logout",methods=["GET","POST"])
 @login_required
 def logout():
     # Link normal (<a href="/logout">), não precisa passar por JSON:
     # o navegador só navega pra "/" depois de encerrar a sessão.
+    if request.method == "GET":
+        from html import escape
+        from http_security import csrf_token
+        return '<form method="post" action="/logout"><input type="hidden" name="csrf_token" value="'+escape(csrf_token())+'"><button type="submit">Confirmar saída</button></form>'
     logout_user()
+    session.clear()
     return redirect("/")

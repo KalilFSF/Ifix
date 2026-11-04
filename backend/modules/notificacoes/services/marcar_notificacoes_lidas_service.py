@@ -1,3 +1,5 @@
+"""Marca avisos do próprio usuário como lidos sem permitir alterar o destinatário."""
+from transactions import atomic
 from exceptions import PermissaoNegadaError, RecursoNaoEncontradoError
 from modules.notificacoes.models.notificacao import Notificacao
 
@@ -5,9 +7,11 @@ from modules.notificacoes.models.notificacao import Notificacao
 class MarcarNotificacoesLidasService:
     """Marca como vistas todas as notificações do usuário, ou só uma."""
 
+    @atomic
     def executar_todas(self, usuario):
         return Notificacao.marcar_todas_lidas(usuario.id)
 
+    @atomic
     def executar_uma(self, notificacao_id, usuario):
         notificacao = Notificacao.buscar_por_id(notificacao_id)
         if notificacao is None:

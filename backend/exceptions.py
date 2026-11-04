@@ -1,3 +1,4 @@
+"""Exceções de domínio com mensagem pública, status HTTP e extras explícitos quando necessários."""
 # Exceções de domínio levantadas pelas Services e traduzidas pelos
 # Controllers em jsonify(...), status_code — nenhum Controller precisa de
 # um if/elif por tipo de erro, só "except DominioError as erro".
@@ -36,3 +37,7 @@ class SolicitacaoJaRespondidaError(DominioError):
 
 class CredenciaisInvalidasError(DominioError):
     status_code = 401
+
+
+class ConflitoError(DominioError):
+    status_code = 409

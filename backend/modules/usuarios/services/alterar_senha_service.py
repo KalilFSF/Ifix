@@ -1,3 +1,5 @@
+"""Exige senha atual, confere a confirmação e persiste o novo hash da própria conta."""
+from transactions import atomic, lock_model, lock_child
 from exceptions import ValidacaoError
 
 MIN_CARACTERES_SENHA = 6
@@ -10,7 +12,10 @@ class AlterarSenhaService:
     aberta numa máquina compartilhada não deve bastar pra tomar a conta.
     """
 
+    @atomic
     def executar(self, usuario, dados):
+        from modules.usuarios.models.usuario import Usuario
+        usuario = lock_model(Usuario, usuario.id)
         senha_atual = dados.get("senha_atual") or ""
         nova_senha = dados.get("nova_senha") or ""
         confirmar_senha = dados.get("confirmar_senha") or ""

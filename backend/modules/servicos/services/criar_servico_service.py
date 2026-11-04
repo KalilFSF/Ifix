@@ -1,3 +1,6 @@
+"""Valida chamado/fotos, persiste histórico e coordena ranking, convites e notificações."""
+from transactions import atomic, lock_model, lock_child
+from money import decimal_value
 from flask import current_app
 
 from constants import (
@@ -21,6 +24,7 @@ class CriarServicoService:
         self.selecionar_tecnicos_service = SelecionarTecnicosService()
         self.solicitar_tecnicos_service = SolicitarTecnicosService()
 
+    @atomic
     def executar(self, dados, cliente, fotos=None):
         if cliente.suspenso:
             raise PermissaoNegadaError(
@@ -83,7 +87,7 @@ class CriarServicoService:
 
         preco = dados.get("preco_estimado", 0)
         try:
-            preco = float(preco or 0)
+            preco = decimal_value(preco or 0)
         except (TypeError, ValueError):
             preco = 0
         if preco < 0:

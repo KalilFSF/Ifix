@@ -1,18 +1,7 @@
-from sqlalchemy import text
-
-from database import db
-
+"""Consultas do módulo atendimentos: chama rotinas MySQL parametrizadas e aplica projeções explícitas."""
+from sql_routines import call_routine
+from query_serializers import project, REVIEW_FIELDS
 
 class AvaliacaoRepository:
-    """Leitura das avaliações de um chamado. A consulta com JOIN (avaliação +
-    nome do autor e do avaliado) vive na procedure
-    fn_listar_avaliacoes_por_servico — antes este caminho era o único do
-    projeto que ia direto ao ORM e resolvia os dois nomes com lazy load,
-    uma consulta extra por linha."""
-
     def listar_por_servico(self, servico_id):
-        resultado = db.session.execute(
-            text("SELECT * FROM fn_listar_avaliacoes_por_servico(:servico_id)"),
-            {"servico_id": servico_id},
-        )
-        return [linha[0] for linha in resultado]
+        return [project(row, REVIEW_FIELDS) for row in call_routine("fn_listar_avaliacoes_por_servico", servico_id)[0]]

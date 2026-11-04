@@ -1,3 +1,4 @@
+"""Obtém o recorte público de dados profissionais, métricas, certificados e avaliações."""
 from exceptions import RecursoNaoEncontradoError
 from modules.usuarios.repositories.usuario_repository import UsuarioRepository
 
