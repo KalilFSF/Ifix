@@ -12,7 +12,7 @@ HTML, CSS e JavaScript entregues pelo Flask; o frontend chama a API do próprio 
 
 Backend: Python, Flask, SQLAlchemy e MySQL no Aiven. Não há IA/n8n executando o ranking nesta versão: a seleção é calculada em Python. Hospedagem: Vercel.
 
-Guia detalhado para estudo: [../docs/GUIA_COMPLETO_DO_PROJETO.md](../docs/GUIA_COMPLETO_DO_PROJETO.md). Visão geral: [../README.md](../README.md).
+Arquitetura, funcionalidades e configuração: [../README.md](../README.md).
 
 ## Equipe
 

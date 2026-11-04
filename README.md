@@ -4,12 +4,6 @@ O IFix conecta clientes e técnicos: o cliente abre um chamado, o sistema seleci
 
 O backend usa Python, Flask e SQLAlchemy; o frontend usa HTML, CSS e JavaScript. A aplicação é hospedada na Vercel, os dados ficam no MySQL 8.4 do Aiven, os arquivos no Cloudinary e os e-mails são enviados pela Brevo. Não há dependência de Redis.
 
-## Guia de estudo para a apresentação
-
-O [guia completo do projeto](docs/GUIA_COMPLETO_DO_PROJETO.md) explica os fluxos passo a passo, cataloga 204 arquivos, 67 declarações de rota, os 14 modelos com colunas/relações e as 23 rotinas SQL. Também inclui glossário, funções/métodos por arquivo, perguntas com respostas e roteiro de apresentação de 12 minutos.
-
-Comece pelas seções 1–7 do guia, acompanhe um chamado do HTML até o banco e use o catálogo de arquivos para aprofundar. Arquivos legados, diretórios gerados e segredos são distinguidos da aplicação atual.
-
 ## Como explicar a arquitetura
 
 É um monólito modular: uma aplicação Flask, organizada por assunto. As telas e a API usam o mesmo domínio, e o JavaScript conversa com a API por HTTP/JSON.
@@ -51,7 +45,6 @@ Modelos tratam o CRUD pelo padrão Active Record: o objeto representa uma tabela
 | `frontend/uploads/` | Diretórios locais de apoio ao upload, ignorados no Git | Na implantação, os arquivos são enviados ao Cloudinary; a pasta não é armazenamento persistente |
 | `frontend/views/` | HTML/CSS legados existentes no projeto | Não é a estrutura de templates usada pelo fluxo atual; as páginas atuais ficam em frontend/pages e frontend/index.html |
 | `scripts/` | Ferramentas manuais de manutenção do schema e diagnóstico | Não são executadas no startup nem no deploy; não usar inicializador em banco já criado |
-| `docs/` | Contratos da API, configuração e limites operacionais | `PRODUCAO.md` contém o procedimento de implantação |
 | `.vscode/` | Preferências locais do editor | Não contém a lógica do site |
 | `.venv/` | Ambiente virtual local com dependências Python | Não é enviado ao Git; a Vercel instala backend/requirements.txt |
 | `.git/` | Histórico e controle de versão local | Não é componente da aplicação em execução |
@@ -128,7 +121,7 @@ Abra `backend/modules/atendimentos/models/avaliacao.py`, `services/avaliar_servi
 
 ### 7. Hospedagem
 
-Finalize mostrando `vercel.json`, `backend/config.py`, `backend/mysql_tls.py` e a tabela de variáveis em docs/PRODUCAO.md. A Vercel executa Flask, que conecta ao Aiven com TLS; nenhum banco é criado ao iniciar.
+Finalize mostrando `vercel.json`, `backend/config.py`, `backend/mysql_tls.py` e as variáveis de ambiente usadas pela configuração. A Vercel executa Flask, que conecta ao Aiven com TLS; nenhum banco é criado ao iniciar.
 
 ## Funcionalidades e regras preservadas
 
@@ -152,7 +145,7 @@ Garantia contratada dura dez dias após a conclusão. Pagamentos, gorjetas e ree
 
 ## Colocar na Vercel
 
-Siga [docs/PRODUCAO.md](docs/PRODUCAO.md). Em resumo:
+Configuração necessária no ambiente de Production:
 
 1. Conferir DATABASE_URL de Production terminando em `/ifix` e MYSQL_SSL_CA_PEM completo, sem MYSQL_SSL_CA simultâneo.
 2. Configurar SECRET_KEY nova de pelo menos 32 caracteres e preservar as credenciais Cloudinary/Brevo.
@@ -167,4 +160,4 @@ Não é necessário arquivo .env, Redis, seed ou inicializador. Os bancos já es
 
 As suítes, os runners e os dados fictícios de demonstração foram removidos do projeto a pedido. Antes da remoção, a regressão local passou com 182 casos após retirar o limitador externo. Isso não comprova implantação ou concorrência real desta versão no Aiven; nenhum acesso remoto foi realizado nesta entrega.
 
-Sem Redis, não há limitação automática de tentativas no backend. As proteções de autorização, CSRF, sessão, TLS, uploads e transações permanecem. O total de upload é 4 MiB por requisição. E-mail é best-effort depois do commit; foto de chamado usa Cloudinary authenticated, enquanto avatar/certificados são públicos. Detalhes em [docs/SEGURANCA_PENDENTE.md](docs/SEGURANCA_PENDENTE.md).
+Sem Redis, não há limitação automática de tentativas no backend. As proteções de autorização, CSRF, sessão, TLS, uploads e transações permanecem. O total de upload é 4 MiB por requisição. E-mail é best-effort depois do commit; foto de chamado usa Cloudinary authenticated, enquanto avatar/certificados são públicos.
