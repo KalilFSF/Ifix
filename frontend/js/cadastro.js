@@ -279,6 +279,12 @@ function mostrarContaExistente(elementoMensagem) {
 }
 
 async function enviarCadastro(form, url, elementoMensagem) {
+    const aceite = form.querySelector('input[name="aceite_termos"]');
+    if (!aceite || !aceite.checked) {
+        mostrarErro("Aceite os Termos de Uso e declare ciência do Aviso de Privacidade para continuar.", elementoMensagem);
+        if (aceite) aceite.focus();
+        return;
+    }
     // FormData funciona tanto pra campos de texto quanto de arquivo
     // (o form do técnico tem enctype implícito porque usamos fetch:
     // o navegador monta o multipart/form-data sozinho a partir do FormData).

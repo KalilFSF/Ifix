@@ -68,6 +68,11 @@ class Usuario(UserMixin, db.Model):
         db.String(5), nullable=False, default=HORARIO_ATENDIMENTO_PADRAO_FIM
     )
 
+    # NULL em contas antigas: não atribuir retroativamente um aceite inexistente.
+    termos_versao = db.Column(db.String(32))
+    privacidade_versao = db.Column(db.String(32))
+    termos_aceitos_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"))
+
     criado_em = db.Column(db.DateTime().with_variant(DATETIME(fsp=6), "mysql"), default=lambda: datetime.now(timezone.utc))
 
     perfil_tecnico = db.relationship(
@@ -170,6 +175,8 @@ class Usuario(UserMixin, db.Model):
 
     @classmethod
     def criar(cls, dados, senha, role):
+        from legal import validar_aceite, TERMOS_VERSAO, PRIVACIDADE_VERSAO
+        validar_aceite(dados)
         usuario = cls(
             nome=dados["nome"],
             email=dados["email"],
@@ -187,6 +194,9 @@ class Usuario(UserMixin, db.Model):
             latitude=dados.get("latitude"),
             longitude=dados.get("longitude"),
             role=role,
+            termos_versao=TERMOS_VERSAO,
+            privacidade_versao=PRIVACIDADE_VERSAO,
+            termos_aceitos_em=datetime.now(timezone.utc),
         )
         usuario.set_senha(senha)
         return usuario.salvar()

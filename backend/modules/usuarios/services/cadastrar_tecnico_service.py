@@ -1,4 +1,5 @@
 """Coordena conta, perfil profissional e uploads num único caso de uso transacional."""
+from legal import validar_aceite
 from transactions import atomic, lock_model, lock_child
 from flask import current_app
 
@@ -11,6 +12,7 @@ from utils import salvar_arquivo, validar_campos_comuns, validar_dados_tecnico
 class CadastrarTecnicoService:
     @atomic
     def executar(self, dados, dados_tecnico, senha, confirmar_senha, foto_perfil, diplomas_arquivos):
+        validar_aceite(dados)
         # Email já é de uma conta cliente: não é duplicidade comum, é alguém
         # que já tem conta e quer virar técnico — a conversão exige provar
         # dono fazendo login, então aqui só sinalizamos a situação.

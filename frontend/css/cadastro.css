@@ -584,3 +584,11 @@ textarea:focus-visible{
     transform:rotate(0) scale(1);
 
 }
+
+/* Aceite explícito, sem marcação prévia; links independentes do checkbox. */
+.aceite-documentos { margin: 24px 0; padding: 16px; border: 1px solid var(--border-card); border-radius: 12px; }
+.aceite-documentos-label { display: flex; align-items: flex-start; gap: 12px; line-height: 1.6; cursor: pointer; }
+.aceite-documentos-label input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; margin-top: 4px; accent-color: var(--primary); }
+.aceite-documentos a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+.aceite-documentos .input-helper { margin-top: 10px; line-height: 1.5; }
+.aceite-documentos a:focus-visible, .aceite-documentos input:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }

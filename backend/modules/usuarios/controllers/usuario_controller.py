@@ -146,6 +146,9 @@ class UsuarioController:
         """Lê do formulário os campos que cliente e técnico têm em comum
         (nome, contato, CPF, endereço) — parsing puro da requisição."""
         return {
+            "aceite_termos": form.get("aceite_termos"),
+            "termos_versao": form.get("termos_versao"),
+            "privacidade_versao": form.get("privacidade_versao"),
             "nome": form.get("nome", "").strip(),
             "email": form.get("email", "").strip().lower(),
             "telefone": form.get("telefone", "").strip(),

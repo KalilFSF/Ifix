@@ -26,6 +26,18 @@ def index():
     return current_app.send_static_file("index.html")
 
 
+@pages_bp.get("/termos")
+def termos():
+    from legal import TERMOS_VERSAO
+    return current_app.send_static_file(f"pages/legal/{TERMOS_VERSAO}/termos.html")
+
+
+@pages_bp.get("/privacidade")
+def privacidade():
+    from legal import PRIVACIDADE_VERSAO
+    return current_app.send_static_file(f"pages/legal/{PRIVACIDADE_VERSAO}/privacidade.html")
+
+
 @pages_bp.route("/cadastro")
 def cadastro():
     """Mostra a tela de "Cliente ou Técnico?" com os dois formulários

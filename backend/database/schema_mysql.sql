@@ -30,6 +30,9 @@ CREATE TABLE usuarios (
 	suspenso BOOL NOT NULL DEFAULT 0,
 	horario_inicio_atendimento VARCHAR(5) NOT NULL DEFAULT '08:00',
 	horario_fim_atendimento VARCHAR(5) NOT NULL DEFAULT '18:00',
+	termos_versao VARCHAR(32),
+	privacidade_versao VARCHAR(32),
+	termos_aceitos_em DATETIME(6),
 	criado_em DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
 	PRIMARY KEY (id)
 )ENGINE=InnoDB CHARSET=utf8mb4 COLLATE utf8mb4_0900_as_ci;

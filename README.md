@@ -161,3 +161,11 @@ Não é necessário arquivo .env, Redis, seed ou inicializador. Os bancos já es
 As suítes, os runners e os dados fictícios de demonstração foram removidos do projeto a pedido. Antes da remoção, a regressão local passou com 182 casos após retirar o limitador externo. Isso não comprova implantação ou concorrência real desta versão no Aiven; nenhum acesso remoto foi realizado nesta entrega.
 
 Sem Redis, não há limitação automática de tentativas no backend. As proteções de autorização, CSRF, sessão, TLS, uploads e transações permanecem. O total de upload é 4 MiB por requisição. E-mail é best-effort depois do commit; foto de chamado usa Cloudinary authenticated, enquanto avatar/certificados são públicos.
+
+## Aceite de termos no cadastro
+
+Clientes e técnicos devem marcar uma caixa inicialmente desmarcada, com links para os Termos de Uso e o Aviso de Privacidade em abas separadas. As páginas /termos e /privacidade são públicas. O backend exige aceite explícito e versões vigentes; salva versões e data UTC na mesma transação da conta. Geolocalização mantém permissão independente. Não há aceite retroativo em contas existentes.
+
+Antes de implantar esta versão em banco existente, executar uma única vez backend/database/migrations/20261105_aceite_documentos.sql, que adiciona três colunas anuláveis em usuarios. Não executar o schema completo ou inicializadores no banco existente. Instruções em docs/termos-e-privacidade.md.
+
+A referência anterior à remoção de testes é histórica. Esta alteração inclui nove testes isolados em tests/test_aceite_cadastro.py, usando SQLite em memória e mocks de efeitos externos. Com as dependências de requirements.txt instaladas, executar na raiz: python -m unittest discover -s tests -v. Esses testes não conectam ao MySQL nem enviam arquivos/e-mails reais.
